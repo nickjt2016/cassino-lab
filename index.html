@@ -340,6 +340,107 @@ html,body,#app{background:#005d0b;color:#fff}
  .table-stage{margin-top:4px}
 }
 @media(prefers-reduced-motion:reduce){.contextual-controls{animation:none}}
+
+
+/* v0.3.3 — Larger, centered card stage and more readable playing controls. */
+.table-area { position:relative; }
+.table-stage {
+  position:absolute; top:45%; left:0; right:0;
+  transform:translateY(-50%); margin:0 auto; padding:0 3px;
+  display:flex; align-items:center; justify-content:center;
+  min-height:0; max-height:calc(100% - 12px); width:100%;
+}
+.table-cards {
+  width:100%; min-height:0; height:auto; max-height:min(43dvh,340px);
+  flex:0 1 auto; margin:0 auto; padding:5px 3px;
+  justify-content:center; align-content:center; align-items:center;
+  gap:clamp(5px,1.8vw,11px); overflow:auto;
+}
+/* When builds exist, reserve equal side gutters: the loose cards remain
+   centered on the whole felt instead of shifting to the left of the builds. */
+.table-stage:has(.table-builds:not(:empty)) .table-cards {
+  width:calc(100% - 2 * clamp(72px,19vw,104px));
+}
+.table-builds:not(:empty) {
+  position:absolute; top:50%; right:0; transform:translateY(-50%);
+  max-width:clamp(70px,19vw,104px); max-height:min(36dvh,250px);
+  align-items:center; justify-content:center; overflow-y:auto;
+}
+.playing-card { width:clamp(61px,18.5vw,92px); }
+.human-hand { gap:clamp(7px,2.1vw,14px); }
+.opponent-tag, .your-score-tag { font-size:clamp(13px,3.5vw,16px); padding:5px 14px; }
+.opponent-hand { min-height:56px; }
+.card-back { width:clamp(37px,10vw,45px); height:clamp(52px,14vw,63px); }
+.turn-banner { top:73%; font-size:clamp(16px,3.9vw,20px); }
+.game-stats { min-height:51px; }
+.game-stats span { font-size:clamp(11px,2.9vw,14px); }
+.game-stats b { font-size:clamp(19px,5.2vw,24px); }
+.header-actions .game-help { min-width:33px; min-height:36px; font-size:23px; }
+.build-top b { font-size:clamp(12px,3.4vw,15px); }
+.build-group .playing-card.mini { width:clamp(54px,15vw,70px); height:clamp(20px,5.6vw,27px)!important; }
+.build-groups { max-height:min(30dvh,190px); }
+.variations-content .variation-row { min-height:64px; }
+.variations-content .variation-row span,
+.variations-content .preset-choice span { font-size:clamp(15px,3.8vw,19px); }
+@media(max-height:700px) {
+  .table-stage { top:43%; }
+  .table-cards { max-height:min(38dvh,230px); }
+  .playing-card { width:clamp(52px,16.7vw,73px); }
+  .opponent-tag, .your-score-tag { font-size:12px; padding:3px 10px; }
+  .opponent-hand { min-height:41px; }
+  .card-back { width:31px; height:43px; }
+  .turn-banner { top:75%; font-size:14px; }
+  .game-stats { min-height:34px; }
+  .game-stats span { font-size:10px; }
+  .game-stats b { font-size:16px; }
+  .header-actions .game-help { min-width:28px; min-height:30px; font-size:18px; }
+  .table-builds:not(:empty) { max-height:min(35dvh,180px); }
+}
+@media(orientation:landscape) and (max-height:450px) {
+  .table-stage { top:42%; max-height:100%; }
+  .table-cards { max-height:clamp(66px,23dvh,108px); }
+  .playing-card { width:clamp(39px,6.6vw,57px); }
+  .table-stage:has(.table-builds:not(:empty)) .table-cards { width:calc(100% - 2 * 70px); }
+  .table-builds:not(:empty) { max-width:75px; max-height:100px; }
+  .build-group .playing-card.mini { height:16px!important; width:48px; }
+  .turn-banner { top:78%; font-size:12px; }
+  .opponent-hand { min-height:27px; }
+  .card-back { width:20px; height:27px; }
+  .game-stats { height:24px; min-height:24px; }
+  .game-stats span { font-size:9px; }
+  .game-stats b { font-size:13px; }
+}
+
+/* v0.4 – unobtrusive contextual move prompts in the open felt, not over hand */
+.felt { position:relative; }
+.contextual-controls {
+  position:absolute; z-index:16; left:50%; top:66%;
+  width:min(90%,490px); translate:-50% -50%;
+  margin:0; border:0; box-shadow:none; background:transparent;
+  padding:0; animation:none; pointer-events:none;
+}
+.contextual-controls .main-actions {
+  display:flex; max-height:min(22dvh,165px); overflow-y:auto;
+  flex-wrap:wrap; gap:8px; justify-content:center; padding:3px;
+  scrollbar-width:thin; pointer-events:auto;
+}
+.contextual-controls .action-btn {
+  flex:0 1 auto; min-width:118px; max-width:min(92%,225px);
+  font-size:clamp(13px,3.5vw,17px); font-weight:750;
+  min-height:44px; padding:8px 16px;
+  border-radius:15px; box-shadow:0 4px 12px #002b0d77;
+}
+.felt:has(.contextual-controls) .turn-banner{opacity:.32;}
+@media(max-height:700px) {
+ .contextual-controls {top:68%;width:min(93%,450px)}
+ .contextual-controls .main-actions{max-height:min(21dvh,125px);gap:5px}
+ .contextual-controls .action-btn{min-width:100px;min-height:34px;padding:5px 10px;font-size:12px}
+}
+@media(orientation:landscape) and (max-height:450px) {
+ .contextual-controls {position:absolute; top:66%;left:50%;translate:-50% -50%;order:unset;width:min(80%,390px);margin:0;}
+ .contextual-controls .main-actions{max-height:68px;gap:4px}
+ .contextual-controls .action-btn{min-height:25px;font-size:10px;padding:3px 8px;min-width:74px}
+}
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -354,7 +455,9 @@ html,body,#app{background:#005d0b;color:#fff}
   const DEFAULT_RULES = Object.freeze({
     name: 'Classic Cassino', royal: false, spadeScoring: false,
     sweepPoints: 0, builds: true, multipleBuilds: true,
-    allowTrailWithOwnBuild: false, drawMode: false, sweepCancel: false, winningScore: 21, difficulty: 'thoughtful'
+    allowTrailWithOwnBuild: false, drawMode: false, sweepCancel: false,
+    royalAces: false, royalBigLittle: false, pirateCaptures: false,
+    pirateBuilds: false, buildAnything: false, winningScore: 21, difficulty: 'thoughtful'
   });
   const PRESETS = Object.freeze({
     classic: { name: 'Classic Cassino', royal: false, spadeScoring: false, sweepPoints: 0, builds: true, multipleBuilds: true, allowTrailWithOwnBuild: false, winningScore: 21 },
@@ -371,6 +474,39 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   function cardValue(card, rules) {
     return card.rank <= 10 || rules.royal ? card.rank : null;
+  }
+  // A few established/house variants let certain cards play at two values.
+  // Keep both possibilities until a move commits to a legal total.
+  function cardValues(card, rules) {
+    const base = cardValue(card, rules);
+    if (base === null) return [];
+    const values = [base];
+    if (rules.royalAces && card.rank === 1) values.push(14);
+    if (rules.royalBigLittle && card.id === 'S2') values.push(15);
+    if (rules.royalBigLittle && card.id === 'D10') values.push(16);
+    return values;
+  }
+  function maxBuildValue(rules) {
+    return rules.royalBigLittle ? 16 : rules.royalAces ? 14 : rules.royal ? 13 : 10;
+  }
+  function hasValue(hand, value, rules) {
+    return hand.some(c => cardValues(c, rules).includes(value));
+  }
+  function findValuePartition(cards, target, desired, rules) {
+    // Enumerate alternative card values only for the few special cards; ordinary
+    // hands take the same fast path as classic Cassino.
+    const possible = cards.map(x => cardValues(x.card, rules));
+    if (possible.some(vals => !vals.length)) return null;
+    const choose = (i, chosen) => {
+      if (i === cards.length) return findPartition(chosen, target, desired);
+      for (const v of possible[i]) {
+        if (v > target) continue;
+        const result = choose(i + 1, [...chosen, {card:cards[i].card, v}]);
+        if (result) return result;
+      }
+      return null;
+    };
+    return choose(0, []);
   }
   function makeDeck() {
     return SUITS.flatMap(suit => Array.from({ length: 13 }, (_, i) => ({
@@ -417,7 +553,7 @@ html,body,#app{background:#005d0b;color:#fff}
     return element.type === 'loose' ? [element.card] : element.groups.flat();
   }
   function valueHeld(hand, value, rules) {
-    return hand.some(c => cardValue(c, rules) === value);
+    return hasValue(hand, value, rules);
   }
   function findPartition(cards, target, desired = 'any') {
     if (!cards.length || !Number.isInteger(target) || target < 1) return null;
@@ -452,77 +588,70 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   function ownBuildObligation(state, table, hand, player) {
     for (const element of table) {
-      if (element.type === 'build' && element.owner === player && !valueHeld(hand, element.value, state.rules)) {
+      if (element.type === 'build' && element.owner === player && !state.rules.buildAnything && !valueHeld(hand, element.value, state.rules)) {
         return `You must retain a ${element.value} to capture your existing build.`;
       }
     }
     return null;
   }
   function describeCapture(selection, card, rules) {
-    if (!selection.length) return { ok: false, reason: 'Select at least one table card to capture.' };
-    const value = cardValue(card, rules);
-    if (value === null) {
+    if (!selection.length) return { ok:false, reason:'Select at least one table card to capture.' };
+    const playedValues = cardValues(card, rules);
+    if (!playedValues.length) {
       if (selection.length !== 1 || selection[0].type !== 'loose' || selection[0].card.rank !== card.rank) {
-        return { ok: false, reason: 'In Classic Cassino a face card takes exactly one matching loose face card.' };
+        return { ok:false, reason:'A face card captures one equal-rank face card unless Royal Face Cards is enabled.' };
       }
-      return { ok: true };
+      return {ok:true};
     }
-    const loose = [];
-    for (const e of selection) {
-      if (e.type === 'build') {
-        if (e.value !== value) return { ok: false, reason: `A ${e.value}-build must be captured with a ${e.value}, not added into a larger sum.` };
-      } else {
-        const v = cardValue(e.card, rules);
-        if (v === null) return { ok: false, reason: 'Numbered cards cannot capture face cards in Classic Cassino.' };
-        loose.push({ card: e.card, v });
-      }
+    const loose = selection.filter(e => e.type === 'loose').map(e => ({card:e.card}));
+    const builds = selection.filter(e => e.type === 'build');
+    for (const value of playedValues) {
+      if (builds.some(e => e.value !== value)) continue;
+      if (loose.length && !findValuePartition(loose, value, 'any', rules)) continue;
+      if (builds.length || loose.length) return {ok:true, value};
     }
-    if (loose.length && !findPartition(loose, value)) {
-      return { ok: false, reason: `Selected loose cards must divide into separate groups totaling ${value}.` };
-    }
-    return { ok: true };
+    return {ok:false, reason:'Selected cards must form matching groups at one legal value (builds must match exactly).'};
   }
   function describeBuild(selection, card, remainingHand, rules, requestedValue, requestedMode) {
-    if (!rules.builds) return { ok: false, reason: 'Building is disabled in these rules.' };
-    const playedValue = cardValue(card, rules);
-    if (playedValue === null) return { ok: false, reason: 'Face cards cannot build unless Royal values are enabled.' };
-    if (!Number.isInteger(requestedValue) || requestedValue < 1 || requestedValue > (rules.royal ? 13 : 10)) {
-      return { ok: false, reason: 'Choose a valid build value.' };
+    if (!rules.builds) return { ok:false, reason:'Building is disabled.' };
+    const playedValues = cardValues(card, rules);
+    if (!playedValues.length) return {ok:false,reason:'This card has no numerical build value.'};
+    if (!Number.isInteger(requestedValue) || requestedValue < 1 || requestedValue > maxBuildValue(rules)) {
+      return {ok:false, reason:'Choose a valid build value.'};
     }
-    if (!valueHeld(remainingHand, requestedValue, rules)) {
-      return { ok: false, reason: `You must keep a ${requestedValue} in hand to capture the build.` };
+    if (!rules.buildAnything && !valueHeld(remainingHand, requestedValue, rules)) {
+      return {ok:false,reason:`Keep a ${requestedValue} in hand to capture your build (or enable Build To Anything).`};
     }
     const builds = selection.filter(e => e.type === 'build');
-    const loose = selection.filter(e => e.type === 'loose');
-    if (builds.length > 1) return { ok: false, reason: 'Separate existing builds cannot be combined.' };
-    const looseValues = loose.map(e => ({ card: e.card, v: cardValue(e.card, rules) }));
-    if (looseValues.some(x => x.v === null)) return { ok: false, reason: 'Face cards cannot be included in a Classic build.' };
-
-    if (!builds.length) {
-      if (!loose.length) return { ok: false, reason: 'Select at least one loose card to make a build.' };
-      const groups = findPartition([{ card, v: playedValue }, ...looseValues], requestedValue, requestedMode === 'single' ? 'single' : requestedMode === 'multiple' ? 'multiple' : 'any');
-      if (!groups) return { ok: false, reason: 'Those cards cannot form the requested single or multiple build.' };
-      if (groups.length > 1 && !rules.multipleBuilds) return { ok: false, reason: 'Multiple builds are disabled.' };
-      return { ok: true, build: { value: requestedValue, groups, kind: groups.length === 1 ? 'single' : 'multiple', operation: 'create' } };
+    const loose = selection.filter(e => e.type === 'loose').map(e => ({card:e.card}));
+    if (builds.length > 1) return {ok:false,reason:'Separate existing builds cannot be combined.'};
+    if (loose.some(x => !cardValues(x.card, rules).length)) {
+      return {ok:false,reason:'Face cards need numerical Royal values to form builds.'};
     }
-
+    if (!builds.length) {
+      if (!loose.length) return {ok:false,reason:'Select at least one table card to build.'};
+      const groups = findValuePartition([{card}, ...loose], requestedValue,
+        requestedMode === 'single' ? 'single' : requestedMode === 'multiple' ? 'multiple' : 'any', rules);
+      if (!groups) return {ok:false,reason:'Selected cards do not form the requested build.'};
+      if (groups.length > 1 && !rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
+      return {ok:true,build:{value:requestedValue,groups,kind:groups.length===1?'single':'multiple',operation:'create'}};
+    }
     const current = builds[0];
     if (requestedValue === current.value && requestedMode !== 'raise') {
-      if (!rules.multipleBuilds) return { ok: false, reason: 'Extending a build into a multiple build is disabled.' };
-      const groups = findPartition([{ card, v: playedValue }, ...looseValues], current.value);
-      if (!groups) return { ok: false, reason: `Your played card and selected loose cards must make complete groups of ${current.value}.` };
-      return { ok: true, build: { value: current.value, groups: current.groups.concat(groups), kind: 'multiple', operation: 'extend' } };
+      if (!rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
+      const groups = findValuePartition([{card}, ...loose], current.value, 'any', rules);
+      if (!groups) return {ok:false,reason:'The additional group must equal the build value.'};
+      return {ok:true,build:{value:current.value,groups:current.groups.concat(groups),kind:'multiple',operation:'extend'}};
     }
-    if (requestedMode === 'extend') return { ok: false, reason: 'Extending a build preserves its target value.' };
-    if (current.groups.length > 1) return { ok: false, reason: 'A multiple build can never be raised.' };
-    if (current.value + playedValue !== requestedValue) {
-      return { ok: false, reason: `Raising this build with ${cardName(card)} makes ${current.value + playedValue}, not ${requestedValue}.` };
+    if (requestedMode === 'extend') return {ok:false,reason:'Extending preserves the build value.'};
+    if (current.groups.length > 1) return {ok:false,reason:'A multiple build cannot be raised.'};
+    if (!playedValues.some(v => current.value + v === requestedValue)) {
+      return {ok:false,reason:'The card played must raise this build to its new value.'};
     }
-    // Strict Pagat rule: loose table cards can only form *additional complete groups*.
-    const extraGroups = looseValues.length ? findPartition(looseValues, requestedValue) : [];
-    if (!extraGroups) return { ok: false, reason: 'Loose table cards cannot help raise the old group; they must make complete additional groups.' };
-    if (extraGroups.length && !rules.multipleBuilds) return { ok: false, reason: 'Multiple builds are disabled.' };
-    return { ok: true, build: { value: requestedValue, groups: [current.groups[0].concat(card), ...extraGroups], kind: extraGroups.length ? 'multiple' : 'single', operation: 'raise' } };
+    const extraGroups = loose.length ? findValuePartition(loose, requestedValue, 'any', rules) : [];
+    if (!extraGroups) return {ok:false,reason:'Loose cards must form extra complete groups when raising.'};
+    if (extraGroups.length && !rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
+    return {ok:true,build:{value:requestedValue,groups:[current.groups[0].concat(card),...extraGroups],kind:extraGroups.length?'multiple':'single',operation:'raise'}};
   }
   function validateAction(state, action) {
     if (!state || state.phase !== 'playing') return { ok: false, reason: 'This hand has ended.' };
@@ -545,8 +674,17 @@ html,body,#app{background:#005d0b;color:#fff}
       }
       outcome = { ok: true };
     } else if (action.kind === 'capture') {
+      // The reference app calls these relaxed restrictions Pirate Captures.
+      const own = state.table.filter(e => e.type === 'build' && e.owner === player);
+      if (own.length && !state.rules.pirateCaptures && !own.some(e => selectedIds.includes(e.id))) {
+        return {ok:false,reason:'Capture your own build first, or enable Pirate Captures.'};
+      }
       outcome = describeCapture(selected, card, state.rules);
     } else {
+      const own = state.table.filter(e => e.type === 'build' && e.owner === player);
+      if (own.length && !state.rules.pirateBuilds && !own.some(e => selectedIds.includes(e.id))) {
+        return {ok:false,reason:'Finish your current build first, or enable Pirate Builds.'};
+      }
       outcome = describeBuild(selected, card, remainingHand, state.rules, action.value, action.mode);
     }
     if (!outcome.ok) return outcome;
@@ -561,7 +699,7 @@ html,body,#app{background:#005d0b;color:#fff}
   function legalBuildOptions(state, cardId, targetIds) {
     if (!state.rules.builds || !cardId) return [];
     const hand = state.players[state.turn].hand;
-    const values = [...new Set(hand.filter(c => c.id !== cardId).map(c => cardValue(c, state.rules)).filter(v => v !== null))];
+    const values = state.rules.buildAnything ? Array.from({length:maxBuildValue(state.rules)},(_,i)=>i+1) : [...new Set(hand.filter(c => c.id !== cardId).flatMap(c => cardValues(c, state.rules)))];
     const selection = (targetIds || []).map(id => state.table.find(e => e.id === id));
     const hasBuild = selection.some(e => e && e.type === 'build');
     const possibilities = [];
@@ -569,7 +707,11 @@ html,body,#app{background:#005d0b;color:#fff}
       for (const mode of hasBuild ? ['extend', 'raise'] : ['single', 'multiple']) {
         const action = { kind: 'build', cardId, targetIds: targetIds || [], value, mode };
         const check = validateAction(state, action);
-        if (check.ok) possibilities.push({ ...action, label: `${check.build.operation === 'raise' ? 'Raise to' : check.build.operation === 'extend' ? 'Extend' : check.build.kind === 'multiple' ? 'Build multiples of' : 'Build'} ${value}`, detail: check.build.kind });
+        if (check.ok) {
+          const valueLabel = ({11:'J',12:'Q',13:'K',14:'A (14)',15:'2♠ (15)',16:'10♦ (16)'})[value] || String(value);
+          const title = check.build.operation === 'raise' ? 'Raise to' : check.build.operation === 'extend' ? 'Multiple build' : check.build.kind === 'multiple' ? 'Multiple build' : 'Build';
+          possibilities.push({...action,label:`${title} ${valueLabel}`,detail:check.build.kind});
+        }
       }
     }
     return possibilities;
@@ -670,26 +812,33 @@ html,body,#app{background:#005d0b;color:#fff}
   // All loose-card subsets whose sum is value. Pruned by positive card values.
   function valueGroups(state, target, max = 160) {
     const matching = state.table.filter(e => e.type === 'build' && e.value === target).map(e => [e.id]);
-    const loose = state.table.filter(e => e.type === 'loose' && cardValue(e.card, state.rules) !== null)
-      .map(e => ({ id: e.id, v: cardValue(e.card, state.rules) }));
-    const go = (start, total, chosen) => {
+    const loose = state.table.filter(e => e.type === 'loose' && cardValues(e.card,state.rules).length)
+      .map(e => ({id:e.id, vals:cardValues(e.card,state.rules)}));
+    const seen = new Set(matching.map(group=>group.join(',')));
+    const go = (start,total,chosen) => {
       if (matching.length >= max) return;
-      if (total === target) { matching.push([...chosen]); return; }
+      if (total === target) {
+        const key = chosen.join(',');
+        if (!seen.has(key)) {seen.add(key); matching.push([...chosen]);}
+        return;
+      }
       for (let i = start; i < loose.length; i++) {
-        if (total + loose[i].v > target) continue;
-        go(i + 1, total + loose[i].v, [...chosen, loose[i].id]);
-        if (matching.length >= max) break;
+        for (const v of loose[i].vals) {
+          if (total + v > target) continue;
+          go(i+1,total+v,[...chosen,loose[i].id]);
+          if (matching.length >= max) return;
+        }
       }
     };
-    go(0, 0, []);
+    go(0,0,[]);
     return matching;
   }
   function captureChoices(state, card, limit = 110) {
-    const value = cardValue(card, state.rules);
-    if (value === null) {
+    const values = cardValues(card, state.rules);
+    if (!values.length) {
       return state.table.filter(e => e.type === 'loose' && e.card.rank === card.rank).map(e => ({ kind: 'capture', cardId: card.id, targetIds: [e.id] }));
     }
-    const groups = valueGroups(state, value);
+    const groups = values.flatMap(v => valueGroups(state,v));
     const moves = [];
     const visited = new Set();
     const combine = (start, picked) => {
@@ -784,7 +933,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if (move.kind === 'capture') return `Capture ${move.targetIds.length} table group${move.targetIds.length === 1 ? '' : 's'} with ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))}.`;
     return `${move.label || 'Build'} by combining your card with the selected table cards.`;
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove,
@@ -800,8 +949,10 @@ html,body,#app{background:#005d0b;color:#fff}
   let game, checkpoint = null, pickedCard = null, pickedTable = new Set();
   let toast = '', modal = '', hint = null, busy = false, pendingBot = null;
   let draft = null, draftPreset = 'classic';
-  let detailSetting = ''; 
+  let detailSetting = '';
+  let variationsScrollTop = 0;
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
+  let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
   let hasSavedMatch = false;
   let setup = { difficulty: 'thoughtful', preset: 'classic' };
@@ -844,35 +995,64 @@ html,body,#app{background:#005d0b;color:#fff}
       });
     } catch (_) { /* Audio is optional on restricted browsers. */ }
   }
-  function animateMove(kind, byComputer = false) {
-    if (!prefs.animations || !document.body || (globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  // Fly the actual played card and affected table groups toward their destinations.
+  // Animations are decorative; the rules engine remains authoritative.
+  function animateMove(kind, byComputer = false, move = null) {
+    if (!prefs.animations || !document.body ||
+      (globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
     const from = byComputer
       ? app.querySelector('.opponent-hand .card-back:last-child')
       : app.querySelector('.hand-item.selected .playing-card');
-    if (!from || !from.cloneNode || !from.getBoundingClientRect) return;
-    const origin = from.getBoundingClientRect();
     const destination = kind === 'capture'
       ? app.querySelector(byComputer ? '.opponent-tag' : '.your-score-tag')
-      : app.querySelector('.table-area');
-    if (!destination || !destination.getBoundingClientRect) return;
-    const end = destination.getBoundingClientRect();
-    const ghost = from.cloneNode(true);
-    ghost.className += ' move-ghost';
-    Object.assign(ghost.style, { position: 'fixed', pointerEvents: 'none', zIndex: '60',
-      left: origin.left + 'px', top: origin.top + 'px', margin: '0',
-      width: origin.width + 'px', height: origin.height + 'px' });
-    document.body.appendChild(ghost);
-    const dx = end.left + end.width / 2 - (origin.left + origin.width / 2);
-    const dy = end.top + end.height / 2 - (origin.top + origin.height / 2);
-    if (ghost.animate) {
-      const anim = ghost.animate([
-        { transform: 'translate(0,0) rotate(0deg) scale(1)', opacity: 1 },
-        { transform: `translate(${dx * .48}px,${dy * .48 - 25}px) rotate(-5deg) scale(1.06)`, opacity: .95, offset: .55 },
-        { transform: `translate(${dx}px,${dy}px) rotate(7deg) scale(.55)`, opacity: .12 }
-      ], { duration: 330, easing: 'cubic-bezier(.22,.8,.28,1)' });
-      anim.onfinish = () => ghost.remove();
-      anim.oncancel = () => ghost.remove();
-    } else ghost.remove();
+      : (kind === 'build' ? app.querySelector('.table-builds') : app.querySelector('.table-cards'));
+    const intermediate = app.querySelector('.table-stage') || app.querySelector('.table-area');
+    if (!from || !destination || !intermediate || !from.getBoundingClientRect) return;
+    const played = move && game.players[byComputer ? 1 : 0].hand.find(c => c.id === move.cardId);
+    const duration = byComputer ? 820 : 610;
+    const center = rect => ({x:rect.left + rect.width/2, y:rect.top + rect.height/2});
+    const goal = center(destination.getBoundingClientRect());
+    const mid = center(intermediate.getBoundingClientRect());
+    function fly(source, destinationPoint, face = null, via = null, stagger = 0) {
+      if (!source || !source.getBoundingClientRect) return;
+      const start = source.getBoundingClientRect();
+      if (!start.width || !start.height) return;
+      const ghost = face ? document.createElement('div') : source.cloneNode(true);
+      if (face) ghost.innerHTML = renderCard(face);
+      ghost.className += ' move-ghost';
+      Object.assign(ghost.style, {
+        position:'fixed',pointerEvents:'none',zIndex:'65',
+        left:start.left+'px',top:start.top+'px',width:start.width+'px',height:start.height+'px',margin:'0',
+        transformOrigin:'center',willChange:'transform, opacity'
+      });
+      const inner=ghost.querySelector('.playing-card');
+      if(inner) Object.assign(inner.style,{width:'100%',height:'100%',margin:'0'});
+      document.body.appendChild(ghost);
+      const fromCenter=center(start);
+      const to=(point,rot=0,scale=1)=>`translate(${point.x-fromCenter.x}px,${point.y-fromCenter.y}px) rotate(${rot}deg) scale(${scale})`;
+      const frames=via ? [
+        {transform:to(fromCenter),opacity:1,offset:0},
+        {transform:to({x:(fromCenter.x+via.x)/2,y:(fromCenter.y+via.y)/2-18},-6,1.02),opacity:1,offset:.28},
+        {transform:to(via,3,1),opacity:1,offset:.55},
+        {transform:to(destinationPoint,5,.52),opacity:.1,offset:1}
+      ] : [
+        {transform:to(fromCenter),opacity:1},
+        {transform:to({x:(fromCenter.x+destinationPoint.x)/2,y:(fromCenter.y+destinationPoint.y)/2-18},-4,1.05),opacity:1,offset:.53},
+        {transform:to(destinationPoint,5,.66),opacity:.1}
+      ];
+      if (ghost.animate) {
+        const anim=ghost.animate(frames,{duration,delay:stagger,easing:'cubic-bezier(.25,.75,.25,1)'});
+        anim.onfinish=()=>ghost.remove(); anim.oncancel=()=>ghost.remove();
+      } else ghost.remove();
+    }
+    fly(from,goal,byComputer?played:null,kind==='capture'?mid:null);
+    if(move && (kind==='capture' || kind==='build')) {
+      const tableDestination=kind==='capture'?goal:mid;
+      for(const [index,id] of (move.targetIds||[]).entries()) {
+        const tableNode=Array.from(app.querySelectorAll('[data-action="table"]')).find(x=>x.dataset.id===id);
+        if(tableNode) fly(tableNode,tableDestination,null,null,index*65);
+      }
+    }
   }
   const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 
@@ -946,7 +1126,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.3.2 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.0 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -963,9 +1143,21 @@ html,body,#app{background:#005d0b;color:#fff}
       </div>
       <div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="start-game" class="action-btn primary">Start Game</button></div>`;
   }
+  // A full render replaces the scroll container. Preserve its position whenever
+  // a variation changes (and while opening an explanation of a setting).
+  function rememberVariationsScroll() {
+    const scrollArea = app && app.querySelector && app.querySelector('.variations-content');
+    if (scrollArea) variationsScrollTop = scrollArea.scrollTop;
+  }
+  function restoreVariationsScroll() {
+    if (modal !== 'settings') return;
+    const scrollArea = app && app.querySelector && app.querySelector('.variations-content');
+    if (scrollArea) scrollArea.scrollTop = Math.min(variationsScrollTop, Math.max(0, scrollArea.scrollHeight - scrollArea.clientHeight));
+  }
   function render() {
     if (!app) return;
-    if (screen === 'home') { app.innerHTML = renderHome(); return; }
+    rememberVariationsScroll();
+    if (screen === 'home') { app.innerHTML = renderHome(); restoreVariationsScroll(); return; }
     if (game.phase !== 'playing') { pickedCard = null; pickedTable.clear(); }
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) { pickedCard = null; pickedTable.clear(); }
     const active = isHumanTurn();
@@ -977,7 +1169,7 @@ html,body,#app{background:#005d0b;color:#fff}
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
     const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
-    const phaseText = game.phase !== 'playing' ? 'Hand finished' : busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn';
+    const phaseText = game.phase !== 'playing' ? 'Hand finished' : (hint && toast) || moveAnnouncement || (busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn');
     const statusText = hint && toast ? toast : chosen
       ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
       : 'Choose a card from your hand, then choose table cards.';
@@ -1004,16 +1196,12 @@ html,body,#app{background:#005d0b;color:#fff}
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
             <div class="turn-banner" aria-live="polite">${phaseText}</div>
           </div>
-          ${active && pickedCard ? `<section class="controls contextual-controls" aria-label="Available moves">
-            <div class="selection-row"><span class="selection-status">${escapeHtml(statusText)}</span>
-              <button class="mini-tool" data-action="clear" title="Deselect card" aria-label="Clear selection">×</button>
+          ${active && pickedCard && visibleActionCount ? `<section class="controls contextual-controls" aria-label="Legal moves">
+            <div class="main-actions">
+              ${buildOptions.map((o,i) => `<button class="action-btn build-main" data-action="build" data-index="${i}">${escapeHtml(o.label)}</button>`).join('')}
+              ${canTrail ? '<button class="action-btn" data-action="trail">Trail</button>' : ''}
+              ${canCapture ? '<button class="action-btn primary" data-action="capture">Capture cards</button>' : ''}
             </div>
-            ${visibleActionCount ? `<div class="main-actions actions-${visibleActionCount}">
-              ${canBuild ? '<button class="action-btn build-main" data-action="build-menu"><span>▣</span> Build</button>' : ''}
-              ${canTrail ? '<button class="action-btn" data-action="trail"><span>↗</span> Trail</button>' : ''}
-              ${canCapture ? '<button class="action-btn primary" data-action="capture"><span>↧</span> Capture</button>' : ''}
-            </div>` : '<div class="selection-feedback">Select a different group or clear your selection.</div>'}
-            ${buildMenuOpen && canBuild ? `<div class="build-choice-panel" role="group" aria-label="Choose build value"><div class="choice-head"><b>Choose a build</b><button data-action="hide-builds" aria-label="Close build options">×</button></div><div class="build-chips">${buildOptions.map((o,i) => `<button class="build-chip" data-action="build" data-index="${i}">${escapeHtml(o.label)} <small>${o.detail}</small></button>`).join('')}</div></div>` : ''}
           </section>` : ''}
           <div class="human-area">
             <div class="player-caption sr-only"><b>Your hand</b></div>
@@ -1023,9 +1211,10 @@ html,body,#app{background:#005d0b;color:#fff}
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.3.2</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.0</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
+    restoreVariationsScroll();
     bindSettings();
   }
   function settingChecked(name) { return draft[name] ? 'checked' : ''; }
@@ -1034,12 +1223,12 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   const SETTING_INFO = {
     royal: ['Face Cards', 'With Royal face cards on, Jacks, Queens and Kings have numerical values 11, 12 and 13 and may participate in sums and builds. Otherwise they capture matching face cards only.'],
-    royalAces: ['Aces', 'Aces may alternatively count as 14. This advanced variation is not implemented yet.'],
-    royalBigLittle: ['2 and 10', 'The 2 of spades can alternatively act as 15, and the 10 of diamonds as 16. This advanced variation is not implemented yet.'],
-    pirateCaptures: ['Captures', 'Allows taking unrelated cards while owning an active build. Alternate capture obligations are not yet implemented.'],
-    pirateBuilds: ['Builds', 'Allows constructing additional independent builds while already owning a build. Alternate building obligations are not yet implemented.'],
+    royalAces: ['Aces', 'Royal Aces may count as either 1 or 14 in captures and builds. The game chooses a legal value for the move.'],
+    royalBigLittle: ['2 and 10', 'Little Cassino (2♠) can count as 2 or 15; Big Cassino (10♦) can count as 10 or 16 in captures and builds.'],
+    pirateCaptures: ['Captures', 'When enabled, you may capture loose cards and other builds while you still own a build. When off, you must first capture your own build.'],
+    pirateBuilds: ['Builds', 'When enabled, you may start another independent build while you own one. Otherwise, resolve your current build first.'],
     allowTrailWithOwnBuild: ['Trails', 'Allows trailing a card onto the table while owning a build, as long as you retain a hand card able to capture that build.'],
-    buildAnything: ['Build To Anything', 'Allows creating builds whose value is not represented in your hand. This experimental rule is not yet implemented.'],
+    buildAnything: ['Build To Anything', 'When enabled, build to any legal card value without holding a matching capture card. This experimental rule can leave a build vulnerable.'],
     drawMode: ['Draw', 'After every turn, the player who played draws a replacement card until the stock is exhausted, rather than waiting for all players to run out of cards.'],
     sweepCancel: ['Sweep', 'When a capture clears the table, award a sweep. At hand scoring, each side scores only the number of sweeps beyond the opponent’s sweep count.'],
     spadeScoring: ['Spade Scoring', 'Every spade captured earns one point, plus a bonus point for the Jack of spades, replacing the ordinary most-spades award.'],
@@ -1062,14 +1251,14 @@ html,body,#app{background:#005d0b;color:#fff}
         <h3>PRESET VARIATIONS</h3><div class="variation-card preset-options">${menu.map(([key,name])=>`<button class="preset-choice" data-action="preset-choice" data-value="${key}"><span>${name}</span><b>${draftPreset===key?'◉':'◯'}</b></button>`).join('')}</div>
         <h3>ROYAL OPTIONS</h3><div class="variation-card">
           ${variationRow('royal','Face Cards')}
-          ${variationRow('royalAces','Aces',true)}
-          ${variationRow('royalBigLittle','2 and 10',true)}
+          ${variationRow('royalAces','Aces')}
+          ${variationRow('royalBigLittle','2 and 10')}
         </div>
         <h3>PIRATE OPTIONS</h3><div class="variation-card">
-          ${variationRow('pirateCaptures','Captures',true)}
-          ${variationRow('pirateBuilds','Builds',true)}
+          ${variationRow('pirateCaptures','Captures')}
+          ${variationRow('pirateBuilds','Builds')}
           ${variationRow('allowTrailWithOwnBuild','Trails',!draft.builds)}
-          ${variationRow('buildAnything','Build To Anything',true)}
+          ${variationRow('buildAnything','Build To Anything',!draft.builds)}
         </div>
         <h3>OTHER OPTIONS</h3><div class="variation-card">
           ${variationRow('drawMode','Draw')}
@@ -1082,7 +1271,7 @@ html,body,#app{background:#005d0b;color:#fff}
         </div>
         <h3>MATCH SETTINGS</h3><label class="setting-select"><b>Winning score</b><select data-setting="winningScore">${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
         <label class="setting-select"><b>Computer difficulty</b><select data-setting="difficulty"><option value="casual" ${draft.difficulty==='casual'?'selected':''}>Easy</option><option value="thoughtful" ${draft.difficulty==='thoughtful'?'selected':''}>Medium</option></select></label>
-        <p class="setting-warning">Switching options begins a new match. Unavailable variations are shown for reference and cannot be enabled yet.</p>
+        <p class="setting-warning">Switching options begins a new match. Custom combinations are experimental; use the ⓘ icons to read how each option changes legal moves.</p>
       </div><div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="apply-settings" class="action-btn primary">Start with these rules</button></div>`;
   }
   function renderSettingInfo() {
@@ -1149,10 +1338,13 @@ html,body,#app{background:#005d0b;color:#fff}
       if (screen !== 'game' || !busy || game.phase !== 'playing' || game.turn !== 1) { busy = false; render(); return; }
       try {
         const move = E.chooseComputerMove(game);
-        animateMove(move.kind, true);
+        animateMove(move.kind, true, move);
         const outcome = E.applyAction(game, move);
         if (!outcome.ok) throw new Error(outcome.reason);
         lastMotion = move.kind;
+        moveAnnouncement = outcome.description;
+        if (announcementTimer !== null) clearTimeout(announcementTimer);
+        announcementTimer = setTimeout(() => { announcementTimer = null; moveAnnouncement = ''; if(screen === 'game' && game.phase === 'playing') render(); }, 2400);
         sound(game.phase !== 'playing' ? 'score' : move.kind);
       } catch (error) {
         toast = `Computer move error: ${error.message}`;
@@ -1161,20 +1353,21 @@ html,body,#app{background:#005d0b;color:#fff}
       if (game.phase !== 'playing') modal = 'round';
       persist(); render();
       if (game.turn === 1 && game.phase === 'playing') botTurn();
-    }, 500);
+    }, 1500);
   }
   function play(action) {
     if (!isHumanTurn()) return;
     const check = E.validateAction(game, action);
     if (!check.ok) { toast = check.reason; render(); return; }
     checkpoint = JSON.stringify(game);
-    animateMove(action.kind);
+    animateMove(action.kind, false, action);
     const result = E.applyAction(game, action);
     if (!result.ok) { toast = result.reason; return render(); }
     lastMotion = action.kind;
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
     toast = result.description;
     resetSelection();
+    moveAnnouncement = '';
     if (game.phase !== 'playing') modal = 'round';
     persist(); render();
     if (game.turn === 1 && game.phase === 'playing') botTurn();
@@ -1203,9 +1396,9 @@ html,body,#app{background:#005d0b;color:#fff}
     screen = 'game'; resetSelection(); draft = null; persist(); render();
     if (game.turn === 1) botTurn();
   }
-  function openSettings() { draft = { ...game.rules }; draftPreset = Object.keys(E.PRESETS).find(k => {
+  function openSettings() { variationsScrollTop = 0; draft = { ...game.rules }; draftPreset = Object.keys(E.PRESETS).find(k => {
     const a = E.PRESETS[k];
-    return ['royal','spadeScoring','sweepPoints','builds','multipleBuilds','allowTrailWithOwnBuild','winningScore'].every(key => a[key] === game.rules[key]) && !game.rules.drawMode && !game.rules.sweepCancel;
+    return ['royal','spadeScoring','sweepPoints','builds','multipleBuilds','allowTrailWithOwnBuild','winningScore'].every(key => a[key] === game.rules[key]) && !['drawMode','sweepCancel','royalAces','royalBigLittle','pirateCaptures','pirateBuilds','buildAnything'].some(key => game.rules[key]);
   }) || 'custom'; modal = 'settings'; render(); }
   function parseSetting(name, raw) {
     if (['sweepPoints', 'winningScore'].includes(name)) return Number(raw);
@@ -1267,7 +1460,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if (action === 'apply-settings') {
       const nextRules = { ...draft };
       if (draftPreset !== 'custom') nextRules.name = E.PRESETS[draftPreset].name;
-      if (!nextRules.builds) { nextRules.multipleBuilds = false; nextRules.allowTrailWithOwnBuild = false; }
+      if (!nextRules.builds) { nextRules.multipleBuilds = false; nextRules.allowTrailWithOwnBuild = false; nextRules.buildAnything = false; nextRules.pirateBuilds = false; }
       if (screen === 'game' && game.phase === 'playing' && !confirm('Start a new match with these rules?')) return;
       return startNewMatch(nextRules, false);
     }
