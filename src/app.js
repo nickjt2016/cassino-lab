@@ -28,7 +28,7 @@
   }
   // Synthesized, original card-table Foley: a short dry click followed by a
   // quiet paper brush.  No audio samples from the reference app are reused.
-  function sound(type = 'tap') {
+  function sound(type = 'tap', dealCount = 12) {
     if (!prefs.sound) return;
     try {
       const Audio = globalThis.AudioContext || globalThis.webkitAudioContext;
@@ -45,7 +45,7 @@
         sweep: [[0, .09, .10], [.09, .085, .09], [.19, .075, .08]],
         score: [[0, .08, .09], [.14, .06, .10]],
         undo: [[0, .042, .05]],
-        deal: [[0, .045, .05], [.075, .045, .05], [.15, .045, .05], [.225, .045, .05]],
+        deal: Array.from({length: dealCount}, (_, i) => [i * .094, i < 4 ? .15 : .13, .072]),
       }[type] || [[0, .04, .045]];
       for (const [offset, volume, duration] of pattern) {
         const frames = Math.ceil(rate * duration);
@@ -54,13 +54,13 @@
         // Crisp attack + a decaying paper/riffle tail; intentionally subtle.
         for (let i = 0; i < frames; i++) {
           const t = i / rate;
-          const body = Math.exp(-t * 72);
-          const brush = Math.exp(-t * 21) * .29;
+          const body = Math.exp(-t * (type === 'deal' ? 56 : 72));
+          const brush = Math.exp(-t * (type === 'deal' ? 30 : 21)) * (type === 'deal' ? .56 : .29);
           channel[i] = (Math.random() * 2 - 1) * (body + brush);
         }
         const src = audioContext.createBufferSource(); src.buffer = buffer;
         const filter = audioContext.createBiquadFilter();
-        filter.type = 'bandpass'; filter.frequency.value = type === 'tap' ? 1800 : 1050;
+        filter.type = 'bandpass'; filter.frequency.value = type === 'deal' ? 1150 + 130 * (Math.round(offset / .094) % 3) : (type === 'tap' ? 1800 : 1050);
         filter.Q.value = .53;
         const gain = audioContext.createGain();
         gain.gain.setValueAtTime(volume, now + offset);
@@ -74,6 +74,24 @@
   // their actual positions in the newly rendered state.  Nothing fades except
   // cards being captured.  The opponent's card is turned face-up in flight.
   let motionGeneration = 0;
+  // Cards are physically dealt from the visible stock on the left of the felt.
+  // Track actual card IDs so draw-mode only animates replacement cards.
+  let pendingDeal = null;
+  let pendingStockOrigin = null;
+  function collectDeal(beforeHuman = [], beforeCpu = [], beforeTable = []) {
+    const oldHuman = new Set(beforeHuman), oldCpu = new Set(beforeCpu), oldTable = new Set(beforeTable);
+    const humanIds = game.players[0].hand.filter(c => !oldHuman.has(c.id)).map(c => c.id);
+    const cpuIndices = game.players[1].hand.map((c,i) => !oldCpu.has(c.id) ? i : -1).filter(i => i >= 0);
+    const tableIds = game.table.filter(e => e.type === 'loose' && !oldTable.has(e.card.id)).map(e => e.card.id);
+    pendingDeal = { humanIds, cpuIndices, tableIds };
+  }
+  function rememberStockOrigin() {
+    const node = app.querySelector && app.querySelector('.draw-stock .stock-back');
+    if (!node) return;
+    const r = node.getBoundingClientRect();
+    pendingStockOrigin = {x:r.left+r.width/2,y:r.top+r.height/2};
+  }
+
   const motionAllowed = () => !!prefs.animations &&
     !(globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
@@ -110,23 +128,42 @@
         {duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});
     });
   }
-  function animateNewDeal() {
-    if (!motionAllowed() || !app.querySelectorAll) return;
-    const stock = app.querySelector('.game-stats');
-    if(!stock) return;
-    const sr=stock.getBoundingClientRect();
-    const start={x:sr.left+sr.width*.84,y:sr.top+sr.height/2};
-    const cards=[...app.querySelectorAll('.opponent-hand .card-back'),
-      ...app.querySelectorAll('.human-hand .playing-card')];
+  function animateNewDeal(includeTable = true) {
+    if (!motionAllowed() || !app.querySelectorAll) { pendingDeal = null; pendingStockOrigin = null; return; }
+    const deck = app.querySelector('.draw-stock .stock-back');
+    const r=deck?.getBoundingClientRect();
+    const start=pendingStockOrigin || (r ? {x:r.left+r.width/2,y:r.top+r.height/2}:null);
+    if(!start) { pendingDeal = null; return; }
+    const deal = pendingDeal || {
+      humanIds:game.players[0].hand.map(c => c.id),
+      cpuIndices:game.players[1].hand.map((_,i)=>i),
+      tableIds:includeTable?game.table.filter(e=>e.type==='loose').map(e=>e.card.id):[]
+    };
+    const cards=[];
+    if(includeTable) for(const id of deal.tableIds) {
+      const node=Array.from(app.querySelectorAll('.table-cards .playing-card')).find(el=>el.dataset.cardId===id);
+      if(node)cards.push(node);
+    }
+    const backs=[...app.querySelectorAll('.opponent-hand .card-back')];
+    const human=deal.humanIds.map(id=>Array.from(app.querySelectorAll('.human-hand .playing-card')).find(el=>el.dataset.cardId===id)).filter(Boolean);
+    const cpu=deal.cpuIndices.map(i=>backs[i]).filter(Boolean);
+    for(let i=0;i<Math.max(human.length,cpu.length);i++) {
+      if(cpu[i])cards.push(cpu[i]);
+      if(human[i])cards.push(human[i]);
+    }
+    pendingDeal = null;
+    pendingStockOrigin = null;
     cards.forEach((card,i)=>{
-      if(!card.animate) return;
-      const r=card.getBoundingClientRect();
-      const dx=start.x-(r.left+r.width/2),dy=start.y-(r.top+r.height/2);
+      if(!card.animate)return;
+      const rect=card.getBoundingClientRect();
+      const dx=start.x-(rect.left+rect.width/2),dy=start.y-(rect.top+rect.height/2);
       card.animate([
-        {translate:`${dx}px ${dy}px`,rotate:i%2?'7deg':'-7deg'},
+        {translate:`${dx}px ${dy}px`,rotate:(i%2?'6deg':'-6deg')},
         {translate:'0px 0px',rotate:'0deg'}
-      ],{duration:540,delay:i*48,easing:'cubic-bezier(.2,.84,.22,1)',fill:'backwards'});
+      ],{duration:460,delay:i*94,easing:'cubic-bezier(.2,.84,.22,1)',fill:'backwards'});
     });
+    const stockCount = app.querySelector('.draw-stock-count');
+    if(stockCount && stockCount.animate) stockCount.animate([{scale:1.06},{scale:1}],{duration:250});
   }
   function animateTurnMessage(previous) {
     if (!motionAllowed() || !app.querySelector || previous===null) return;
@@ -153,58 +190,252 @@
     if (!playerCard) return null;
     const groupRects = (move.targetIds || []).map(id => {
       const node = Array.from(app.querySelectorAll('[data-action="table"]')).find(el => el.dataset.id === id);
-      return node ? {rect:rect(node),html:node.querySelector('.playing-card')?.outerHTML || node.outerHTML} : null;
+      return node ? {
+        rect:rect(node),html:node.querySelector('.build-pile')?.outerHTML || node.querySelector('.playing-card')?.outerHTML || node.outerHTML,
+        cards:[...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
+          id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
+        }))
+      } : null;
     }).filter(Boolean);
-    return {kind:move.kind,byComputer,played:{rect:rect(from),html:renderCard(playerCard)},groups:groupRects};
+    const selected = new Set(move.targetIds || []);
+    const remainingCards = [...app.querySelectorAll('[data-action="table"][data-id]')]
+      .filter(node => move.kind !== 'capture' || !selected.has(node.dataset.id))
+      .flatMap(node => [...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
+        id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
+      })));
+    return {kind:move.kind,byComputer,played:{id:playerCard.id,rect:rect(from),html:renderCard(playerCard)},groups:groupRects,remainingCards};
   }
   function playMotion(snapshot, after) {
-    if (!snapshot || !document.body || !app.querySelector) { after(); return; }
+    if (!snapshot || !motionAllowed() || !document.body || !app.querySelector) { after(); return; }
     const generation = motionGeneration;
     const capture = snapshot.kind === 'capture';
-    const target = capture
+    const destination = capture
       ? app.querySelector(snapshot.byComputer ? '.opponent-tag' : '.your-score-tag')
-      : app.querySelector(`[data-action="table"][data-id="${game.table[game.table.length-1]?.id}"]`);
-    if (!target || !target.getBoundingClientRect) { after(); return; }
-    const targetRect = target.getBoundingClientRect();
+      : app.querySelector(`[data-action="table"][data-id="${game.table[game.table.length-1]?.id}"]`) ||
+        (snapshot.finalHand ? app.querySelector('.table-area') : null);
+    if (!destination) { after(); return; }
+    const targetRect = destination.getBoundingClientRect();
     const center = r => ({x:r.left+r.width/2,y:r.top+r.height/2});
     const end = center(targetRect);
-    // The final trail/build group must not appear before the flying card arrives.
-    if (!capture) target.style.visibility = 'hidden';
-    const tasks = [snapshot.played,...snapshot.groups];
-    const duration = snapshot.byComputer ? 880 : 660;
-    const animationPromises = tasks.map((piece,index) => new Promise(resolve => {
-      const ghost = document.createElement('div');
-      ghost.className = 'card-flight';
-      ghost.innerHTML = piece.html;
-      const start = piece.rect;
-      Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',zIndex:'80',
-        left:start.left+'px',top:start.top+'px',width:start.width+'px',height:start.height+'px',
-        margin:'0',padding:'0',transformOrigin:'center',willChange:'transform,opacity'});
-      const inner = ghost.querySelector('.playing-card');
-      if (inner) Object.assign(inner.style,{width:'100%',height:'100%',margin:'0'});
+    // The new build/trail enters only when the traveling card actually lands.
+    if (!capture && destination.matches('[data-action="table"]')) destination.style.visibility='hidden';
+    // A capture is a genuine stack of individual *face-up cards*, including
+    // all the cards inside a multiple build.  It must not collapse into a
+    // single generic build icon during the animation.
+    const capturedCards = capture ? snapshot.groups.flatMap(group =>
+      group.cards && group.cards.length ? group.cards : [group]) : [];
+    const pieces = capture ? [snapshot.played, ...capturedCards] : [snapshot.played, ...snapshot.groups];
+    const ghosts=pieces.map((piece,i) => {
+      const ghost=document.createElement('div');
+      ghost.className='card-flight';
+      ghost.innerHTML=piece.html;
+      const r=piece.rect;
+      Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',
+        // The capturing card is always on TOP of the collected pile.
+        zIndex:String(capture ? (i===0 ? 1000 : 105+i) : 90+i),
+        left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',
+        margin:'0',padding:'0',transformOrigin:'center center',willChange:'transform,opacity'});
+      const card=ghost.querySelector(':scope > .playing-card');
+      if(card) Object.assign(card.style,{width:'100%',height:'100%',margin:'0'});
       document.body.appendChild(ghost);
-      const c = center(start);
-      const dx = end.x - c.x, dy = end.y - c.y;
-      const scale = capture ? .53 : (snapshot.kind === 'build' ? .66 : (snapshot.byComputer ? Math.min(1.5, targetRect.width / Math.max(start.width,1)) : 1));
-      // Captures travel from the table toward the appropriate captured pile.
-      // Trails and builds slide directly to their new table location, opaque.
-      const frames = [
-        {transform:'translate(0px,0px) rotate(0deg) scale(1)',opacity:1,offset:0},
-        {transform:`translate(${dx*.48}px,${dy*.48-11}px) rotate(${index%2 ? -3 : 3}deg) scale(${snapshot.byComputer && index === 0 ? 1.18 : 1.02})`,opacity:1,offset:.48},
-        {transform:`translate(${dx*.83}px,${dy*.83-3}px) rotate(1deg) scale(${scale+.12})`,opacity:1,offset:.84},
-        {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(${scale})`,opacity:capture?.04:1,offset:1}
-      ];
-      if (ghost.animate) {
-        const animation=ghost.animate(frames,{duration,delay:index*62,fill:'forwards',easing:'cubic-bezier(.23,.68,.28,1)'});
-        const finish=()=>{ghost.remove();resolve();};
-        animation.onfinish=finish; animation.oncancel=finish;
-      } else {ghost.remove();resolve();}
-    }));
-    Promise.all(animationPromises).then(() => {
-      if(generation !== motionGeneration) return;
-      if(!capture && target.isConnected) target.style.visibility = 'visible';
-      after();
+      return {ghost,rect:r};
     });
+    // When a hand ends, the engine awards the remaining table cards immediately
+    // for correct scoring. Preserve visual copies until the collection finishes,
+    // so they don't simply vanish under the scoring dialog.
+    const leftoverGhosts = snapshot.finalHand && snapshot.residueOwner !== null
+      ? (snapshot.remainingCards || []).map((piece,i)=>{
+        const ghost=document.createElement('div');ghost.className='card-flight residue-flight';
+        ghost.innerHTML=piece.html;
+        Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',zIndex:String(80+i),
+          left:piece.rect.left+'px',top:piece.rect.top+'px',width:piece.rect.width+'px',height:piece.rect.height+'px',
+          margin:'0',padding:'0',willChange:'transform,opacity'});
+        const face=ghost.querySelector('.playing-card');
+        if(face)Object.assign(face.style,{width:'100%',height:'100%',margin:'0'});
+        document.body.appendChild(ghost);
+        return {ghost,rect:piece.rect};
+      }) : [];
+    const animate=(node,frames,opts) => new Promise(resolve=>{
+      if (!node.animate) {resolve();return;}
+      const anim=node.animate(frames,{fill:'forwards',easing:'cubic-bezier(.23,.68,.28,1)',...opts});
+      let done=false;
+      const finish=()=>{if(done)return;done=true;resolve();};
+      anim.onfinish=finish;anim.oncancel=finish;
+    });
+    const move=(entry,where,duration,options={})=>{
+      const c=center(entry.rect), dx=where.x-c.x,dy=where.y-c.y;
+      const scale=options.scale??1;
+      const from=options.from || {x:0,y:0,scale:1};
+      return animate(entry.ghost,[
+        {transform:`translate(${from.x}px,${from.y}px) scale(${from.scale})`,opacity:1,offset:0},
+        {transform:`translate(${from.x+(dx-from.x)*.66}px,${from.y+(dy-from.y)*.66-9}px) scale(${from.scale+(scale-from.scale)*.66})`,opacity:1,offset:.66},
+        {transform:`translate(${dx}px,${dy}px) scale(${scale})`,opacity:options.fade?0.06:1,offset:1}
+      ],{duration});
+    };
+    async function flipComputerCard(){
+      if(!snapshot.byComputer) return;
+      const ghost=ghosts[0].ghost;
+      const face=ghost.innerHTML;
+      ghost.innerHTML='<span class="card-back" style="margin:0;width:100%;height:100%"><span class="back-pattern"></span></span>';
+      await animate(ghost,[{transform:'rotateY(0deg)'},{transform:'rotateY(90deg)'}],{duration:165,easing:'ease-in'});
+      if(generation!==motionGeneration)return;
+      ghost.innerHTML=face;
+      const card=ghost.querySelector(':scope > .playing-card');
+      if(card)Object.assign(card.style,{width:'100%',height:'100%',margin:'0'});
+      // Reset the preceding animation before turning the face-up card out.
+      ghost.getAnimations().forEach(a=>a.cancel());
+      await animate(ghost,[{transform:'rotateY(-90deg)'},{transform:'rotateY(0deg)'}],{duration:170,easing:'ease-out'});
+      ghost.getAnimations().forEach(a=>a.cancel());
+    }
+    async function gatherEndOfHand() {
+      if(!snapshot.finalHand || snapshot.residueOwner === null) return;
+      const all = capture ? leftoverGhosts : [...leftoverGhosts,...ghosts];
+      if(!all.length) return;
+      if(generation!==motionGeneration)return;
+      const pile=app.querySelector(snapshot.residueOwner===1 ? '.opponent-tag' : '.your-score-tag');
+      if(!pile)return;
+      const recipient=snapshot.residueOwner===1 ? 'Computer' : 'You';
+      const message=app.querySelector('.turn-banner');
+      if(message)message.textContent=`Remaining cards collected by ${recipient}`;
+      const felt=app.querySelector('.table-area')?.getBoundingClientRect();
+      const source=all.map(entry=>center(entry.rect));
+      const together={x:felt ? felt.left+felt.width*.5 : source[0].x,
+        y:felt ? felt.top+felt.height*.5 : source[0].y};
+      const gap=Math.min(60,Math.max(22,300/Math.max(all.length,1)));
+      await Promise.all(all.map(async(entry,i)=>{
+        await new Promise(resolve=>setTimeout(resolve,i*gap));
+        if(generation!==motionGeneration)return;
+        // On the final trail/build the played card has already reached the table;
+        // its travel to the collection pile is still physically shown.
+        const alreadyMoved=!capture && ghosts.includes(entry);
+        const index=alreadyMoved ? ghosts.indexOf(entry) : 0;
+        await move(entry,{x:together.x+Math.min(i,8)*2,y:together.y+Math.min(i,8)*2},330,{
+          from:alreadyMoved ? {x:end.x+index*3-center(entry.rect).x,
+            y:end.y+index*2-center(entry.rect).y,scale:.96} : undefined
+        });
+      }));
+      if(generation!==motionGeneration)return;
+      await new Promise(resolve=>setTimeout(resolve,240));
+      if(generation!==motionGeneration)return;
+      const finish=center(pile.getBoundingClientRect());
+      await Promise.all(all.map((entry,i)=>move(entry,finish,560,{
+        from:{x:together.x+Math.min(i,8)*2-center(entry.rect).x,
+          y:together.y+Math.min(i,8)*2-center(entry.rect).y,scale:1},scale:.28,fade:true
+      })));
+    }
+    (async()=>{
+      try {
+        await flipComputerCard();
+        if(generation!==motionGeneration)return;
+        if(capture){
+          // First reveal the card being played over the selected table cards.
+          // The average target centre keeps multiple captures balanced in the felt.
+          const targetCards = snapshot.groups.map(g => center(g.rect));
+          const feltRect=app.querySelector('.table-area')?.getBoundingClientRect();
+          const avg=targetCards.length ? {
+            x:targetCards.reduce((sum,p)=>sum+p.x,0)/targetCards.length,
+            y:targetCards.reduce((sum,p)=>sum+p.y,0)/targetCards.length
+          } : center(feltRect || targetRect);
+          const played=ghosts[0];
+          const tableWidth=capturedCards[0]?.rect.width || snapshot.groups[0]?.rect.width || played.rect.width;
+          const revealScale=Math.min(2.25,Math.max(1,tableWidth/Math.max(played.rect.width,1)));
+          const top= {
+            x:feltRect ? Math.max(feltRect.left+30,Math.min(feltRect.right-30,avg.x)) : avg.x,
+            y:feltRect ? Math.max(feltRect.top+30,Math.min(feltRect.bottom-30,avg.y-6)) : avg.y-6
+          };
+          await move(played,top,snapshot.byComputer?600:420,{scale:revealScale});
+          if(generation!==motionGeneration)return;
+          // Hold the capturing card face up so the opponent's chosen card is legible.
+          await new Promise(resolve=>setTimeout(resolve,snapshot.byComputer?320:180));
+          if(generation!==motionGeneration)return;
+
+          // Each captured card (including cards from builds) slides UNDER the
+          // played card, one after another. They do NOT fly directly to the pile.
+          // Small offsets show the edges of the gathered stack like solitaire.
+          const collected=ghosts.slice(1);
+          const gatherDelay=Math.min(75,Math.max(24,400/Math.max(collected.length,1)));
+          await Promise.all(collected.map(async(g,i)=>{
+            await new Promise(resolve=>setTimeout(resolve,i*gatherDelay));
+            if(generation!==motionGeneration)return;
+            const place={x:top.x + Math.min(i+1,7)*1.7,y:top.y + Math.min(i+1,7)*2.0};
+            await move(g,place,380,{scale:tableWidth/Math.max(g.rect.width,1)});
+            if(i===collected.length-1) sound('tap');
+          }));
+          if(generation!==motionGeneration)return;
+          await new Promise(resolve=>setTimeout(resolve,230));
+          if(generation!==motionGeneration)return;
+
+          // Finally carry the *assembled stack* to the capture pile.  Every
+          // card shares the same timing; only the arriving cards fade out.
+          const stack=ghosts.map((g,i)=>({
+            entry:g,
+            position:i===0?top:{x:top.x+Math.min(i,7)*1.7,y:top.y+Math.min(i,7)*2.0},
+            scale:i===0?revealScale:tableWidth/Math.max(g.rect.width,1)
+          }));
+          await Promise.all(stack.map(({entry,position,scale},i)=>move(entry,end,560,{
+            from:{x:position.x-center(entry.rect).x,y:position.y-center(entry.rect).y,scale},
+            scale:.34,fade:true
+          })));
+        } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
+          // Solitaire-style build: each real card slides into its exact layer in
+          // the finished stack, with no disappearing into a build icon.
+          // Only after the last card settles does the flush value bar appear.
+          const cardPieces=[snapshot.played,...snapshot.groups.flatMap(g=>g.cards||[])];
+          const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
+          const order=new Map(layers.map((node,i)=>[node.dataset.cardId,i]));
+          const ordered=cardPieces.filter(p=>order.has(p.id)).sort((a,b)=>order.get(a.id)-order.get(b.id));
+          const buildGhosts=[];
+          for(const piece of ordered){
+            const ghost=document.createElement('div');ghost.className='card-flight';ghost.innerHTML=piece.html;
+            Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',zIndex:String(105+order.get(piece.id)),
+              left:piece.rect.left+'px',top:piece.rect.top+'px',width:piece.rect.width+'px',height:piece.rect.height+'px',
+              willChange:'transform',transformOrigin:'center'});
+            const face=ghost.querySelector('.playing-card');
+            if(face)Object.assign(face.style,{width:'100%',height:'100%',margin:'0'});
+            document.body.appendChild(ghost);
+            buildGhosts.push({ghost,rect:piece.rect,id:piece.id});
+          }
+          // The standard grouped overlays are unnecessary for an individual-card build.
+          ghosts.forEach(({ghost})=>ghost.remove());
+          try {
+            for(let i=0;i<buildGhosts.length;i++) {
+              if(generation!==motionGeneration)return;
+              const piece=buildGhosts[i];
+              const slot=layers[order.get(piece.id)];
+              if(!slot)continue;
+              const slotRect=slot.getBoundingClientRect();
+              const pos=center(slotRect);
+              await move(piece,pos,snapshot.byComputer?390:340,{scale:slotRect.width/Math.max(piece.rect.width,1)});
+              sound('tap');
+              // Short gap makes overlapping cards perceptible rather than popping together.
+              if(i<buildGhosts.length-1)await new Promise(resolve=>setTimeout(resolve,85));
+            }
+          } finally {
+            buildGhosts.forEach(p=>p.ghost.remove());
+          }
+        } else {
+          // Computer trails: flip face-up while still over the hand, THEN move to the table.
+          await Promise.all(ghosts.map((g,i)=>move(g,{x:end.x+i*3,y:end.y+i*2},
+            snapshot.byComputer?610:490,{scale:.96})));
+        }
+        await gatherEndOfHand();
+      } finally {
+        ghosts.forEach(({ghost})=>ghost.remove());
+        leftoverGhosts.forEach(({ghost})=>ghost.remove());
+        if(generation!==motionGeneration)return;
+        if(!capture&&destination.isConnected){
+          destination.style.visibility='visible';
+          if(snapshot.kind==='build'){
+            const label=destination.querySelector('.build-value');
+            if(label&&label.animate) label.animate([
+              {transform:'translateY(8px) scaleY(.6)',opacity:.15},
+              {transform:'translateY(0) scaleY(1)',opacity:1}
+            ],{duration:240,easing:'ease-out'});
+          }
+        }
+        after();
+      }
+    })();
   }
   const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 
@@ -236,7 +467,7 @@
   function prettyRank(card) { return ({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[card.rank] || card.rank; }
   function suitClass(card) { return isRed(card) ? 'red' : 'black'; }
   function renderCard(card, small = false) {
-    return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''} ${card.rank === 10 ? 'ten-card' : ''}" aria-label="${escapeHtml(E.cardName(card))}">
+    return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''} ${card.rank === 10 ? 'ten-card' : ''} rank-${String(prettyRank(card)).toLowerCase()}" data-card-id="${card.id}" aria-label="${escapeHtml(E.cardName(card))}">
       <span class="card-corner"><b>${prettyRank(card)}</b><small>${prettySuit(card)}</small></span>
       <span class="card-big">${prettyRank(card)}</span>
     </span>`;
@@ -248,11 +479,10 @@
     if (element.type === 'loose') {
       return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table">${renderCard(element.card)}</button>`;
     }
-    const groups = element.groups.map(group => `<span class="build-group">${group.map(card => renderCard(card, true)).join('')}</span>`).join('<span class="group-plus">+</span>');
-    const owner = element.owner === 0 ? 'YOU' : 'CPU';
-    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.value} build owned by ${element.owner === 0 ? 'you' : 'computer'}">
-      <span class="build-top"><b>${element.value}-BUILD</b><small>${element.groups.length > 1 ? 'MULTIPLE' : 'SINGLE'}</small><em class="${element.owner === 0 ? 'your-owner' : ''}">${owner}</em></span>
-      <span class="build-groups">${groups}</span>
+    const cards=element.groups.flat();
+    const layers=cards.map((card,i)=>`<span class="build-layer" style="--layer:${i}">${renderCard(card)}${i===cards.length-1?`<span class="build-value">${element.value}</span>`:''}</span>`).join('');
+    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.value} build owned by ${element.owner === 0 ? 'you' : 'computer'}">
+      <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
   }
   function isHumanTurn() { return screen === 'game' && game.phase === 'playing' && game.turn === 0 && !busy; }
@@ -288,7 +518,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.3 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.6 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -356,7 +586,10 @@
             <div class="opponent-hand" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
           </div>
           <div class="table-area">
-            <div class="table-stage"><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : (game.table.length ? '' : '<span class="table-empty">Table cleared</span>')}</div>
+            <div class="table-stage"><div class="draw-stock ${game.stock.length===0?'empty':''}" aria-label="Draw pile: ${game.stock.length} cards remaining" role="img">
+              <span class="stock-stack" aria-hidden="true"><span class="stock-back stock-bottom">${renderBack()}</span><span class="stock-back stock-middle">${renderBack()}</span><span class="stock-back stock-top">${renderBack()}</span></span>
+              <span class="draw-stock-count">${game.stock.length}</span>
+            </div><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : (game.table.length ? '' : '<span class="table-empty">Table cleared</span>')}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
             <div class="turn-banner" aria-live="polite">${phaseText}</div>
           </div>
@@ -375,13 +608,13 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.3</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.6</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
     bindSettings();
     animateLayout(oldLayout);
-    if (motion === 'deal') animateNewDeal();
+    if (motion === 'deal' || motion === 'deal-hands') animateNewDeal(motion === 'deal');
     animateTurnMessage(previousTurn);
   }
   function settingChecked(name) { return draft[name] ? 'checked' : ''; }
@@ -482,11 +715,22 @@
     const scores = game.result.scores;
     const winner = game.result.winner;
     const ended = game.phase === 'gameOver';
-    const heads = ['Most cards','Spades','10♦','2♠','Aces','Sweeps','This hand'];
+    const sweepInfo = game.rules.sweepPoints ? `${game.rules.sweepPoints} each${game.rules.sweepCancel?', net':''}` : '0';
+    const heads = [
+      'Most cards (3)',game.rules.spadeScoring?'Spades (1 each)':'Most spades (1)',
+      '10♦ · Big Cassino (2)','2♠ · Little Cassino (1)',
+      'Aces (1–4)',`Sweeps (${sweepInfo})`,'This hand (total)'
+    ];
     const keys = ['cards','spades','big','little','aces','sweeps','total'];
+    const lead = p[0].total===p[1].total ? -1 : (p[0].total>p[1].total?0:1);
+    const scoreCell=(key,player)=>{
+      const value=p[player][key],other=p[1-player][key];
+      return `<td class="${value>other?'round-leading':''}">${value>other?`<strong>${value}</strong>`:value}</td>`;
+    };
     return `<div class="dialog-head"><div><span class="eyebrow">HAND ${game.result.finishedRound} COMPLETE</span><h2>${ended ? (winner === 0 ? 'You win the match!' : 'Computer wins the match') : 'Hand results'}</h2><p>${ended ? 'Match complete. Play another?' : 'Scores are added. Continue to the next hand.'}</p></div><button data-action="close" class="icon-close">×</button></div>
-      <div class="dialog-content"><div class="results-scores"><div><small>YOU</small><b>${scores[0]}</b><span>+${p[0].total} this hand</span></div><div class="result-vs">VS</div><div><small>COMPUTER</small><b>${scores[1]}</b><span>+${p[1].total} this hand</span></div></div>
-      <table class="result-table"><thead><tr><th>Category</th><th>You</th><th>Computer</th></tr></thead><tbody>${heads.map((name,i) => `<tr class="${i === heads.length-1 ? 'totals-row' : ''}"><td>${name}</td><td>${p[0][keys[i]]}</td><td>${p[1][keys[i]]}</td></tr>`).join('')}</tbody></table>
+      <div class="dialog-content"><p class="hand-winner-message">${lead<0?'Hand tied':lead===0?'You won this hand':'Computer won this hand'}</p>
+      <div class="results-scores"><div class="${lead===0?'round-winner':''}"><small>YOU</small><b>${scores[0]}</b><span>+${p[0].total} this hand</span></div><div class="result-vs">VS</div><div class="${lead===1?'round-winner':''}"><small>COMPUTER</small><b>${scores[1]}</b><span>+${p[1].total} this hand</span></div></div>
+      <table class="result-table"><thead><tr><th>Category</th><th>You</th><th>Computer</th></tr></thead><tbody>${heads.map((name,i) => `<tr class="${i === heads.length-1 ? 'totals-row' : ''}"><td>${name}</td>${scoreCell(keys[i],0)}${scoreCell(keys[i],1)}</tr>`).join('')}</tbody></table>
       <p class="smallnote">Cards captured: ${p[0].cardCount}–${p[1].cardCount}. Spades captured: ${p[0].spadeCount}–${p[1].spadeCount}.</p></div>
       <div class="dialog-actions"><button data-action="undo" class="action-btn" ${!checkpoint ? 'disabled' : ''}>Undo last turn</button><button data-action="${ended ? 'new-match' : 'next-hand'}" class="action-btn primary">${ended ? 'New match' : 'Next hand'} →</button></div>`;
   }
@@ -505,9 +749,15 @@
       if (screen !== 'game' || !busy || game.phase !== 'playing' || game.turn !== 1) { busy = false; render(); return; }
       try {
         const move = E.chooseComputerMove(game);
+        const stockBefore = game.stock.length;
+        const preHuman=game.players[0].hand.map(c=>c.id),preCpu=game.players[1].hand.map(c=>c.id);
         const before = takeMotionSnapshot(move, true);
+        rememberStockOrigin();
         const outcome = E.applyAction(game, move);
         if (!outcome.ok) throw new Error(outcome.reason);
+        if (before) { before.finalHand = game.phase !== 'playing'; before.residueOwner=game.lastCapture; }
+        const cardsDealt = stockBefore - game.stock.length;
+        if(cardsDealt>0) collectDeal(preHuman,preCpu);
         lastMotion = move.kind;
         moveAnnouncement = outcome.description;
         if (announcementTimer !== null) clearTimeout(announcementTimer);
@@ -517,6 +767,7 @@
         persist(); render();
         playMotion(before, () => {
           if (screen !== 'game') return;
+          if (cardsDealt > 0) { lastMotion = 'deal-hands'; sound('deal', cardsDealt); }
           busy = false;
           if (game.phase !== 'playing') modal = 'round';
           persist(); render();
@@ -534,9 +785,15 @@
     const check = E.validateAction(game, action);
     if (!check.ok) { toast = check.reason; render(); return; }
     const before = takeMotionSnapshot(action, false);
+    rememberStockOrigin();
+    const stockBefore = game.stock.length;
+    const preHuman=game.players[0].hand.map(c=>c.id),preCpu=game.players[1].hand.map(c=>c.id);
     checkpoint = JSON.stringify(game);
     const result = E.applyAction(game, action);
     if (!result.ok) { toast = result.reason; return render(); }
+    if (before) { before.finalHand = game.phase !== 'playing'; before.residueOwner=game.lastCapture; }
+    const cardsDealt = stockBefore - game.stock.length;
+    if(cardsDealt>0)collectDeal(preHuman,preCpu);
     lastMotion = action.kind;
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
     toast = result.description;
@@ -545,6 +802,7 @@
     busy = !!before;
     persist(); render();
     playMotion(before, () => {
+      if (cardsDealt > 0) { lastMotion = 'deal-hands'; sound('deal', cardsDealt); }
       busy = false;
       if (game.phase !== 'playing') modal = 'round';
       persist(); render();
@@ -568,14 +826,16 @@
     const next = E.nextHand(game);
     if (!next) return;
     game = next; checkpoint = null; resetSelection(); toast = ''; modal = ''; lastMotion = 'deal';
-    sound('tap'); persist(); render(); if (game.turn === 1) botTurn();
+    collectDeal(); pendingStockOrigin=null;
+    sound('deal',12); persist(); render(); if (game.turn === 1) botTurn();
   }
   function startNewMatch(rules = game.rules, ask = true) {
     if (ask && game.phase === 'playing' && !confirm('Start a new match? Your current match will be replaced.')) return;
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
     cancelMotion();
     busy = false; game = E.newMatch(rules); checkpoint = null; modal = ''; toast = ''; lastMotion = 'deal';
-    screen = 'game'; resetSelection(); draft = null; persist(); render();
+    collectDeal(); pendingStockOrigin=null;
+    screen = 'game'; resetSelection(); draft = null; sound('deal',12); persist(); render();
     if (game.turn === 1) botTurn();
   }
   function openSettings(origin = screen) { variationsScrollTop = 0; settingsOrigin = origin;
