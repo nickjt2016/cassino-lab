@@ -36,3 +36,8 @@ This is a hobbyist prototype for playtesting, not yet multiplayer or an app-stor
 The card table now follows the user-provided reference video more closely, while using original visuals and sounds. Its top and bottom card hands, green felt, card highlighting, and build stacks occupy a single viewport. **Build, Trail and Capture are contextual:** the action bar is hidden until a hand card is selected, then shows only moves legal for the current card and selected table groups. Clear the selection to hide the bar. Hint and Undo stay in the top toolbar.
 
 Card rank and suit indices scale with their cards to prevent overlap on narrow Android screens. The main menu retains Resume and New Game, difficulty and variation choices. Some optional Royal and Pirate rules remain intentionally disabled until implemented.
+
+
+## v0.4 – Expanded Game Variations
+
+The Royal Aces and Royal 2-and-10 options can now use alternative numerical values in legal captures and builds. Pirate Captures, Pirate Builds, Pirate Trails, and the experimental Build To Anything option affect move legality. Draw and Sweep continue to work. Changing any variation retains its scroll position. The mobile interface uses larger centered table cards and brief context-sensitive actions like **Build J**, **Multiple build 10**, **Capture cards** and **Trail**. Computer moves pause longer and animate toward the table or capture area. All 25 automated checks pass.
