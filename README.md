@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.2.0**. A single-screen responsive layout now keeps the table, hand, and **Build · Trail · Capture** actions visible together. The game menu includes rules, history, settings, sound and animation toggles. Card movement effects and short, synthesized sounds are optional. The app includes a computer opponent, capturing and building, automatic scoring, game saves on the local device, and classic/Royal/Spade presets with custom rules.
+Current release: **v0.3.1**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
