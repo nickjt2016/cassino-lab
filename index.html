@@ -482,6 +482,50 @@ html,body,#app{background:#005d0b;color:#fff}
  .card-back{width:22px;height:31px;padding:2px}
  .back-pattern:after{font-size:8px}
 }
+
+/* v0.4.2: reference-video card proportions, typography, and physical Foley motion. */
+/* Portrait sizes match the compact face-up playing cards in the recording,
+   while remaining comfortably readable on a 390 CSS-pixel viewport. */
+.playing-card:not(.mini) { width:clamp(53px,16.5vw,76px); height:auto; aspect-ratio: .715; border-radius:2px; background:#fff; border:1px solid #c8c8c8;
+  box-shadow:0 2px 3px #00270064; contain:layout style; container-type:inline-size; overflow:hidden; }
+.playing-card:not(.mini) .card-corner { position:absolute; left:4%; top:2%; width:auto; height:20%; display:flex; flex-direction:row;
+  gap:1px; align-items:baseline; font-family:Georgia,'Times New Roman',serif; white-space:nowrap; line-height:1; }
+.playing-card:not(.mini) .card-corner b { font-family:Georgia,'Times New Roman',serif; font-weight:400; font-size:29cqw; line-height:1; }
+.playing-card:not(.mini) .card-corner small {font-size:22cqw; line-height:1; }
+.playing-card:not(.mini) .card-big {position:absolute; left:50%; top:63%; transform:translate(-50%,-50%);
+  font-family:Georgia,'Times New Roman',serif; font-weight:400; font-size:90cqw; line-height:1; }
+.playing-card.ten-card:not(.mini) .card-big {font-size:71cqw; letter-spacing:-.05em;}
+.playing-card.mini {background:#fff;color:#121212;}
+.playing-card.mini.red {color:#c71918;}
+.human-hand {gap:clamp(9px,2.8vw,16px);}
+.table-cards {gap:clamp(7px,2.4vw,14px);}
+.card-back {width:clamp(39px,11vw,52px);height:auto;aspect-ratio:.715;border-radius:1px;background:#fff;
+ border:2px solid #fbfbfa;padding:2px;box-shadow:0 2px 4px #00200088;}
+.back-pattern { width:100%;height:100%; border:1px solid #14237a; background: #283db1 url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%3E%3Crect%20width%3D%2240%22%20height%3D%2240%22%20fill%3D%22%23283db1%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23d2d7fa%22%20stroke-width%3D%221.9%22%20stroke-linejoin%3D%22miter%22%3E%3Cpath%20d%3D%22M2%202H17V17H2V32H17V39M22%202V17H38V2M22%2022H37V37H22V22ZM7%207H12V12H7Z%22%2F%3E%3Cpath%20d%3D%22M3%2022H12V27H7V37M27%207H33V12H27M25%2027H32V32%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M0%200H40V40%22%20fill%3D%22none%22%20stroke%3D%22%23192682%22%20stroke-width%3D%221%22%2F%3E%3C%2Fsvg%3E") repeat; background-size:20px 20px;
+  box-shadow:inset 0 0 0 2px #d2d7fa;}
+.back-pattern:before,.back-pattern:after{content:none;display:none}
+.opponent-hand .card-back {margin-left:-12px}
+.card-flight {filter:drop-shadow(0 5px 6px #001e0055);transform-origin:center;backface-visibility:hidden;}
+.card-flight .playing-card {width:100%;height:100%;box-sizing:border-box;}
+/* Selection keeps the video's yellow fill; cards never fade on builds/trails. */
+.hand-item.selected .playing-card,.table-item.selected .playing-card { background:#fff59b!important; color:#151715; border-color:#ffe176; }
+.hand-item.selected .playing-card.red,.table-item.selected .playing-card.red{color:#c72118}
+.animations-on .felt[data-motion="trail"] .table-cards,
+.animations-on .felt[data-motion="build"] .table-cards {animation:none;}
+.animations-on .felt[data-motion="capture"] .table-cards {animation:none;}
+@media(max-height:700px) {
+ .playing-card:not(.mini) {width:clamp(48px,14.2vw,63px);height:auto;}
+ .card-back{width:clamp(32px,9vw,40px);height:auto;}
+}
+@media(orientation:landscape) and (max-height:450px) {
+ .playing-card:not(.mini){width:clamp(40px,6.9vw,59px);height:auto;}
+ .card-back{width:clamp(21px,3.6vw,31px);height:auto;}
+ .table-stage{top:46%;}
+}
+@media(prefers-reduced-motion:reduce){.card-flight{display:none}}
+
+/* The cards in the remaining hand must stay opaque while a move travels. */
+.human-hand .hand-item:disabled,.table-item:disabled,.build-item:disabled{opacity:1;filter:none}
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -1022,6 +1066,8 @@ html,body,#app{background:#005d0b;color:#fff}
   function savePrefs() {
     try { localStorage.setItem(PREF_STORE, JSON.stringify(prefs)); } catch (_) {}
   }
+  // Synthesized, original card-table Foley: a short dry click followed by a
+  // quiet paper brush.  No audio samples from the reference app are reused.
   function sound(type = 'tap') {
     if (!prefs.sound) return;
     try {
@@ -1030,87 +1076,114 @@ html,body,#app{background:#005d0b;color:#fff}
       if (!audioContext) audioContext = new Audio();
       if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
       const now = audioContext.currentTime;
-      const patterns = {
-        tap: [[550, .018, .045]],
-        trail: [[400, .035, .08], [510, .115, .07]],
-        build: [[420, .025, .09], [620, .135, .14]],
-        capture: [[720, .025, .075], [510, .095, .11]],
-        sweep: [[530, .02, .10], [690, .11, .10], [930, .22, .2]],
-        score: [[525, .025, .13], [785, .18, .2]],
-        undo: [[490, .02, .10], [360, .14, .12]]
-      };
-      (patterns[type] || patterns.tap).forEach(([hz, offset, duration]) => {
-        const osc = audioContext.createOscillator();
+      const rate = audioContext.sampleRate;
+      const pattern = {
+        tap: [[0, .045, .045]],
+        trail: [[0, .08, .09], [.095, .035, .038]],
+        build: [[0, .085, .10], [.12, .05, .06]],
+        capture: [[0, .07, .10], [.08, .06, .06], [.17, .045, .045]],
+        sweep: [[0, .09, .10], [.09, .085, .09], [.19, .075, .08]],
+        score: [[0, .08, .09], [.14, .06, .10]],
+        undo: [[0, .042, .05]],
+        deal: [[0, .045, .05], [.075, .045, .05], [.15, .045, .05], [.225, .045, .05]],
+      }[type] || [[0, .04, .045]];
+      for (const [offset, volume, duration] of pattern) {
+        const frames = Math.ceil(rate * duration);
+        const buffer = audioContext.createBuffer(1, frames, rate);
+        const channel = buffer.getChannelData(0);
+        // Crisp attack + a decaying paper/riffle tail; intentionally subtle.
+        for (let i = 0; i < frames; i++) {
+          const t = i / rate;
+          const body = Math.exp(-t * 72);
+          const brush = Math.exp(-t * 21) * .29;
+          channel[i] = (Math.random() * 2 - 1) * (body + brush);
+        }
+        const src = audioContext.createBufferSource(); src.buffer = buffer;
+        const filter = audioContext.createBiquadFilter();
+        filter.type = 'bandpass'; filter.frequency.value = type === 'tap' ? 1800 : 1050;
+        filter.Q.value = .53;
         const gain = audioContext.createGain();
-        osc.type = type === 'capture' ? 'triangle' : 'sine';
-        osc.frequency.setValueAtTime(hz, now + offset);
-        gain.gain.setValueAtTime(.0001, now + offset);
-        gain.gain.exponentialRampToValueAtTime(.065, now + offset + .012);
+        gain.gain.setValueAtTime(volume, now + offset);
         gain.gain.exponentialRampToValueAtTime(.0001, now + offset + duration);
-        osc.connect(gain); gain.connect(audioContext.destination);
-        osc.start(now + offset); osc.stop(now + offset + duration + .015);
-      });
-    } catch (_) { /* Audio is optional on restricted browsers. */ }
+        src.connect(filter); filter.connect(gain); gain.connect(audioContext.destination);
+        src.start(now + offset); src.stop(now + offset + duration + .01);
+      }
+    } catch (_) { /* Browser audio permission is optional. */ }
   }
-  // Fly the actual played card and affected table groups toward their destinations.
-  // Animations are decorative; the rules engine remains authoritative.
-  function animateMove(kind, byComputer = false, move = null) {
-    if (!prefs.animations || !document.body ||
-      (globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  // Take a snapshot *before* applying the move, then animate the old cards to
+  // their actual positions in the newly rendered state.  Nothing fades except
+  // cards being captured.  The opponent's card is turned face-up in flight.
+  let motionGeneration = 0;
+  function cancelMotion() {
+    motionGeneration++;
+    if (document.querySelectorAll) document.querySelectorAll('.card-flight').forEach(node => node.remove());
+  }
+  function takeMotionSnapshot(move, byComputer = false) {
+    if (!prefs.animations || !document.body || !app.querySelector ||
+        (globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches)) return null;
     const from = byComputer
       ? app.querySelector('.opponent-hand .card-back:last-child')
-      : app.querySelector('.hand-item.selected .playing-card');
-    const destination = kind === 'capture'
-      ? app.querySelector(byComputer ? '.opponent-tag' : '.your-score-tag')
-      : (kind === 'build' ? app.querySelector('.table-builds') : app.querySelector('.table-cards'));
-    const intermediate = app.querySelector('.table-stage') || app.querySelector('.table-area');
-    if (!from || !destination || !intermediate || !from.getBoundingClientRect) return;
-    const played = move && game.players[byComputer ? 1 : 0].hand.find(c => c.id === move.cardId);
-    const duration = byComputer ? 820 : 610;
-    const center = rect => ({x:rect.left + rect.width/2, y:rect.top + rect.height/2});
-    const goal = center(destination.getBoundingClientRect());
-    const mid = center(intermediate.getBoundingClientRect());
-    function fly(source, destinationPoint, face = null, via = null, stagger = 0) {
-      if (!source || !source.getBoundingClientRect) return;
-      const start = source.getBoundingClientRect();
-      if (!start.width || !start.height) return;
-      const ghost = face ? document.createElement('div') : source.cloneNode(true);
-      if (face) ghost.innerHTML = renderCard(face);
-      ghost.className += ' move-ghost';
-      Object.assign(ghost.style, {
-        position:'fixed',pointerEvents:'none',zIndex:'65',
-        left:start.left+'px',top:start.top+'px',width:start.width+'px',height:start.height+'px',margin:'0',
-        transformOrigin:'center',willChange:'transform, opacity'
-      });
-      const inner=ghost.querySelector('.playing-card');
-      if(inner) Object.assign(inner.style,{width:'100%',height:'100%',margin:'0'});
+      : app.querySelector(`.hand-item[data-id="${move.cardId}"] .playing-card`);
+    if (!from || !from.getBoundingClientRect) return null;
+    const rect = node => {
+      const r = node.getBoundingClientRect();
+      return {left:r.left,top:r.top,width:r.width,height:r.height};
+    };
+    const playerCard = game.players[byComputer ? 1 : 0].hand.find(c => c.id === move.cardId);
+    if (!playerCard) return null;
+    const groupRects = (move.targetIds || []).map(id => {
+      const node = Array.from(app.querySelectorAll('[data-action="table"]')).find(el => el.dataset.id === id);
+      return node ? {rect:rect(node),html:node.querySelector('.playing-card')?.outerHTML || node.outerHTML} : null;
+    }).filter(Boolean);
+    return {kind:move.kind,byComputer,played:{rect:rect(from),html:renderCard(playerCard)},groups:groupRects};
+  }
+  function playMotion(snapshot, after) {
+    if (!snapshot || !document.body || !app.querySelector) { after(); return; }
+    const generation = motionGeneration;
+    const capture = snapshot.kind === 'capture';
+    const target = capture
+      ? app.querySelector(snapshot.byComputer ? '.opponent-tag' : '.your-score-tag')
+      : app.querySelector(`[data-action="table"][data-id="${game.table[game.table.length-1]?.id}"]`);
+    if (!target || !target.getBoundingClientRect) { after(); return; }
+    const targetRect = target.getBoundingClientRect();
+    const center = r => ({x:r.left+r.width/2,y:r.top+r.height/2});
+    const end = center(targetRect);
+    // The final trail/build group must not appear before the flying card arrives.
+    if (!capture) target.style.visibility = 'hidden';
+    const tasks = [snapshot.played,...snapshot.groups];
+    const duration = snapshot.byComputer ? 860 : 640;
+    const animationPromises = tasks.map((piece,index) => new Promise(resolve => {
+      const ghost = document.createElement('div');
+      ghost.className = 'card-flight';
+      ghost.innerHTML = piece.html;
+      const start = piece.rect;
+      Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',zIndex:'80',
+        left:start.left+'px',top:start.top+'px',width:start.width+'px',height:start.height+'px',
+        margin:'0',padding:'0',transformOrigin:'center',willChange:'transform,opacity'});
+      const inner = ghost.querySelector('.playing-card');
+      if (inner) Object.assign(inner.style,{width:'100%',height:'100%',margin:'0'});
       document.body.appendChild(ghost);
-      const fromCenter=center(start);
-      const to=(point,rot=0,scale=1)=>`translate(${point.x-fromCenter.x}px,${point.y-fromCenter.y}px) rotate(${rot}deg) scale(${scale})`;
-      const endingOpacity = kind === 'capture' ? .08 : 1;
-      const frames=via ? [
-        {transform:to(fromCenter),opacity:1,offset:0},
-        {transform:to({x:(fromCenter.x+via.x)/2,y:(fromCenter.y+via.y)/2-18},-6,1.02),opacity:1,offset:.28},
-        {transform:to(via,3,1),opacity:1,offset:.55},
-        {transform:to(destinationPoint,5,kind === 'capture' ? .52 : 1),opacity:endingOpacity,offset:1}
-      ] : [
-        {transform:to(fromCenter),opacity:1},
-        {transform:to({x:(fromCenter.x+destinationPoint.x)/2,y:(fromCenter.y+destinationPoint.y)/2-18},-4,1.05),opacity:1,offset:.53},
-        {transform:to(destinationPoint,5,kind === 'capture' ? .66 : 1),opacity:endingOpacity}
+      const c = center(start);
+      const dx = end.x - c.x, dy = end.y - c.y;
+      const scale = capture ? .53 : (snapshot.kind === 'build' ? .66 : (snapshot.byComputer ? Math.min(1.5, targetRect.width / Math.max(start.width,1)) : 1));
+      // Captures travel from the table toward the appropriate captured pile.
+      // Trails and builds slide directly to their new table location, opaque.
+      const frames = [
+        {transform:'translate(0px,0px) rotate(0deg) scale(1)',opacity:1,offset:0},
+        {transform:`translate(${dx*.48}px,${dy*.48-11}px) rotate(${index%2 ? -3 : 3}deg) scale(${snapshot.byComputer && index === 0 ? 1.3 : 1.02})`,opacity:1,offset:.48},
+        {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(${scale})`,opacity:capture?.06:1,offset:1}
       ];
       if (ghost.animate) {
-        const anim=ghost.animate(frames,{duration,delay:stagger,easing:'cubic-bezier(.25,.75,.25,1)'});
-        anim.onfinish=()=>ghost.remove(); anim.oncancel=()=>ghost.remove();
-      } else ghost.remove();
-    }
-    fly(from,goal,byComputer?played:null,kind==='capture'?mid:null);
-    if(move && (kind==='capture' || kind==='build')) {
-      const tableDestination=kind==='capture'?goal:mid;
-      for(const [index,id] of (move.targetIds||[]).entries()) {
-        const tableNode=Array.from(app.querySelectorAll('[data-action="table"]')).find(x=>x.dataset.id===id);
-        if(tableNode) fly(tableNode,tableDestination,null,null,index*65);
-      }
-    }
+        const animation=ghost.animate(frames,{duration,delay:index*62,fill:'forwards',easing:'cubic-bezier(.23,.68,.28,1)'});
+        const finish=()=>{ghost.remove();resolve();};
+        animation.onfinish=finish; animation.oncancel=finish;
+      } else {ghost.remove();resolve();}
+    }));
+    Promise.all(animationPromises).then(() => {
+      if(generation !== motionGeneration) return;
+      if(!capture && target.isConnected) target.style.visibility = 'visible';
+      after();
+    });
   }
   const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 
@@ -1147,7 +1220,7 @@ html,body,#app{background:#005d0b;color:#fff}
       <span class="card-big">${prettyRank(card)}</span>
     </span>`;
   }
-  function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern">✦</span></span>'; }
+  function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern"></span></span>'; }
   function elCards(element) { return E.cardsInElement(element); }
   function entryMarkup(element) {
     const selected = pickedTable.has(element.id);
@@ -1194,7 +1267,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.1 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.2 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -1279,7 +1352,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.1</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.2</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
@@ -1406,41 +1479,54 @@ html,body,#app{background:#005d0b;color:#fff}
       if (screen !== 'game' || !busy || game.phase !== 'playing' || game.turn !== 1) { busy = false; render(); return; }
       try {
         const move = E.chooseComputerMove(game);
-        animateMove(move.kind, true, move);
+        const before = takeMotionSnapshot(move, true);
         const outcome = E.applyAction(game, move);
         if (!outcome.ok) throw new Error(outcome.reason);
         lastMotion = move.kind;
         moveAnnouncement = outcome.description;
         if (announcementTimer !== null) clearTimeout(announcementTimer);
-        announcementTimer = setTimeout(() => { announcementTimer = null; moveAnnouncement = ''; if(screen === 'game' && game.phase === 'playing') render(); }, 2400);
+        // Keep the message readable after the cards have settled.
+        announcementTimer = setTimeout(() => { announcementTimer=null; moveAnnouncement=''; if(screen==='game'&&game.phase==='playing') render(); }, 3300);
         sound(game.phase !== 'playing' ? 'score' : move.kind);
+        persist(); render();
+        playMotion(before, () => {
+          if (screen !== 'game') return;
+          busy = false;
+          if (game.phase !== 'playing') modal = 'round';
+          persist(); render();
+          if (game.turn === 1 && game.phase === 'playing') botTurn();
+        });
       } catch (error) {
+        busy = false;
         toast = `Computer move error: ${error.message}`;
+        render();
       }
-      busy = false;
-      if (game.phase !== 'playing') modal = 'round';
-      persist(); render();
-      if (game.turn === 1 && game.phase === 'playing') botTurn();
-    }, 1500);
+    }, 1200);
   }
   function play(action) {
     if (!isHumanTurn()) return;
     const check = E.validateAction(game, action);
     if (!check.ok) { toast = check.reason; render(); return; }
+    const before = takeMotionSnapshot(action, false);
     checkpoint = JSON.stringify(game);
-    animateMove(action.kind, false, action);
     const result = E.applyAction(game, action);
     if (!result.ok) { toast = result.reason; return render(); }
     lastMotion = action.kind;
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
     toast = result.description;
     resetSelection();
-    moveAnnouncement = '';
-    if (game.phase !== 'playing') modal = 'round';
+    moveAnnouncement = result.description;
+    busy = !!before;
     persist(); render();
-    if (game.turn === 1 && game.phase === 'playing') botTurn();
+    playMotion(before, () => {
+      busy = false;
+      if (game.phase !== 'playing') modal = 'round';
+      persist(); render();
+      if (game.turn === 1 && game.phase === 'playing') botTurn();
+    });
   }
   function undo() {
+    cancelMotion();
     if (!checkpoint) return;
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
     busy = false;
@@ -1452,6 +1538,7 @@ html,body,#app{background:#005d0b;color:#fff}
     resetSelection(); persist(); render();
   }
   function nextHand() {
+    cancelMotion();
     const next = E.nextHand(game);
     if (!next) return;
     game = next; checkpoint = null; resetSelection(); toast = ''; modal = ''; lastMotion = 'deal';
@@ -1460,6 +1547,7 @@ html,body,#app{background:#005d0b;color:#fff}
   function startNewMatch(rules = game.rules, ask = true) {
     if (ask && game.phase === 'playing' && !confirm('Start a new match? Your current match will be replaced.')) return;
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
+    cancelMotion();
     busy = false; game = E.newMatch(rules); checkpoint = null; modal = ''; toast = ''; lastMotion = 'deal';
     screen = 'game'; resetSelection(); draft = null; persist(); render();
     if (game.turn === 1) botTurn();
@@ -1494,6 +1582,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if (!node) return;
     const action = node.dataset.action;
     if (action === 'home') {
+      cancelMotion();
       if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot=null; }
       busy=false; modal=''; screen='home'; persist(); resetSelection(); sound('tap'); render(); return;
     }
