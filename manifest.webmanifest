@@ -1,0 +1,11 @@
+{
+  "id": "./",
+  "name": "Cassino Lab — Fishing Card Games",
+  "short_name": "Cassino Lab",
+  "description": "Play classic Cassino and customizable variants against the computer, even offline.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d1615",
+  "theme_color": "#143c33",
+  "icons": [{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
