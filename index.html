@@ -131,6 +131,91 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
 @media(prefers-reduced-motion:reduce) {
  .animations-on .felt[data-motion] *,.animations-on .table-item,.animations-on .build-item { animation:none !important; transition:none !important; }
 }
+
+
+/* Cassino Lab v0.3 — Dokken-inspired layout, independently illustrated assets. */
+:root{--gold:#e7cb79;--darkgreen:#004b10;--cream:#f9f5e9;--ink:#28251d}
+html,body,#app{background:#005d0b;color:#fff}
+.launch-screen{width:100%;height:100%;height:100dvh;background:radial-gradient(ellipse at center,#077c0d 0%,#005c08 59%,#003800 100%);overflow:auto;overscroll-behavior:contain;color:#f4efcd}
+.launch-scroll{max-width:500px;min-height:100%;margin:0 auto;padding:clamp(18px,4dvh,46px) 20px 34px;display:flex;flex-direction:column;gap:20px}
+.launch-brand{display:flex;align-items:center;flex-direction:column;gap:6px;padding-top:clamp(8px,2dvh,20px)}
+.launch-fan{width:230px;height:145px;position:relative;margin-bottom:6px}
+.fan-card{position:absolute;top:4px;left:50%;transform-origin:50% 94%;filter:drop-shadow(0 3px 4px #00290077)}
+.fan-card .playing-card{width:105px;height:149px;box-shadow:0 2px 3px #0004;border-radius:1px}
+.fan-card .card-corner b{font-size:23px}.fan-card .card-corner small{font-size:22px}
+.fan-card .card-big{font-size:78px}
+.fan-left{transform:translateX(-78%) rotate(-17deg)}.fan-middle{transform:translateX(-50%)}.fan-right{transform:translateX(-22%) rotate(17deg)}
+.launch-brand h1{font-family:Georgia,serif;font-size:clamp(62px,12vw,83px);letter-spacing:-5px;line-height:1;color:#f3d984;text-shadow:0 2px 7px #00260066;margin:16px 0 0;font-weight:600}
+.gold-divider{font-size:18px;color:#c9aa56;letter-spacing:4px;margin:0;text-align:center}.launch-brand>p{font-size:10px;letter-spacing:2.7px;color:#efdb99;margin:0}
+.launch-actions{display:grid;gap:11px;margin-top:clamp(6px,3dvh,28px)}
+.launch-actions button{border-radius:16px;width:100%;min-height:60px;padding:13px 10px;color:#f8f4e6;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;font-size:18px;letter-spacing:.2px}
+.launch-actions button b{font-size:19px}.launch-actions button small{font-size:12px;opacity:.8}
+.launch-primary{border:1px solid #ffe0a1;background:linear-gradient(160deg,#f4df94,#c89c39);color:#292014!important;box-shadow:0 5px 10px #001c0060}
+.launch-outlined{border:2px solid #d5b463;background:#003c0b77}.launch-outlined:disabled{opacity:.45;cursor:default}
+.launch-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:8px 0 0}
+.launch-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:91px;border:1px solid #c4ab6988;background:#002f0a55;color:#f4e0a1;border-radius:14px}
+.launch-tile span{font-size:26px}.launch-tile b{font-size:13px}
+.launch-foot{text-align:center;font-size:10px;color:#a7ceac;margin:0}
+/* Game table and fixed controls. */
+.shell{max-width:820px;background:radial-gradient(ellipse at center,#0a8017,#006b0b 68%,#004009);padding:clamp(5px,1dvh,13px) 12px max(5px,env(safe-area-inset-bottom));gap:5px}
+.header{min-height:33px;display:flex;align-items:center}
+.game-back,.game-help{border:0;background:transparent;color:#f4df8d;font-size:25px;line-height:1;padding:5px 8px;min-width:33px}
+.game-heading{font-size:clamp(19px,3vw,25px);font-family:Georgia,serif;color:#f5df9d;flex:1;text-align:center}.game-heading span{font-style:italic}
+.match-bar{border:1px solid #e6d78460;background:#002b078a;border-radius:10px;padding:5px 10px;color:#f4e1a2}
+.felt{background:transparent;border:none;border-radius:0;box-shadow:none;padding:0 1px 1px;overflow:hidden}
+.table-grain{display:none}.player-caption .avatar{display:none}
+.opponent-area{min-height:59px;flex-direction:column;align-items:center;gap:5px;justify-content:center}
+.opponent-area .player-caption{order:2}.opponent-area .player-caption b{display:none}
+.opponent-area .player-caption small{font-size:11px;color:#ffe7a1;border:1px solid #e9d790a0;border-radius:12px;padding:3px 10px;background:#00380066}
+.opponent-hand{order:1;padding:0;justify-content:center;min-height:52px}
+.card-back{width:30px;height:47px;border-radius:1px;background:#d0daed;border:2px solid white;margin-left:-8px;padding:2px}
+.back-pattern{background:repeating-linear-gradient(90deg,#2a39c5 0 2px,#e4e5ff 2px 4px,#2a39c5 4px 8px);border:1px solid #3041bc;color:transparent}
+.table-area{min-height:0;padding:7px 0 2px;justify-content:center;align-items:stretch}
+.table-title{color:#e7d991;font-size:9px;letter-spacing:1px;margin-bottom:4px}
+.table-stage{width:100%;flex:1;min-height:0;display:flex;align-items:center;position:relative;gap:6px}
+.table-cards{align-content:center;justify-content:flex-start;padding:6px 4px;max-width:calc(100% - 82px);height:100%;gap:7px}
+.captured-display{width:77px;flex:0 0 77px;align-self:center;display:flex;flex-direction:column;align-items:center;gap:0;color:#ffeaa4}
+.captured-stack{width:56px;min-height:48px;max-height:114px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.captured-stack span{display:block;background:#fff5a2;color:#333;font:22px/1 Georgia,serif;text-align:left;height:21px;min-height:21px;box-shadow:0 0 0 1px #d5b571}
+.captured-stack span:first-letter{color:#a62020}
+.captured-display strong{background:#181806;font-size:11px;width:56px;padding:3px;text-align:center;margin-top:3px}.captured-display>b{background:#161406;font-size:24px;width:56px;text-align:center;padding:4px}
+.human-area{padding:0}.human-area .player-caption{display:none}.human-hand{justify-content:center;gap:clamp(8px,2.5vw,18px);min-height:0}
+/* Card dimensions and text are related to the actual card width, never the viewport width. */
+.playing-card{container-type:inline-size;aspect-ratio:0.71;height:auto!important;width:clamp(47px,14vw,82px);border-radius:2px;background:#fff;color:#111;border:1px solid #d5d5d5;box-shadow:0 2px 4px #0004;overflow:hidden}
+.playing-card.red{color:#d60000}.playing-card .card-corner{top:4%;left:5%;width:90%;display:flex;flex-direction:row;gap:2%;align-items:flex-start;line-height:.95;white-space:nowrap}
+.playing-card .card-corner b{font:normal 25cqw/.95 Georgia,serif}.playing-card .card-corner small{font:normal 21cqw/.95 Georgia,serif}
+.playing-card .card-corner.bottom{display:none}
+.playing-card .card-big{top:60%;left:50%;font:normal 75cqw/.9 Georgia,serif;transform:translate(-50%,-50%);max-width:100%;white-space:nowrap}
+.playing-card.mini{width:clamp(24px,7.5vw,37px);height:auto!important}
+.playing-card.mini .card-corner{top:2%;left:5%}.playing-card.mini .card-corner b{font-size:27cqw}.playing-card.mini .card-corner small{font-size:20cqw}
+.playing-card.mini .card-big{font-size:65cqw}
+.build-item{background:#084d09ba;border-color:#e2cd97;max-width:80%;border-radius:8px}
+.build-group>.playing-card:not(:first-child){margin-left:-14px}
+.table-footer{min-height:20px;color:#fffbe7}.turn-indicator{font-size:13px}
+.game-stats{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid #e0c26c88;border-radius:12px;background:#004a1266;color:#e4dfb7;min-height:42px;align-items:center;margin:4px 0 0;padding:4px 3px}
+.game-stats span{display:flex;flex-direction:column;text-align:center;gap:2px;font-size:9px}.game-stats span+span{border-left:1px solid #bfb26c66}.game-stats b{color:#f5d87e;font-size:17px}
+.controls{background:#004b0add;border-color:#d0b66788;padding:5px 7px 6px}
+.main-actions .action-btn{border-radius:10px;font-size:13px;color:#fff9e8;min-height:38px}.main-actions .build-main{background:#035d0a;border-color:#cab974}.main-actions .action-btn.primary{color:#282216}
+.selection-row{min-height:20px}.feedback{margin:3px 0 0}
+/* Soft ivory configuration sheets from the supplied reference shots. */
+.overlay{background:#001700bd;backdrop-filter:blur(3px)}
+.dialog{background:var(--cream);color:var(--ink);border:2px solid #d9c586;border-radius:26px;max-width:470px;box-shadow:0 14px 40px #001e0060}
+.dialog-head{background:transparent;border-bottom:0;padding:19px 22px 7px}.dialog-head h2{font-family:Georgia,serif;color:#034d2e;font-size:32px;font-weight:600;text-align:center}
+.dialog-head .gold-divider{margin:0;text-align:center}.dialog-head p{color:#605b4f}.dialog-head .eyebrow{color:#7c704d}
+.dialog-head>div{flex:1}.icon-close{background:#0e5534;color:#fff;position:absolute;top:13px;right:14px}
+.dialog-content{color:#2c291f}.dialog-content h3{color:#746d5e;font-size:12px;letter-spacing:1.5px}
+.dialog-actions{border-color:#d6ccb2;gap:13px}.dialog-actions .action-btn{flex:1;min-height:47px;background:transparent;border:2px solid #d8cfaf;color:#2b2822;font-size:15px}.dialog-actions .action-btn.primary{background:linear-gradient(#f9e39b,#c69a32);border-color:#ead284;color:#221c13}
+.setting-select,.setting-row{color:#28261e;border-color:#d7ccb5}.setting-row small,.setting-select small{color:#6b6558}.setting-select select{background:#eee5cc;color:#28251d;border-color:#cfbd94}
+.setting-warning,.smallnote,.source-note,.rules-copy,.move-log{color:#48433b}
+.rules-copy p,.rules-copy h3{color:#38352c}.rules-points{background:#e9e0ca;color:#222}
+.menu-row{background:#eee5cd;border-color:#d3c293;color:#183d2a}.menu-row span,.menu-row em{color:#956f26}.menu-row.danger-row{background:#f7e6d4;border-color:#d8bbae}
+.newgame-settings h3{margin:13px 0 8px}.pill-row{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:#ede5cf;border-radius:17px;padding:5px;gap:5px}
+.pill-choice{border:0;border-radius:12px;background:transparent;color:#302b22;min-height:44px;font-size:16px;font-weight:700}.pill-choice.selected{background:#15583c;color:#fff8e6;box-shadow:0 3px 8px #0003}.pill-choice:disabled{opacity:.37}.pill-choice small{display:block;font-size:8px}
+.diff-row{grid-template-columns:repeat(2,1fr);grid-auto-flow:row;grid-auto-columns:auto}
+.newgame-note{color:#716858;font-size:11px;line-height:1.5;margin-top:17px}
+@media(max-height:690px){.launch-scroll{padding-top:12px;gap:11px}.launch-fan{transform:scale(.78);height:116px;margin-bottom:-5px}.launch-brand h1{font-size:56px;margin-top:0}.launch-actions{gap:7px;margin-top:0}.launch-actions button{min-height:46px;padding:8px}.launch-tiles{margin:0}.launch-tile{min-height:54px}.game-stats{min-height:32px}.game-stats b{font-size:13px}.opponent-area{min-height:46px}.opponent-hand{min-height:43px}.card-back{height:37px;width:26px}.match-bar{padding:2px 8px}}
+@media(max-width:360px){.launch-scroll{padding-inline:12px}.shell{padding-inline:5px}.table-cards{gap:5px}.captured-display{width:61px;flex-basis:61px}.captured-stack,.captured-display strong,.captured-display>b{width:48px}.game-heading{font-size:18px}.playing-card{width:clamp(43px,14vw,65px)}}
+@media(prefers-reduced-motion:reduce){.playing-card,.hand-item,.table-item{transition:none!important}}
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -583,6 +668,10 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
   let toast = '', modal = '', hint = null, busy = false, pendingBot = null;
   let draft = null, draftPreset = 'classic';
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
+  let screen = 'home';
+  let hasSavedMatch = false;
+  let setup = { difficulty: 'thoughtful', preset: 'classic' };
+
   const PREF_STORE = 'cassino-lab-prefs-v1';
   let prefs = { sound: true, animations: true };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_STORE) || '{}') }; } catch (_) {}
@@ -658,10 +747,12 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
     if (saved && saved.game && saved.game.players && saved.game.rules) {
       game = saved.game;
       checkpoint = saved.checkpoint || null;
+      hasSavedMatch = true;
     }
   } catch (error) { /* local storage may be unavailable on file:// */ }
   if (!game) game = E.newMatch();
   function persist() {
+    hasSavedMatch = true;
     try { localStorage.setItem(STORE, JSON.stringify({ game, checkpoint })); } catch (error) { /* optional persistence */ }
   }
   function me() { return game.players[0]; }
@@ -673,8 +764,7 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
   function renderCard(card, small = false) {
     return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''}" aria-label="${escapeHtml(E.cardName(card))}">
       <span class="card-corner"><b>${prettyRank(card)}</b><small>${prettySuit(card)}</small></span>
-      <span class="card-big">${prettySuit(card)}</span>
-      <span class="card-corner bottom"><b>${prettyRank(card)}</b><small>${prettySuit(card)}</small></span>
+      <span class="card-big">${prettyRank(card)}</span>
     </span>`;
   }
   function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern">✦</span></span>'; }
@@ -691,7 +781,7 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
       <span class="build-groups">${groups}</span>
     </button>`;
   }
-  function isHumanTurn() { return game.phase === 'playing' && game.turn === 0 && !busy; }
+  function isHumanTurn() { return screen === 'game' && game.phase === 'playing' && game.turn === 0 && !busy; }
   function currentSelection() { return [...pickedTable]; }
   function actionReady(kind) {
     if (!isHumanTurn() || !pickedCard) return null;
@@ -699,8 +789,49 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
     return E.validateAction(game, move);
   }
   function numberLabel(n, singular, plural) { return `${n} ${n === 1 ? singular : plural}`; }
+  function renderHome() {
+    return `<main class="launch-screen">
+      <div class="launch-scroll">
+        <div class="launch-brand">
+          <div class="launch-fan" aria-hidden="true">
+            <span class="fan-card fan-left">${renderCard({rank:2,suit:'S'})}</span>
+            <span class="fan-card fan-middle">${renderCard({rank:10,suit:'D'})}</span>
+            <span class="fan-card fan-right">${renderCard({rank:1,suit:'C'})}</span>
+          </div>
+          <h1>Cassino</h1><div class="gold-divider">◆</div><p>FISHING CARD GAMES · LAB</p>
+        </div>
+        <div class="launch-actions">
+          ${hasSavedMatch ? `<button class="launch-primary" data-action="resume-game"><b>Resume Game</b><small>vs Computer · ${escapeHtml(game.rules.name)} · Hand ${game.round}</small></button>` : ''}
+          <button class="launch-outlined" data-action="setup-new-game"><b>New Game</b></button>
+          <button class="launch-outlined" disabled><b>Local Multiplayer</b><small>Coming later</small></button>
+          <button class="launch-outlined" disabled><b>Online Multiplayer</b><small>Coming later</small></button>
+        </div>
+        <div class="launch-tiles">
+          <button data-action="rules" class="launch-tile"><span>♧</span><b>How to Play</b></button>
+          <button data-action="settings" class="launch-tile"><span>⚙</span><b>Game Variations</b></button>
+          <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
+          <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
+        </div>
+        <p class="launch-foot">Single-player prototype · v0.3 · Offline-ready</p>
+      </div>
+      ${modal ? renderModal() : ''}
+    </main>`;
+  }
+  function renderNewGame() {
+    const diffButtons = [['casual','Easy'], ['thoughtful','Medium']];
+    const presets = [['classic','Original'],['royal','Royal'],['custom','Custom']];
+    return `<div class="dialog-head"><div><h2>New Game</h2><p class="gold-divider">◆</p></div><button data-action="close" class="icon-close" aria-label="Close">×</button></div>
+      <div class="dialog-content newgame-settings">
+        <h3>PLAYERS</h3><div class="pill-row"><button class="pill-choice selected">2</button><button class="pill-choice" disabled title="Coming later">3 <small>soon</small></button><button class="pill-choice" disabled title="Coming later">4 <small>soon</small></button></div>
+        <h3>DIFFICULTY</h3><div class="pill-row diff-row">${diffButtons.map(([k,v])=>`<button class="pill-choice ${setup.difficulty===k?'selected':''}" data-action="setup-difficulty" data-value="${k}">${v}</button>`).join('')}<button class="pill-choice" disabled>Hard <small>soon</small></button><button class="pill-choice" disabled>Insane <small>soon</small></button></div>
+        <h3>VARIATION</h3><div class="pill-row">${presets.map(([k,v])=>`<button class="pill-choice ${setup.preset===k?'selected':''}" data-action="setup-preset" data-value="${k}">${v}</button>`).join('')}</div>
+        <p class="newgame-note">Original uses traditional Cassino rules. Royal gives numerical values to face cards. Custom uses your current rule settings.</p>
+      </div>
+      <div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="start-game" class="action-btn primary">Start Game</button></div>`;
+  }
   function render() {
     if (!app) return;
+    if (screen === 'home') { app.innerHTML = renderHome(); return; }
     if (game.phase !== 'playing') { pickedCard = null; pickedTable.clear(); }
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) { pickedCard = null; pickedTable.clear(); }
     const active = isHumanTurn();
@@ -719,10 +850,9 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
     app.innerHTML = `
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
         <header class="header">
-          <div class="brand"><div class="brand-icon">♠</div><div><span class="eyebrow">FISHING CARD GAMES</span><h1>Cassino <span>Lab</span></h1></div></div>
-          <div class="header-actions">
-            <button class="top-btn menu-button" data-action="menu" aria-label="Open game menu" title="Menu"><span aria-hidden="true">☰</span> <span class="top-label">Menu</span></button>
-          </div>
+          <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
+          <div class="game-heading">Cassino <span>Lab</span></div>
+          <div class="header-actions"><button class="game-help" data-action="rules" aria-label="Rules">ⓘ</button><button class="game-help" data-action="menu" aria-label="Open game menu">☰</button></div>
         </header>
         <div class="match-bar">
           <div class="score-player you-score"><span class="player-dot your-dot"></span><span><small>YOU</small><b>${me().score}</b></span></div>
@@ -737,13 +867,15 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
           </div>
           <div class="table-area">
             <div class="table-title"><span>ON THE TABLE</span><span>${numberLabel(game.table.length, 'group', 'groups')}</span></div>
-            <div class="table-cards ${game.table.length ? '' : 'empty-table'}">${game.table.length ? game.table.map(entryMarkup).join('') : '<div class="table-clear"><span>✧</span>Table cleared</div>'}</div>
+            <div class="table-stage"><div class="table-cards ${game.table.length ? '' : 'empty-table'}">${game.table.length ? game.table.map(entryMarkup).join('') : '<div class="table-clear"><span>✧</span>Table cleared</div>'}</div>
+            <aside class="captured-display"><div class="captured-stack">${opponent().captured.slice(-6).map(c=>`<span>${prettyRank(c)}${prettySuit(c)}</span>`).join('') || '<span>—</span>'}</div><strong>CPU</strong><b>${opponent().score}</b></aside></div>
           </div>
           <div class="human-area">
             <div class="player-caption"><span class="avatar human-avatar">YOU</span><span><b>Your hand</b><small>${numberLabel(me().captured.length, 'card captured', 'cards captured')}${rules.sweepPoints ? ` · ${me().sweeps} sweeps` : ''}</small></span><span class="cards-left">${game.stock.length} in deck</span></div>
             <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card)}</button>`).join('')}</div>
           </div>
           <div class="table-footer"><span class="turn-indicator"><span class="turn-light ${active ? 'active' : ''}"></span>${phaseText}</span><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
+          <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
         <section class="controls" aria-label="Your moves">
           <div class="selection-row"><span class="selection-status">${escapeHtml(statusText)}</span>
@@ -795,6 +927,7 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
     return `<div class="dialog-head"><div><span class="eyebrow">CASSINO LAB</span><h2>Game menu</h2><p>Single-player · Hand ${game.round} · ${escapeHtml(game.rules.name)}</p></div><button data-action="close" class="icon-close" aria-label="Close menu">×</button></div>
       <div class="dialog-content menu-list">
         <button data-action="close" class="menu-row"><span>▶</span><b>Continue playing</b></button>
+        <button data-action="home" class="menu-row"><span>⌂</span><b>Main menu</b></button>
         <button data-action="settings" class="menu-row"><span>⚙</span><b>Game rules & variants</b></button>
         <button data-action="rules" class="menu-row"><span>?</span><b>How to play</b></button>
         <button data-action="history" class="menu-row"><span>☷</span><b>Move history</b></button>
@@ -834,18 +967,18 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
       <div class="dialog-actions"><button data-action="undo" class="action-btn" ${!checkpoint ? 'disabled' : ''}>Undo last turn</button><button data-action="${ended ? 'new-match' : 'next-hand'}" class="action-btn primary">${ended ? 'New match' : 'Next hand'} →</button></div>`;
   }
   function renderModal() {
-    const body = modal === 'menu' ? renderMenu() : modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
+    const body = modal === 'newgame' ? renderNewGame() : modal === 'menu' ? renderMenu() : modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
     return `<div class="overlay" role="presentation"><section class="dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(modal)}">${body}</section></div>`;
   }
   function bindSettings() { /* delegated event listeners live on #app */ }
   function resetSelection() { pickedCard = null; pickedTable.clear(); hint = null; buildMenuOpen = false; }
   function botTurn() {
-    if (busy || game.phase !== 'playing' || game.turn !== 1) return;
+    if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
     busy = true;
     render();
     pendingBot = setTimeout(() => {
       pendingBot = null;
-      if (!busy || game.phase !== 'playing' || game.turn !== 1) { busy = false; render(); return; }
+      if (screen !== 'game' || !busy || game.phase !== 'playing' || game.turn !== 1) { busy = false; render(); return; }
       try {
         const move = E.chooseComputerMove(game);
         animateMove(move.kind, true);
@@ -899,7 +1032,8 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
     if (ask && game.phase === 'playing' && !confirm('Start a new match? Your current match will be replaced.')) return;
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
     busy = false; game = E.newMatch(rules); checkpoint = null; modal = ''; toast = ''; lastMotion = 'deal';
-    resetSelection(); draft = null; persist(); render();
+    screen = 'game'; resetSelection(); draft = null; persist(); render();
+    if (game.turn === 1) botTurn();
   }
   function openSettings() { draft = { ...game.rules }; draftPreset = Object.keys(E.PRESETS).find(k => {
     const a = E.PRESETS[k];
@@ -927,6 +1061,18 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
     const node = event.target.closest('[data-action]');
     if (!node) return;
     const action = node.dataset.action;
+    if (action === 'home') {
+      if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot=null; }
+      busy=false; modal=''; screen='home'; persist(); resetSelection(); sound('tap'); render(); return;
+    }
+    if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); render(); if(game.turn===1 && game.phase==='playing') botTurn(); else if(game.phase!=='playing'){modal='round';render();} return; }
+    if (action === 'setup-new-game') { setup = {difficulty:game.rules.difficulty||'thoughtful',preset:'classic'}; modal='newgame'; sound('tap'); render(); return; }
+    if (action === 'setup-difficulty') { setup.difficulty=node.dataset.value; render(); return; }
+    if (action === 'setup-preset') { setup.preset=node.dataset.value; render(); return; }
+    if (action === 'start-game') {
+      const rules = setup.preset==='custom' ? { ...game.rules,difficulty:setup.difficulty } : E.rulesFor(setup.preset,{difficulty:setup.difficulty});
+      startNewMatch(rules,false);return;
+    }
     if (action === 'menu') { modal = 'menu'; sound('tap'); render(); return; }
     if (action === 'settings') return openSettings();
     if (action === 'rules' || action === 'history') { modal = action; render(); return; }
@@ -977,9 +1123,7 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
     if (ev.key === 'Escape' && modal) { modal = ''; render(); }
     else if (ev.key.toLowerCase() === 'u' && !modal && checkpoint) undo();
   });
-  render();
-  if (game.turn === 1 && game.phase === 'playing') botTurn();
-  else if (game.phase !== 'playing') { modal = 'round'; render(); }
+  render(); // The main menu is the entry point; the computer does not move until Resume/Start.
   if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
     // A new deployment becomes available on the same URL. Let the player
     // choose when to reload so an ongoing turn is not interrupted.
