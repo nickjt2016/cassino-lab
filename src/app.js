@@ -268,16 +268,20 @@
     const move=(entry,where,duration,options={})=>{
       const c=center(entry.rect), dx=where.x-c.x,dy=where.y-c.y;
       const scale=options.scale??1;
+      // Opponent card backs are smaller than the face-up table cards.
+      // Match both landing dimensions to avoid a visible size jump.
+      const scaleY=options.scaleY??scale;
       const from=options.from || {x:0,y:0,scale:1};
-      const start=`translate(${from.x}px,${from.y}px) scale(${from.scale})`;
-      const finish=`translate(${dx}px,${dy}px) scale(${scale})`;
+      const fromScaleY=from.scaleY??from.scale;
+      const start=`translate(${from.x}px,${from.y}px) scale(${from.scale}, ${fromScaleY})`;
+      const finish=`translate(${dx}px,${dy}px) scale(${scale}, ${scaleY})`;
       const finalOpacity=options.fade?0.06:1;
       entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
       entry.ghost.style.transform=start;
       entry.ghost.style.opacity='1';
       return animate(entry.ghost,[
         {transform:start,opacity:1,offset:0},
-        {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58-3}px) scale(${from.scale+(scale-from.scale)*.58})`,opacity:1,offset:.58},
+        {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58-3}px) scale(${from.scale+(scale-from.scale)*.58}, ${fromScaleY+(scaleY-fromScaleY)*.58})`,opacity:1,offset:.58},
         {transform:finish,opacity:finalOpacity,offset:1}
       ],{duration,easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
         if(generation!==motionGeneration)return;
@@ -441,9 +445,17 @@
             buildGhosts.forEach(piece=>piece.ghost.remove());
           }
         } else {
-          // Computer trails: flip face-up while still over the hand, THEN move to the table.
-          await Promise.all(ghosts.map((g,i)=>move(g,{x:end.x+i*3,y:end.y+i*2},
-            snapshot.byComputer?610:490,{scale:.96})));
+          // Computer trails: flip face-up while still over the hand, THEN
+          // smoothly grow to the exact width and height of the table card.
+          // Reveal the destination only after the flight has landed.
+          const landingCard=destination.querySelector('.playing-card');
+          const landingRect=landingCard?.getBoundingClientRect() || targetRect;
+          const landingCenter=center(landingRect);
+          await Promise.all(ghosts.map((g,i)=>move(g,{x:landingCenter.x+i*3,y:landingCenter.y+i*2},
+            snapshot.byComputer?610:490,{
+              scale:landingRect.width/Math.max(1,g.rect.width),
+              scaleY:landingRect.height/Math.max(1,g.rect.height)
+            })));
         }
         await gatherEndOfHand();
       } finally {
@@ -540,7 +552,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.7 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.8 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -630,7 +642,7 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.7</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.8</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
