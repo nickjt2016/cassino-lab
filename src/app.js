@@ -262,15 +262,29 @@
       const finish=()=>{if(done)return;done=true;resolve();};
       anim.onfinish=finish;anim.oncancel=finish;
     });
+    // A card's last position is committed to its element before cancelling the
+    // finished keyframe animation. Without this, consecutive flight stages
+    // briefly jump back to the original rect (a visible one-frame hard cut).
     const move=(entry,where,duration,options={})=>{
       const c=center(entry.rect), dx=where.x-c.x,dy=where.y-c.y;
       const scale=options.scale??1;
       const from=options.from || {x:0,y:0,scale:1};
+      const start=`translate(${from.x}px,${from.y}px) scale(${from.scale})`;
+      const finish=`translate(${dx}px,${dy}px) scale(${scale})`;
+      const finalOpacity=options.fade?0.06:1;
+      entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
+      entry.ghost.style.transform=start;
+      entry.ghost.style.opacity='1';
       return animate(entry.ghost,[
-        {transform:`translate(${from.x}px,${from.y}px) scale(${from.scale})`,opacity:1,offset:0},
-        {transform:`translate(${from.x+(dx-from.x)*.66}px,${from.y+(dy-from.y)*.66-9}px) scale(${from.scale+(scale-from.scale)*.66})`,opacity:1,offset:.66},
-        {transform:`translate(${dx}px,${dy}px) scale(${scale})`,opacity:options.fade?0.06:1,offset:1}
-      ],{duration});
+        {transform:start,opacity:1,offset:0},
+        {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58-3}px) scale(${from.scale+(scale-from.scale)*.58})`,opacity:1,offset:.58},
+        {transform:finish,opacity:finalOpacity,offset:1}
+      ],{duration,easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
+        if(generation!==motionGeneration)return;
+        entry.ghost.style.transform=finish;
+        entry.ghost.style.opacity=String(finalOpacity);
+        entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
+      });
     };
     async function flipComputerCard(){
       if(!snapshot.byComputer) return;
@@ -343,26 +357,26 @@
             x:feltRect ? Math.max(feltRect.left+30,Math.min(feltRect.right-30,avg.x)) : avg.x,
             y:feltRect ? Math.max(feltRect.top+30,Math.min(feltRect.bottom-30,avg.y-6)) : avg.y-6
           };
-          await move(played,top,snapshot.byComputer?600:420,{scale:revealScale});
+          await move(played,top,snapshot.byComputer?430:310,{scale:revealScale});
           if(generation!==motionGeneration)return;
           // Hold the capturing card face up so the opponent's chosen card is legible.
-          await new Promise(resolve=>setTimeout(resolve,snapshot.byComputer?320:180));
+          await new Promise(resolve=>setTimeout(resolve,snapshot.byComputer?170:90));
           if(generation!==motionGeneration)return;
 
           // Each captured card (including cards from builds) slides UNDER the
           // played card, one after another. They do NOT fly directly to the pile.
           // Small offsets show the edges of the gathered stack like solitaire.
           const collected=ghosts.slice(1);
-          const gatherDelay=Math.min(75,Math.max(24,400/Math.max(collected.length,1)));
+          const gatherDelay=Math.min(52,Math.max(18,240/Math.max(collected.length,1)));
           await Promise.all(collected.map(async(g,i)=>{
             await new Promise(resolve=>setTimeout(resolve,i*gatherDelay));
             if(generation!==motionGeneration)return;
             const place={x:top.x + Math.min(i+1,7)*1.7,y:top.y + Math.min(i+1,7)*2.0};
-            await move(g,place,380,{scale:tableWidth/Math.max(g.rect.width,1)});
+            await move(g,place,285,{scale:tableWidth/Math.max(g.rect.width,1)});
             if(i===collected.length-1) sound('tap');
           }));
           if(generation!==motionGeneration)return;
-          await new Promise(resolve=>setTimeout(resolve,230));
+          await new Promise(resolve=>setTimeout(resolve,85));
           if(generation!==motionGeneration)return;
 
           // Finally carry the *assembled stack* to the capture pile.  Every
@@ -372,7 +386,7 @@
             position:i===0?top:{x:top.x+Math.min(i,7)*1.7,y:top.y+Math.min(i,7)*2.0},
             scale:i===0?revealScale:tableWidth/Math.max(g.rect.width,1)
           }));
-          await Promise.all(stack.map(({entry,position,scale},i)=>move(entry,end,560,{
+          await Promise.all(stack.map(({entry,position,scale},i)=>move(entry,end,380,{
             from:{x:position.x-center(entry.rect).x,y:position.y-center(entry.rect).y,scale},
             scale:.34,fade:true
           })));
@@ -398,20 +412,33 @@
           // The standard grouped overlays are unnecessary for an individual-card build.
           ghosts.forEach(({ghost})=>ghost.remove());
           try {
-            for(let i=0;i<buildGhosts.length;i++) {
+            // The reference video deals the cards into the build almost
+            // together: a rapid, slightly staggered convergence, not a series
+            // of slow independent flights. The bottom strips stay visible.
+            await Promise.all(buildGhosts.map(async(piece,i)=>{
+              await new Promise(resolve=>setTimeout(resolve,i*72));
               if(generation!==motionGeneration)return;
-              const piece=buildGhosts[i];
               const slot=layers[order.get(piece.id)];
-              if(!slot)continue;
+              if(!slot)return;
               const slotRect=slot.getBoundingClientRect();
-              const pos=center(slotRect);
-              await move(piece,pos,snapshot.byComputer?390:340,{scale:slotRect.width/Math.max(piece.rect.width,1)});
-              sound('tap');
-              // Short gap makes overlapping cards perceptible rather than popping together.
-              if(i<buildGhosts.length-1)await new Promise(resolve=>setTimeout(resolve,85));
-            }
+              await move(piece,center(slotRect),snapshot.byComputer?420:380,
+                {scale:slotRect.width/Math.max(piece.rect.width,1)});
+              if(generation===motionGeneration)sound('tap');
+            }));
+            if(generation!==motionGeneration)return;
+            // A brief beat before the flush value label appears, matching the
+            // finished stack settling in the video.
+            await new Promise(resolve=>setTimeout(resolve,95));
           } finally {
-            buildGhosts.forEach(p=>p.ghost.remove());
+            if(generation===motionGeneration && destination.isConnected){
+              destination.style.visibility='visible';
+              const label=destination.querySelector('.build-value');
+              if(label && label.animate)label.animate([
+                {opacity:0,transform:'translateY(8px)'},
+                {opacity:1,transform:'translateY(0)'}
+              ],{duration:170,easing:'ease-out'});
+            }
+            buildGhosts.forEach(piece=>piece.ghost.remove());
           }
         } else {
           // Computer trails: flip face-up while still over the hand, THEN move to the table.
@@ -420,19 +447,14 @@
         }
         await gatherEndOfHand();
       } finally {
+        // Reveal the final DOM stack before removing the last flight image.
+        // This avoids a blank frame between a landing card and its pile.
+        if(generation===motionGeneration && !capture && destination.isConnected){
+          destination.style.visibility='visible';
+        }
         ghosts.forEach(({ghost})=>ghost.remove());
         leftoverGhosts.forEach(({ghost})=>ghost.remove());
         if(generation!==motionGeneration)return;
-        if(!capture&&destination.isConnected){
-          destination.style.visibility='visible';
-          if(snapshot.kind==='build'){
-            const label=destination.querySelector('.build-value');
-            if(label&&label.animate) label.animate([
-              {transform:'translateY(8px) scaleY(.6)',opacity:.15},
-              {transform:'translateY(0) scaleY(1)',opacity:1}
-            ],{duration:240,easing:'ease-out'});
-          }
-        }
         after();
       }
     })();
@@ -518,7 +540,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.6 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.7 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -608,7 +630,7 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.6</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.7</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
