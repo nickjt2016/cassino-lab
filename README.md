@@ -67,3 +67,7 @@ At the end of a hand, loose cards remaining on the table are collected by the pl
 ## Readable build stacks (v0.4.7)
 
 Builds remain physical card piles, not icons. The cards form a stepped solitaire stack, with the upper rank and suit of each constituent card exposed. The numerical build-value strip is flush with the bottom of the last card, and it appears after the cards settle. Compact spacing is used on shorter screens and for large builds.
+
+
+### v0.4.8 — computer trails
+The opponent's trailed card flips face-up over the hand, scales smoothly to exactly the loose-table-card dimensions, and lands without a size jump. The same sizing applies when the trail finishes the hand, with a separate safeguard for an already-cleared table. This update preserves the existing animation timing and legal moves.
