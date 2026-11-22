@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.3.1**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.3.2**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -29,3 +29,10 @@ The service worker uses a network-first strategy and updates its cache when the 
 This release keeps its game engine, styling and interface together in `index.html` as a self-contained static game. The editable modular source and tests are maintained separately in the original development package. Gameplay data is stored per browser/device; it does not yet synchronize between devices.
 
 This is a hobbyist prototype for playtesting, not yet multiplayer or an app-store release.
+
+
+## Video-reference interaction update (v0.3.2)
+
+The card table now follows the user-provided reference video more closely, while using original visuals and sounds. Its top and bottom card hands, green felt, card highlighting, and build stacks occupy a single viewport. **Build, Trail and Capture are contextual:** the action bar is hidden until a hand card is selected, then shows only moves legal for the current card and selected table groups. Clear the selection to hide the bar. Hint and Undo stay in the top toolbar.
+
+Card rank and suit indices scale with their cards to prevent overlap on narrow Android screens. The main menu retains Resume and New Game, difficulty and variation choices. Some optional Royal and Pirate rules remain intentionally disabled until implemented.
