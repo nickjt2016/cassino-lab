@@ -252,6 +252,20 @@
     if (obligation) return { ok: false, reason: obligation };
     return { ...outcome, card, selected, remainingTable };
   }
+  // Keep the visible card rank and the numerical target together in Royal
+  // variants. For example playing Q into a 14-build reads "Build Q (14)";
+  // playing A into a 14-multiple reads "Multiple Build A (14)".
+  function buildActionLabel(card, value, build, rules) {
+    const title = build.operation === 'raise' ? 'Raise to'
+      : build.kind === 'multiple' ? 'Multiple Build' : 'Build';
+    const playedRoyal = (card.rank >= 11 && rules.royal) || (card.rank === 1 && rules.royalAces);
+    const rank = playedRoyal ? ({1:'A',11:'J',12:'Q',13:'K'})[card.rank]
+      : ({11:'J',12:'Q',13:'K'})[value] && rules.royal ? ({11:'J',12:'Q',13:'K'})[value]
+      : value === 14 && rules.royalAces ? 'A'
+      : value === 15 && rules.royalBigLittle ? '2♠'
+      : value === 16 && rules.royalBigLittle ? '10♦' : '';
+    return rank ? `${title} ${rank} (${value})` : `${title} ${value}`;
+  }
   function legalBuildOptions(state, cardId, targetIds) {
     if (!state.rules.builds || !cardId) return [];
     const hand = state.players[state.turn].hand;
@@ -264,9 +278,8 @@
         const action = { kind: 'build', cardId, targetIds: targetIds || [], value, mode };
         const check = validateAction(state, action);
         if (check.ok) {
-          const valueLabel = ({11:'J',12:'Q',13:'K',14:'A (14)',15:'2♠ (15)',16:'10♦ (16)'})[value] || String(value);
-          const title = check.build.operation === 'raise' ? 'Raise to' : check.build.operation === 'extend' ? 'Multiple build' : check.build.kind === 'multiple' ? 'Multiple build' : 'Build';
-          possibilities.push({...action,label:`${title} ${valueLabel}`,detail:check.build.kind});
+          const label = buildActionLabel(hand.find(c => c.id === cardId), value, check.build, state.rules);
+          possibilities.push({...action,label,detail:check.build.kind});
         }
       }
     }
@@ -493,5 +506,5 @@
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove,
-    explainMove, moveScore };
+    explainMove, moveScore, buildActionLabel };
 });
