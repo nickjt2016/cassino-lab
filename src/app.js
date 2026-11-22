@@ -26,6 +26,8 @@
   function savePrefs() {
     try { localStorage.setItem(PREF_STORE, JSON.stringify(prefs)); } catch (_) {}
   }
+  // Synthesized, original card-table Foley: a short dry click followed by a
+  // quiet paper brush.  No audio samples from the reference app are reused.
   function sound(type = 'tap') {
     if (!prefs.sound) return;
     try {
@@ -34,87 +36,175 @@
       if (!audioContext) audioContext = new Audio();
       if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
       const now = audioContext.currentTime;
-      const patterns = {
-        tap: [[550, .018, .045]],
-        trail: [[400, .035, .08], [510, .115, .07]],
-        build: [[420, .025, .09], [620, .135, .14]],
-        capture: [[720, .025, .075], [510, .095, .11]],
-        sweep: [[530, .02, .10], [690, .11, .10], [930, .22, .2]],
-        score: [[525, .025, .13], [785, .18, .2]],
-        undo: [[490, .02, .10], [360, .14, .12]]
-      };
-      (patterns[type] || patterns.tap).forEach(([hz, offset, duration]) => {
-        const osc = audioContext.createOscillator();
+      const rate = audioContext.sampleRate;
+      const pattern = {
+        tap: [[0, .045, .045]],
+        trail: [[0, .08, .09], [.095, .035, .038]],
+        build: [[0, .085, .10], [.12, .05, .06]],
+        capture: [[0, .07, .10], [.08, .06, .06], [.17, .045, .045]],
+        sweep: [[0, .09, .10], [.09, .085, .09], [.19, .075, .08]],
+        score: [[0, .08, .09], [.14, .06, .10]],
+        undo: [[0, .042, .05]],
+        deal: [[0, .045, .05], [.075, .045, .05], [.15, .045, .05], [.225, .045, .05]],
+      }[type] || [[0, .04, .045]];
+      for (const [offset, volume, duration] of pattern) {
+        const frames = Math.ceil(rate * duration);
+        const buffer = audioContext.createBuffer(1, frames, rate);
+        const channel = buffer.getChannelData(0);
+        // Crisp attack + a decaying paper/riffle tail; intentionally subtle.
+        for (let i = 0; i < frames; i++) {
+          const t = i / rate;
+          const body = Math.exp(-t * 72);
+          const brush = Math.exp(-t * 21) * .29;
+          channel[i] = (Math.random() * 2 - 1) * (body + brush);
+        }
+        const src = audioContext.createBufferSource(); src.buffer = buffer;
+        const filter = audioContext.createBiquadFilter();
+        filter.type = 'bandpass'; filter.frequency.value = type === 'tap' ? 1800 : 1050;
+        filter.Q.value = .53;
         const gain = audioContext.createGain();
-        osc.type = type === 'capture' ? 'triangle' : 'sine';
-        osc.frequency.setValueAtTime(hz, now + offset);
-        gain.gain.setValueAtTime(.0001, now + offset);
-        gain.gain.exponentialRampToValueAtTime(.065, now + offset + .012);
+        gain.gain.setValueAtTime(volume, now + offset);
         gain.gain.exponentialRampToValueAtTime(.0001, now + offset + duration);
-        osc.connect(gain); gain.connect(audioContext.destination);
-        osc.start(now + offset); osc.stop(now + offset + duration + .015);
-      });
-    } catch (_) { /* Audio is optional on restricted browsers. */ }
+        src.connect(filter); filter.connect(gain); gain.connect(audioContext.destination);
+        src.start(now + offset); src.stop(now + offset + duration + .01);
+      }
+    } catch (_) { /* Browser audio permission is optional. */ }
   }
-  // Fly the actual played card and affected table groups toward their destinations.
-  // Animations are decorative; the rules engine remains authoritative.
-  function animateMove(kind, byComputer = false, move = null) {
-    if (!prefs.animations || !document.body ||
-      (globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  // Take a snapshot *before* applying the move, then animate the old cards to
+  // their actual positions in the newly rendered state.  Nothing fades except
+  // cards being captured.  The opponent's card is turned face-up in flight.
+  let motionGeneration = 0;
+  const motionAllowed = () => !!prefs.animations &&
+    !(globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  // FLIP transitions: capture positions before replacing HTML, then translate
+  // surviving cards from their old screen positions to their new ones. Using
+  // the independent `translate` property preserves the selected-card transform.
+  function layoutPositions() {
+    if (!app || !app.querySelectorAll) return null;
+    const positions = new Map();
+    app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]').forEach(node => {
+      const key = node.dataset.action + ':' + node.dataset.id;
+      const rect = node.getBoundingClientRect();
+      if (rect.width && rect.height) positions.set(key, {x:rect.left+rect.width/2,y:rect.top+rect.height/2});
+    });
+    app.querySelectorAll('.opponent-hand .card-back').forEach((node,i)=>{
+      const rect=node.getBoundingClientRect();
+      if(rect.width && rect.height) positions.set('cpu-back:'+i,{x:rect.left+rect.width/2,y:rect.top+rect.height/2});
+    });
+    return positions;
+  }
+  function animateLayout(previous) {
+    if (!previous || !motionAllowed() || !app.querySelectorAll) return;
+    const nodes = [...app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]'),
+      ...app.querySelectorAll('.opponent-hand .card-back')];
+    let cpu=0;
+    nodes.forEach(node => {
+      const key = node.classList.contains('card-back') ? 'cpu-back:'+(cpu++) : node.dataset.action+':'+node.dataset.id;
+      const from=previous.get(key);
+      if(!from || !node.animate) return;
+      const rect=node.getBoundingClientRect();
+      const dx=from.x-(rect.left+rect.width/2), dy=from.y-(rect.top+rect.height/2);
+      if(Math.abs(dx)<2 && Math.abs(dy)<2) return;
+      node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
+        {duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});
+    });
+  }
+  function animateNewDeal() {
+    if (!motionAllowed() || !app.querySelectorAll) return;
+    const stock = app.querySelector('.game-stats');
+    if(!stock) return;
+    const sr=stock.getBoundingClientRect();
+    const start={x:sr.left+sr.width*.84,y:sr.top+sr.height/2};
+    const cards=[...app.querySelectorAll('.opponent-hand .card-back'),
+      ...app.querySelectorAll('.human-hand .playing-card')];
+    cards.forEach((card,i)=>{
+      if(!card.animate) return;
+      const r=card.getBoundingClientRect();
+      const dx=start.x-(r.left+r.width/2),dy=start.y-(r.top+r.height/2);
+      card.animate([
+        {translate:`${dx}px ${dy}px`,rotate:i%2?'7deg':'-7deg'},
+        {translate:'0px 0px',rotate:'0deg'}
+      ],{duration:540,delay:i*48,easing:'cubic-bezier(.2,.84,.22,1)',fill:'backwards'});
+    });
+  }
+  function animateTurnMessage(previous) {
+    if (!motionAllowed() || !app.querySelector || previous===null) return;
+    const node=app.querySelector('.turn-banner');
+    if (node && node.textContent!==previous && node.animate)
+      node.animate([{opacity:.55,translate:'0px 5px'},{opacity:1,translate:'0px 0px'}],
+        {duration:320,easing:'ease-out'});
+  }
+  function cancelMotion() {
+    motionGeneration++;
+    if (document.querySelectorAll) document.querySelectorAll('.card-flight').forEach(node => node.remove());
+  }
+  function takeMotionSnapshot(move, byComputer = false) {
+    if (!motionAllowed() || !document.body || !app.querySelector) return null;
     const from = byComputer
       ? app.querySelector('.opponent-hand .card-back:last-child')
-      : app.querySelector('.hand-item.selected .playing-card');
-    const destination = kind === 'capture'
-      ? app.querySelector(byComputer ? '.opponent-tag' : '.your-score-tag')
-      : (kind === 'build' ? app.querySelector('.table-builds') : app.querySelector('.table-cards'));
-    const intermediate = app.querySelector('.table-stage') || app.querySelector('.table-area');
-    if (!from || !destination || !intermediate || !from.getBoundingClientRect) return;
-    const played = move && game.players[byComputer ? 1 : 0].hand.find(c => c.id === move.cardId);
-    const duration = byComputer ? 820 : 610;
-    const center = rect => ({x:rect.left + rect.width/2, y:rect.top + rect.height/2});
-    const goal = center(destination.getBoundingClientRect());
-    const mid = center(intermediate.getBoundingClientRect());
-    function fly(source, destinationPoint, face = null, via = null, stagger = 0) {
-      if (!source || !source.getBoundingClientRect) return;
-      const start = source.getBoundingClientRect();
-      if (!start.width || !start.height) return;
-      const ghost = face ? document.createElement('div') : source.cloneNode(true);
-      if (face) ghost.innerHTML = renderCard(face);
-      ghost.className += ' move-ghost';
-      Object.assign(ghost.style, {
-        position:'fixed',pointerEvents:'none',zIndex:'65',
-        left:start.left+'px',top:start.top+'px',width:start.width+'px',height:start.height+'px',margin:'0',
-        transformOrigin:'center',willChange:'transform, opacity'
-      });
-      const inner=ghost.querySelector('.playing-card');
-      if(inner) Object.assign(inner.style,{width:'100%',height:'100%',margin:'0'});
+      : app.querySelector(`.hand-item[data-id="${move.cardId}"] .playing-card`);
+    if (!from || !from.getBoundingClientRect) return null;
+    const rect = node => {
+      const r = node.getBoundingClientRect();
+      return {left:r.left,top:r.top,width:r.width,height:r.height};
+    };
+    const playerCard = game.players[byComputer ? 1 : 0].hand.find(c => c.id === move.cardId);
+    if (!playerCard) return null;
+    const groupRects = (move.targetIds || []).map(id => {
+      const node = Array.from(app.querySelectorAll('[data-action="table"]')).find(el => el.dataset.id === id);
+      return node ? {rect:rect(node),html:node.querySelector('.playing-card')?.outerHTML || node.outerHTML} : null;
+    }).filter(Boolean);
+    return {kind:move.kind,byComputer,played:{rect:rect(from),html:renderCard(playerCard)},groups:groupRects};
+  }
+  function playMotion(snapshot, after) {
+    if (!snapshot || !document.body || !app.querySelector) { after(); return; }
+    const generation = motionGeneration;
+    const capture = snapshot.kind === 'capture';
+    const target = capture
+      ? app.querySelector(snapshot.byComputer ? '.opponent-tag' : '.your-score-tag')
+      : app.querySelector(`[data-action="table"][data-id="${game.table[game.table.length-1]?.id}"]`);
+    if (!target || !target.getBoundingClientRect) { after(); return; }
+    const targetRect = target.getBoundingClientRect();
+    const center = r => ({x:r.left+r.width/2,y:r.top+r.height/2});
+    const end = center(targetRect);
+    // The final trail/build group must not appear before the flying card arrives.
+    if (!capture) target.style.visibility = 'hidden';
+    const tasks = [snapshot.played,...snapshot.groups];
+    const duration = snapshot.byComputer ? 880 : 660;
+    const animationPromises = tasks.map((piece,index) => new Promise(resolve => {
+      const ghost = document.createElement('div');
+      ghost.className = 'card-flight';
+      ghost.innerHTML = piece.html;
+      const start = piece.rect;
+      Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',zIndex:'80',
+        left:start.left+'px',top:start.top+'px',width:start.width+'px',height:start.height+'px',
+        margin:'0',padding:'0',transformOrigin:'center',willChange:'transform,opacity'});
+      const inner = ghost.querySelector('.playing-card');
+      if (inner) Object.assign(inner.style,{width:'100%',height:'100%',margin:'0'});
       document.body.appendChild(ghost);
-      const fromCenter=center(start);
-      const to=(point,rot=0,scale=1)=>`translate(${point.x-fromCenter.x}px,${point.y-fromCenter.y}px) rotate(${rot}deg) scale(${scale})`;
-      const endingOpacity = kind === 'capture' ? .08 : 1;
-      const frames=via ? [
-        {transform:to(fromCenter),opacity:1,offset:0},
-        {transform:to({x:(fromCenter.x+via.x)/2,y:(fromCenter.y+via.y)/2-18},-6,1.02),opacity:1,offset:.28},
-        {transform:to(via,3,1),opacity:1,offset:.55},
-        {transform:to(destinationPoint,5,kind === 'capture' ? .52 : 1),opacity:endingOpacity,offset:1}
-      ] : [
-        {transform:to(fromCenter),opacity:1},
-        {transform:to({x:(fromCenter.x+destinationPoint.x)/2,y:(fromCenter.y+destinationPoint.y)/2-18},-4,1.05),opacity:1,offset:.53},
-        {transform:to(destinationPoint,5,kind === 'capture' ? .66 : 1),opacity:endingOpacity}
+      const c = center(start);
+      const dx = end.x - c.x, dy = end.y - c.y;
+      const scale = capture ? .53 : (snapshot.kind === 'build' ? .66 : (snapshot.byComputer ? Math.min(1.5, targetRect.width / Math.max(start.width,1)) : 1));
+      // Captures travel from the table toward the appropriate captured pile.
+      // Trails and builds slide directly to their new table location, opaque.
+      const frames = [
+        {transform:'translate(0px,0px) rotate(0deg) scale(1)',opacity:1,offset:0},
+        {transform:`translate(${dx*.48}px,${dy*.48-11}px) rotate(${index%2 ? -3 : 3}deg) scale(${snapshot.byComputer && index === 0 ? 1.18 : 1.02})`,opacity:1,offset:.48},
+        {transform:`translate(${dx*.83}px,${dy*.83-3}px) rotate(1deg) scale(${scale+.12})`,opacity:1,offset:.84},
+        {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(${scale})`,opacity:capture?.04:1,offset:1}
       ];
       if (ghost.animate) {
-        const anim=ghost.animate(frames,{duration,delay:stagger,easing:'cubic-bezier(.25,.75,.25,1)'});
-        anim.onfinish=()=>ghost.remove(); anim.oncancel=()=>ghost.remove();
-      } else ghost.remove();
-    }
-    fly(from,goal,byComputer?played:null,kind==='capture'?mid:null);
-    if(move && (kind==='capture' || kind==='build')) {
-      const tableDestination=kind==='capture'?goal:mid;
-      for(const [index,id] of (move.targetIds||[]).entries()) {
-        const tableNode=Array.from(app.querySelectorAll('[data-action="table"]')).find(x=>x.dataset.id===id);
-        if(tableNode) fly(tableNode,tableDestination,null,null,index*65);
-      }
-    }
+        const animation=ghost.animate(frames,{duration,delay:index*62,fill:'forwards',easing:'cubic-bezier(.23,.68,.28,1)'});
+        const finish=()=>{ghost.remove();resolve();};
+        animation.onfinish=finish; animation.oncancel=finish;
+      } else {ghost.remove();resolve();}
+    }));
+    Promise.all(animationPromises).then(() => {
+      if(generation !== motionGeneration) return;
+      if(!capture && target.isConnected) target.style.visibility = 'visible';
+      after();
+    });
   }
   const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 
@@ -151,7 +241,7 @@
       <span class="card-big">${prettyRank(card)}</span>
     </span>`;
   }
-  function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern">✦</span></span>'; }
+  function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern"></span></span>'; }
   function elCards(element) { return E.cardsInElement(element); }
   function entryMarkup(element) {
     const selected = pickedTable.has(element.id);
@@ -198,7 +288,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.1 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.3 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -228,6 +318,8 @@
   }
   function render() {
     if (!app) return;
+    const oldLayout = screen === 'game' && motionAllowed() ? layoutPositions() : null;
+    const previousTurn = app.querySelector ? app.querySelector('.turn-banner')?.textContent ?? null : null;
     rememberVariationsScroll();
     if (screen === 'home') { app.innerHTML = renderHome(); restoreVariationsScroll(); return; }
     if (game.phase !== 'playing') { pickedCard = null; pickedTable.clear(); }
@@ -283,11 +375,14 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.1</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.3</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
     bindSettings();
+    animateLayout(oldLayout);
+    if (motion === 'deal') animateNewDeal();
+    animateTurnMessage(previousTurn);
   }
   function settingChecked(name) { return draft[name] ? 'checked' : ''; }
   function checkRow(name, title, desc, disabled = false) {
@@ -410,41 +505,54 @@
       if (screen !== 'game' || !busy || game.phase !== 'playing' || game.turn !== 1) { busy = false; render(); return; }
       try {
         const move = E.chooseComputerMove(game);
-        animateMove(move.kind, true, move);
+        const before = takeMotionSnapshot(move, true);
         const outcome = E.applyAction(game, move);
         if (!outcome.ok) throw new Error(outcome.reason);
         lastMotion = move.kind;
         moveAnnouncement = outcome.description;
         if (announcementTimer !== null) clearTimeout(announcementTimer);
-        announcementTimer = setTimeout(() => { announcementTimer = null; moveAnnouncement = ''; if(screen === 'game' && game.phase === 'playing') render(); }, 2400);
+        // Keep the message readable after the cards have settled.
+        announcementTimer = setTimeout(() => { announcementTimer=null; moveAnnouncement=''; if(screen==='game'&&game.phase==='playing') render(); }, 4000);
         sound(game.phase !== 'playing' ? 'score' : move.kind);
+        persist(); render();
+        playMotion(before, () => {
+          if (screen !== 'game') return;
+          busy = false;
+          if (game.phase !== 'playing') modal = 'round';
+          persist(); render();
+          if (game.turn === 1 && game.phase === 'playing') botTurn();
+        });
       } catch (error) {
+        busy = false;
         toast = `Computer move error: ${error.message}`;
+        render();
       }
-      busy = false;
-      if (game.phase !== 'playing') modal = 'round';
-      persist(); render();
-      if (game.turn === 1 && game.phase === 'playing') botTurn();
-    }, 1500);
+    }, 1200);
   }
   function play(action) {
     if (!isHumanTurn()) return;
     const check = E.validateAction(game, action);
     if (!check.ok) { toast = check.reason; render(); return; }
+    const before = takeMotionSnapshot(action, false);
     checkpoint = JSON.stringify(game);
-    animateMove(action.kind, false, action);
     const result = E.applyAction(game, action);
     if (!result.ok) { toast = result.reason; return render(); }
     lastMotion = action.kind;
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
     toast = result.description;
     resetSelection();
-    moveAnnouncement = '';
-    if (game.phase !== 'playing') modal = 'round';
+    moveAnnouncement = result.description;
+    busy = !!before;
     persist(); render();
-    if (game.turn === 1 && game.phase === 'playing') botTurn();
+    playMotion(before, () => {
+      busy = false;
+      if (game.phase !== 'playing') modal = 'round';
+      persist(); render();
+      if (game.turn === 1 && game.phase === 'playing') botTurn();
+    });
   }
   function undo() {
+    cancelMotion();
     if (!checkpoint) return;
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
     busy = false;
@@ -456,6 +564,7 @@
     resetSelection(); persist(); render();
   }
   function nextHand() {
+    cancelMotion();
     const next = E.nextHand(game);
     if (!next) return;
     game = next; checkpoint = null; resetSelection(); toast = ''; modal = ''; lastMotion = 'deal';
@@ -464,6 +573,7 @@
   function startNewMatch(rules = game.rules, ask = true) {
     if (ask && game.phase === 'playing' && !confirm('Start a new match? Your current match will be replaced.')) return;
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
+    cancelMotion();
     busy = false; game = E.newMatch(rules); checkpoint = null; modal = ''; toast = ''; lastMotion = 'deal';
     screen = 'game'; resetSelection(); draft = null; persist(); render();
     if (game.turn === 1) botTurn();
@@ -498,6 +608,7 @@
     if (!node) return;
     const action = node.dataset.action;
     if (action === 'home') {
+      cancelMotion();
       if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot=null; }
       busy=false; modal=''; screen='home'; persist(); resetSelection(); sound('tap'); render(); return;
     }
