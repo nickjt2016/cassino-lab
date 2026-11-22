@@ -56,3 +56,10 @@ The Royal Aces and Royal 2-and-10 options can now use alternative numerical valu
 ## v0.4.3 — smoother gameplay animation
 
 Card movements now use eased physical flights, staggered redeals, and FLIP transitions for surviving table cards. Trail and build motions remain opaque; cards fade only when captured. Contextual move prompts and dialogs have gentler entrances, and system reduced-motion preferences are supported. Saved matches remain compatible.
+
+
+## v0.4.6 — physical capture stacks, end-of-hand settlement, readable scoring
+
+During a capture, the player's actual face-up card moves from their hand over the selected table cards. Every captured card, including cards inside a build, slides beneath it, then the whole assembled stack travels back to that player's capture area. Only the returning captured stack fades.
+
+At the end of a hand, loose cards remaining on the table are collected by the player who made the last capture. This collection finishes before hand scoring appears. The results table now labels category point values (such as Most cards (3), Aces (1–4)), bolds the higher number in each category and highlights the hand winner. Dealing uses a louder quick sequence of original synthesized card-snap sounds synchronized with cards flying from the stock on the left.
