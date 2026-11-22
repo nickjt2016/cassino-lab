@@ -433,3 +433,44 @@ html,body,#app{background:#005d0b;color:#fff}
  .contextual-controls .main-actions{max-height:68px;gap:4px}
  .contextual-controls .action-btn{min-height:25px;font-size:10px;padding:3px 8px;min-width:74px}
 }
+
+/* v0.4.1 — stable logo, legible card sizes, textured backs and selection. */
+.launch-logo-art {width:min(78vw,290px);height:auto;aspect-ratio:290/174; margin:0 auto 0; flex:0 0 auto;filter:drop-shadow(0 4px 8px #003d0e99)}
+.launch-logo-art svg {display:block;width:100%;height:100%;overflow:visible}
+.launch-brand h1 {margin:2px 0 0; letter-spacing:-.045em;line-height:1.05;font-size:clamp(62px,13.7vw,86px);text-shadow:0 2px 4px #00361299;}
+@media(max-height:690px){.launch-logo-art{width:min(66vw,225px);}.launch-brand h1{font-size:clamp(48px,11vw,66px);}}
+/* Face cards scale as a unit using container-query typography. */
+.playing-card {width:clamp(64px,20vw,104px);overflow:hidden}
+.playing-card .card-corner{left:5%;width:90%;top:3%}
+.playing-card .card-corner b{font-size:23cqw;line-height:1}
+.playing-card .card-corner small{font-size:18cqw;line-height:1}
+.playing-card .card-big{font-size:74cqw;top:63%;line-height:1}
+.playing-card.ten-card .card-big{font-size:60cqw}
+.human-hand{gap:clamp(5px,1.9vw,14px)}
+.table-cards{gap:clamp(5px,1.6vw,12px)}
+/* Woven diamond pattern with a framed central medallion on each card back. */
+.card-back {width:clamp(43px,11.8vw,54px);height:clamp(59px,16vw,75px);padding:3px;
+  background:#f9f5e8;border:2px solid #fcf7ed;border-radius:4px;box-shadow:0 3px 6px #001e0055}
+.back-pattern{position:relative;display:grid;place-items:center;overflow:hidden;border:1px solid #e8d8a7;
+ background:repeating-linear-gradient(45deg,transparent 0 5px,#c4d0fc66 5px 6px,transparent 6px 11px),
+ repeating-linear-gradient(-45deg,transparent 0 5px,#e1e8ffbb 5px 6px,transparent 6px 11px),
+ #273c9b;color:#e7d9a8;font-size:13px}
+.back-pattern:before{content:'';position:absolute;inset:13% 22%;border:1px solid #e9dba8;border-radius:3px;transform:rotate(45deg);box-shadow:0 0 0 2px #233b95}
+.back-pattern:after{content:'◆';font-size:clamp(9px,2.8vw,15px);position:relative;color:#f0d894;text-shadow:0 1px 2px #132d79}
+/* A selected build highlights the cards as well as its outer container. */
+.build-item.selected {background:#174f21;outline:3px solid #ffe76b;outline-offset:1px;box-shadow:0 0 0 5px #f8dc4d4d,0 4px 12px #0006;}
+.build-item.selected .playing-card.mini{background:#fff99b!important;border-color:#ffe54f;}
+.build-item.selected .playing-card.mini.red{color:#ce201a!important}
+.build-item.selected .playing-card.mini.black{color:#161800!important}
+.build-item.selected .build-top{background:#695a17;color:#fff5be}
+/* Cards and labels stay opaque except when they are actually being captured. */
+@keyframes cards-deal {from{transform:translateY(-12px) scale(.96)}to{transform:translateY(0) scale(1)}}
+@media(max-height:700px){
+ .playing-card{width:clamp(55px,16.9vw,78px)}
+ .card-back{width:35px;height:49px}
+}
+@media(orientation:landscape) and (max-height:450px){
+ .playing-card{width:clamp(40px,6.7vw,61px)}
+ .card-back{width:22px;height:31px;padding:2px}
+ .back-pattern:after{font-size:8px}
+}
