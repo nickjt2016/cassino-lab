@@ -51,3 +51,8 @@ The Royal Aces and Royal 2-and-10 options can now use alternative numerical valu
 - Cards fly at full opacity when trailed or built; only captured cards fade on the way to the captured pile.
 - You may select loose table cards or builds before selecting a hand card; highlights persist. Selected build stacks now glow yellow, including their constituent cards.
 - Royal move labels pair rank and target value: Build Q (14), Build A (14), Multiple Build A (14) when the indicated move is legal. Royal J/Q/K normally count as 11/12/13, and Royal Aces as 1 or 14; displaying a target beside a rank does not change that card's inherent value.
+
+
+## v0.4.3 — smoother gameplay animation
+
+Card movements now use eased physical flights, staggered redeals, and FLIP transitions for surviving table cards. Trail and build motions remain opaque; cards fade only when captured. Contextual move prompts and dialogs have gentler entrances, and system reduced-motion preferences are supported. Saved matches remain compatible.
