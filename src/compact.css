@@ -609,3 +609,32 @@ html,body,#app{background:#005d0b;color:#fff}
 .dialog .result-table .totals-row{background:#e8ce84;color:#252011;font-weight:900}
 .dialog .result-table .totals-row .round-leading{background:#c8e0ab;color:#0d4424}
 .dialog .smallnote{color:#4a4635}
+
+/* v0.4.7 — readable solitaire builds.  Keep the earlier compact pile, but
+   expose the upper index of each constituent card (like a solitaire column).
+   The only label is flush with the bottom of the final, frontmost card. */
+.build-pile {
+  --stack-step:clamp(23px,6.1vw,29px);
+  --stack-splay:2px;
+  width:calc(var(--stack-card-width) + (var(--layers) - 1)*var(--stack-splay));
+  height:calc(var(--stack-card-width)/.715 + (var(--layers) - 1)*var(--stack-step));
+}
+.build-layer {
+  transform:translate(calc(var(--layer)*var(--stack-splay)),calc(var(--layer)*var(--stack-step)));
+  filter:drop-shadow(0 1px 2px #00150088);
+}
+.build-pile.many-cards{--stack-step:clamp(19px,4.8vw,24px)}
+.build-pile.large-build{--stack-step:clamp(17px,4.5vw,21px)}
+.table-builds:not(:empty){max-height:none;overflow:visible;align-items:flex-end}
+.build-layer .playing-card:not(.mini){outline:1px solid #ebe5d7}
+.build-value{box-shadow:0 -2px 3px #0b210a29}
+@media(max-height:700px){
+  .build-pile{--stack-step:clamp(20px,5.7vw,24px)}
+  .build-pile.many-cards{--stack-step:clamp(17px,4.5vw,20px)}
+  .build-pile.large-build{--stack-step:clamp(15px,4.1vw,18px)}
+}
+@media(orientation:landscape) and (max-height:450px){
+  .build-pile{--stack-step:16px;--stack-splay:1px}
+  .build-pile.many-cards{--stack-step:13px}
+  .build-pile.large-build{--stack-step:11px}
+}
