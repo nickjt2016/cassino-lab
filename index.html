@@ -238,6 +238,108 @@ html,body,#app{background:#005d0b;color:#fff}
 .preset-choice{width:100%;display:flex;justify-content:space-between;padding:13px 7px;min-height:53px;align-items:center;font-size:14px;color:#24251e;background:transparent;border:0;border-bottom:1px solid #ded4bc}
 .preset-choice>b{font-size:24px;color:#16603e;font-weight:400}.preset-choice span{font-weight:600}
 .setting-explainer{color:#302b22;font-size:15px;line-height:1.65;padding:12px 4px 19px;margin:0}
+
+/* v0.3.2 — motion-clip reference pass: sparse one-screen game table. */
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.shell{padding: max(5px,env(safe-area-inset-top)) 11px max(5px,env(safe-area-inset-bottom));gap:0;background:radial-gradient(ellipse at 46% 52%,#0c8615 0%,#00750f 57%,#00580a 100%)}
+.header{min-height:40px;flex:0 0 40px;justify-content:space-between;position:relative;z-index:5}
+.game-heading{display:none}.header-actions{margin-left:auto;gap:9px}.game-help{color:#f4e4a0;font-size:22px}
+.game-help:last-child{font-size:17px;opacity:.9}.match-bar{display:none}
+.felt{display:flex;flex:1 1 0;min-height:0;overflow:hidden;padding:3px 0 0;justify-content:space-between}
+.opponent-area{min-height:0;flex:0 0 auto;display:flex;flex-direction:column;gap:5px;justify-content:center;align-items:center;padding-top:3px}
+.opponent-tag,.your-score-tag{border:1px solid #c5ab6780;background:#01530b9c;color:#fff3cc;border-radius:20px;padding:3px 11px;line-height:1.25;font-weight:700;font-size:11px;white-space:nowrap}
+.opponent-hand{order:2;padding:0;min-height:50px}.card-back{width:33px;height:50px;margin-left:-3px;background:#e9edff;border:2px solid #fff;padding:1px}
+.back-pattern{border-color:#3d47bc;background:repeating-linear-gradient(0deg,transparent 0 6px,#d7daff 6px 7px),repeating-linear-gradient(90deg,#2c3cc4 0 6px,#c3cbff 6px 8px)}
+.table-area{position:relative;min-height:0;flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-start;gap:0;padding:0;overflow:hidden}
+.table-stage{flex:0 1 auto;min-height:var(--table-card-height,105px);width:100%;height:auto;display:flex;gap:7px;align-items:center;justify-content:space-between;padding:0 2px;margin-top:clamp(18px,9dvh,82px)}
+.table-cards{height:auto;min-height:0;max-height:calc(43dvh - 20px);width:100%;max-width:none;min-width:0;flex:1 1 auto;display:flex;flex-wrap:wrap;align-content:center;align-items:center;justify-content:flex-start;gap:clamp(4px,1.9vw,10px);overflow:auto;padding:4px 1px}
+.table-empty{font-size:13px;color:#eff5d7;min-height:1px}.table-builds{display:flex;flex-direction:column;justify-content:center;align-items:flex-end;flex:0 0 auto;max-width:26%;gap:5px;overflow-y:auto;max-height:100%}
+.table-builds:empty{display:none}.table-stage:has(.table-builds:empty) .table-cards{justify-content:center}
+.build-item{background:#161507;border:0;border-radius:3px;max-width:100%;min-height:0;min-width:clamp(50px,15vw,88px);padding:2px 2px 0;display:flex;flex-direction:column-reverse;gap:0;align-items:center;overflow:hidden}
+.build-top{width:100%;display:grid;grid-template-columns:1fr;justify-items:center;gap:0;background:#201f0e;color:#f9f1cc;padding:2px 1px;min-height:27px}
+.build-top small,.build-top em{display:none}.build-top b{font-size:12px;letter-spacing:0;text-transform:none;line-height:1.15}
+.build-groups{display:flex;flex-direction:column;max-height:90px;overflow:auto;gap:1px;align-items:center}.build-group{display:flex;padding:0;flex-direction:column;gap:1px;align-items:center}
+.build-group>.playing-card:not(:first-child){margin:0}
+.group-plus{font-size:11px}.build-group .playing-card.mini{width:clamp(45px,13vw,63px);height:clamp(15px,5vw,21px)!important;min-height:15px;aspect-ratio:auto;overflow:hidden;border-radius:0}
+.build-group .playing-card.mini .card-big{display:none}.build-group .playing-card.mini .card-corner{top:7%;left:4%;display:flex;gap:2px}.build-group .playing-card.mini .card-corner b{font-size:32cqw}.build-group .playing-card.mini .card-corner small{font-size:27cqw}
+.build-item.selected{transform:translateY(-4px);box-shadow:0 0 0 3px #f8d969;}
+.turn-banner{position:absolute;top:66%;left:50%;transform:translate(-50%,-50%);text-align:center;width:100%;font-size:clamp(13px,2.5vw,17px);font-weight:700;color:#fffdf2;text-shadow:0 1px 2px #004f0b;pointer-events:none}
+.human-area{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 0 1px}
+.human-hand{justify-content:center;align-items:center;gap:clamp(9px,3.5vw,20px);width:100%;padding:0 2px;min-height:0}
+.your-score-tag{font-size:12px;padding:3px 14px}
+.table-footer{display:none}.game-stats{min-height:43px;flex:0 0 auto;margin:7px 0 6px;border-radius:12px;border-color:#e4c87b80;background:#00460b80}
+.game-stats span{font-size:10px}.game-stats b{font-size:18px}
+.controls{flex:0 0 auto;position:relative;margin:0 0 0;padding:4px 5px 6px;background:#004409b0;border:1px solid #e1ca7a45;border-radius:12px;z-index:3}
+.selection-row{height:23px;min-height:23px;margin:0 0 4px}.selection-status{color:#ffe6aa;font-size:10px}
+.main-actions{gap:5px}.main-actions .action-btn{min-height:37px;font-size:13px;border-radius:10px}
+.main-actions .action-btn:not(:disabled){background:linear-gradient(180deg,#f2dc8b,#c69e37);border-color:#e8c67a;color:#28200e}
+.main-actions .action-btn:disabled{background:#00540d;border-color:#8b955d75;color:#c8d2a8}
+.feedback{font-size:10px;line-height:1.3}
+/* Intrinsic card scaling: indices and large rank may never collide. */
+.playing-card{width:clamp(46px,14vw,81px);aspect-ratio:0.72;height:auto!important;border:1px solid #ddd;container-type:inline-size;position:relative}
+.playing-card .card-corner{left:4%;top:3%;width:94%;display:flex;align-items:flex-start;gap:1.5%;line-height:1;white-space:nowrap;z-index:2}
+.playing-card .card-corner b{font-size:24cqw;line-height:1;font-weight:400}.playing-card .card-corner small{font-size:19cqw;line-height:1}
+.playing-card .card-big{top:64%;font-size:75cqw;line-height:1;left:50%;white-space:nowrap;max-width:none;transform:translate(-50%,-50%);z-index:1}
+.playing-card.ten-card .card-corner b{font-size:22cqw}.playing-card.ten-card .card-corner small{font-size:17cqw}
+.playing-card.ten-card .card-big{font-size:61cqw;letter-spacing:-.06em}
+.hand-item.selected .playing-card,.table-item.selected .playing-card{background:#ffff9b;color:#2b2b00;box-shadow:0 0 0 2px #ffe77c,0 3px 10px #0008}
+.hand-item.selected .playing-card.red,.table-item.selected .playing-card.red{color:#c01e13}
+.hand-item.selected,.table-item.selected{transform:translateY(-2px);filter:none}
+@media (max-height:700px){
+ .header{min-height:31px;flex-basis:31px}.opponent-tag{font-size:10px}.opponent-hand{min-height:40px}.card-back{height:39px;width:28px}
+ .table-stage{margin-top:clamp(8px,5dvh,32px);min-height:70px}.turn-banner{top:71%}
+ .playing-card{width:clamp(42px,12.9vw,70px)}.game-stats{min-height:30px;margin:4px 0}.game-stats b{font-size:14px}
+ .selection-row{height:20px;min-height:20px}.main-actions .action-btn{min-height:33px}
+ .feedback{display:none}.controls{padding-bottom:4px}
+}
+@media (orientation:landscape) and (max-height:450px){
+ .shell{padding:2px 8px}.header{min-height:25px;flex-basis:25px}.opponent-area{position:absolute;top:15px;left:9%;z-index:2}
+ .opponent-tag{font-size:9px}.opponent-hand{min-height:26px}.card-back{height:27px;width:20px;margin-left:-3px}
+ .table-area{min-height:0}.table-stage{margin-top:4px;height:auto;min-height:65px;max-height:90px;justify-content:center}
+ .playing-card{width:clamp(38px,6.1vw,60px)}.table-builds{max-height:82px}.turn-banner{top:74%;font-size:10px}
+ .human-area{position:absolute;bottom:39px;left:0;right:0;gap:1px}.human-hand{gap:8px}.your-score-tag{font-size:9px;padding:1px 8px}
+ .game-stats{margin:0;height:24px;min-height:24px;font-size:9px}.game-stats span{font-size:8px}.game-stats b{font-size:12px}
+ .controls{min-height:29px;padding:0 4px}.selection-row{display:none}.main-actions .action-btn{min-height:27px;font-size:11px}.feedback{display:none}
+ .felt{padding-bottom:91px}
+}
+
+/* v0.3.2 contextual actions — only legal moves after a hand-card selection. */
+.felt { position:relative; }
+.contextual-controls {
+  flex:0 0 auto; width:min(90%,450px); align-self:center;
+  z-index:8; padding:5px 7px; margin:0 0 5px;
+  background:#034e0be8; border:1px solid #dfc779aa; border-radius:12px;
+  box-shadow:0 6px 18px #002a0877;
+  animation:context-rise .17s ease-out both;
+}
+.contextual-controls .selection-row {margin:0 0 3px; min-height:18px;height:18px}
+.contextual-controls .mini-tool {width:25px;height:21px;line-height:20px}
+.contextual-controls .main-actions {display:flex; justify-content:center; gap:7px}
+.contextual-controls .action-btn {flex:1 1 0; max-width:220px; min-height:36px; padding:5px 10px;
+  background:linear-gradient(180deg,#f3db86,#c9a03b); color:#2c240c;border-color:#eed98f; border-radius:9px}
+.selection-feedback {font-size:11px;line-height:1.2;text-align:center;color:#f9e5bb; padding:4px 5px}
+.header-actions {display:flex; gap:clamp(8px,2.2vw,17px);align-items:center}
+.header-actions .game-help {font-size:19px;line-height:1;display:inline-grid;place-items:center;
+ min-width:23px;min-height:27px;border-radius:5px;touch-action:manipulation}
+@keyframes context-rise {from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(max-height:700px){
+ .contextual-controls{margin-bottom:3px;padding:3px 5px}
+ .contextual-controls .selection-row{height:15px;min-height:15px}
+ .contextual-controls .action-btn{min-height:29px;font-size:12px}
+ .header-actions .game-help{font-size:16px}
+}
+@media (orientation:landscape) and (max-height:450px){
+ .human-area{position:relative;bottom:auto;left:auto;right:auto;order:3;flex:0 0 auto;gap:0}
+ .game-stats{order:4;flex:0 0 auto}
+ .contextual-controls{order:2;position:relative;flex:0 0 auto;width:min(360px,85%);margin:0 auto 1px;padding:1px 5px}
+ .contextual-controls .selection-row{display:none}
+ .contextual-controls .action-btn{min-height:25px;padding:2px;font-size:11px}
+ .felt{padding-bottom:0}
+ .table-area{order:1;flex:1 1 0;min-height:0}
+ .opponent-area{top:3px;left:6px;position:absolute}
+ .table-stage{margin-top:4px}
+}
+@media(prefers-reduced-motion:reduce){.contextual-controls{animation:none}}
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -750,7 +852,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if (!from || !from.cloneNode || !from.getBoundingClientRect) return;
     const origin = from.getBoundingClientRect();
     const destination = kind === 'capture'
-      ? app.querySelector(byComputer ? '.cpu-score' : '.you-score')
+      ? app.querySelector(byComputer ? '.opponent-tag' : '.your-score-tag')
       : app.querySelector('.table-area');
     if (!destination || !destination.getBoundingClientRect) return;
     const end = destination.getBoundingClientRect();
@@ -794,7 +896,7 @@ html,body,#app{background:#005d0b;color:#fff}
   function prettyRank(card) { return ({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[card.rank] || card.rank; }
   function suitClass(card) { return isRed(card) ? 'red' : 'black'; }
   function renderCard(card, small = false) {
-    return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''}" aria-label="${escapeHtml(E.cardName(card))}">
+    return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''} ${card.rank === 10 ? 'ten-card' : ''}" aria-label="${escapeHtml(E.cardName(card))}">
       <span class="card-corner"><b>${prettyRank(card)}</b><small>${prettySuit(card)}</small></span>
       <span class="card-big">${prettyRank(card)}</span>
     </span>`;
@@ -844,7 +946,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.3.1 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.3.2 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -871,8 +973,12 @@ html,body,#app{background:#005d0b;color:#fff}
     const trail = actionReady('trail');
     buildOptions = active && pickedCard ? E.legalBuildOptions(game, pickedCard, currentSelection()) : [];
     const chosen = me().hand.find(c => c.id === pickedCard);
+    const canTrail = !!(trail && trail.ok && !pickedTable.size);
+    const canCapture = !!(capture && capture.ok && pickedTable.size);
+    const canBuild = buildOptions.length > 0;
+    const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
     const phaseText = game.phase !== 'playing' ? 'Hand finished' : busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn';
-    const statusText = chosen
+    const statusText = hint && toast ? toast : chosen
       ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
       : 'Choose a card from your hand, then choose table cards.';
     const rules = game.rules;
@@ -883,49 +989,41 @@ html,body,#app{background:#005d0b;color:#fff}
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
         <header class="header">
           <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
-          <div class="game-heading">Cassino <span>Lab</span></div>
-          <div class="header-actions"><button class="game-help" data-action="rules" aria-label="Rules">ⓘ</button><button class="game-help" data-action="menu" aria-label="Open game menu">☰</button></div>
+          <div class="game-heading" aria-label="Cassino Lab"></div>
+          <div class="header-actions"><button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint">✧</button><button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo">↶</button><button class="game-help" data-action="rules" aria-label="Rules">ⓘ</button><button class="game-help" data-action="menu" aria-label="Open game menu">☰</button></div>
         </header>
-        <div class="match-bar">
-          <div class="score-player you-score"><span class="player-dot your-dot"></span><span><small>YOU</small><b>${me().score}</b></span></div>
-          <div class="match-center"><b>${escapeHtml(rules.name)}</b><span>Hand ${game.round} <i>•</i> First to ${rules.winningScore}</span></div>
-          <div class="score-player cpu-score"><span><small>COMPUTER</small><b>${opponent().score}</b></span><span class="player-dot cpu-dot"></span></div>
-        </div>
+
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
           <div class="opponent-area">
-            <div class="player-caption"><span class="avatar cpu-avatar">AI</span><span><b>Computer</b><small>${numberLabel(opponent().captured.length, 'card captured', 'cards captured')}${rules.sweepPoints ? ` · ${opponent().sweeps} sweeps` : ''}</small></span></div>
+            <div class="opponent-tag" aria-label="Computer has ${opponent().score} points">Computer · ${opponent().score} pts</div>
             <div class="opponent-hand" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
           </div>
           <div class="table-area">
-            <div class="table-title"><span>ON THE TABLE</span><span>${numberLabel(game.table.length, 'group', 'groups')}</span></div>
-            <div class="table-stage"><div class="table-cards ${game.table.length ? '' : 'empty-table'}">${game.table.length ? game.table.map(entryMarkup).join('') : '<div class="table-clear"><span>✧</span>Table cleared</div>'}</div>
-            <aside class="captured-display"><div class="captured-stack">${opponent().captured.slice(-6).map(c=>`<span>${prettyRank(c)}${prettySuit(c)}</span>`).join('') || '<span>—</span>'}</div><strong>CPU</strong><b>${opponent().score}</b></aside></div>
+            <div class="table-stage"><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : (game.table.length ? '' : '<span class="table-empty">Table cleared</span>')}</div>
+            <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
+            <div class="turn-banner" aria-live="polite">${phaseText}</div>
           </div>
+          ${active && pickedCard ? `<section class="controls contextual-controls" aria-label="Available moves">
+            <div class="selection-row"><span class="selection-status">${escapeHtml(statusText)}</span>
+              <button class="mini-tool" data-action="clear" title="Deselect card" aria-label="Clear selection">×</button>
+            </div>
+            ${visibleActionCount ? `<div class="main-actions actions-${visibleActionCount}">
+              ${canBuild ? '<button class="action-btn build-main" data-action="build-menu"><span>▣</span> Build</button>' : ''}
+              ${canTrail ? '<button class="action-btn" data-action="trail"><span>↗</span> Trail</button>' : ''}
+              ${canCapture ? '<button class="action-btn primary" data-action="capture"><span>↧</span> Capture</button>' : ''}
+            </div>` : '<div class="selection-feedback">Select a different group or clear your selection.</div>'}
+            ${buildMenuOpen && canBuild ? `<div class="build-choice-panel" role="group" aria-label="Choose build value"><div class="choice-head"><b>Choose a build</b><button data-action="hide-builds" aria-label="Close build options">×</button></div><div class="build-chips">${buildOptions.map((o,i) => `<button class="build-chip" data-action="build" data-index="${i}">${escapeHtml(o.label)} <small>${o.detail}</small></button>`).join('')}</div></div>` : ''}
+          </section>` : ''}
           <div class="human-area">
-            <div class="player-caption"><span class="avatar human-avatar">YOU</span><span><b>Your hand</b><small>${numberLabel(me().captured.length, 'card captured', 'cards captured')}${rules.sweepPoints ? ` · ${me().sweeps} sweeps` : ''}</small></span><span class="cards-left">${game.stock.length} in deck</span></div>
+            <div class="player-caption sr-only"><b>Your hand</b></div>
             <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card)}</button>`).join('')}</div>
+            <div class="your-score-tag">You · ${me().score} pts</div>
           </div>
-          <div class="table-footer"><span class="turn-indicator"><span class="turn-light ${active ? 'active' : ''}"></span>${phaseText}</span><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
+          <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <section class="controls" aria-label="Your moves">
-          <div class="selection-row"><span class="selection-status">${escapeHtml(statusText)}</span>
-            <div class="quick-tools">
-              <button class="mini-tool" data-action="clear" title="Clear selection" aria-label="Clear selection" ${pickedCard || pickedTable.size ? '' : 'disabled'}>×</button>
-              <button class="mini-tool" data-action="hint" title="Hint" aria-label="Hint" ${active ? '' : 'disabled'}>✧</button>
-              <button class="mini-tool" data-action="undo" title="Undo" aria-label="Undo" ${checkpoint && !busy ? '' : 'disabled'}>↶</button>
-            </div>
-          </div>
-          <div class="main-actions">
-            <button class="action-btn build-main" data-action="build-menu" ${buildOptions.length ? '' : 'disabled'}><span>▣</span> Build</button>
-            <button class="action-btn" data-action="trail" ${trail && trail.ok && !pickedTable.size ? '' : 'disabled'}><span>↗</span> Trail</button>
-            <button class="action-btn primary" data-action="capture" ${capture && capture.ok && pickedTable.size ? '' : 'disabled'}><span>↧</span> Capture</button>
-          </div>
-          ${buildMenuOpen && buildOptions.length ? `<div class="build-choice-panel" role="group" aria-label="Choose build value"><div class="choice-head"><b>Choose a build</b><button data-action="hide-builds" aria-label="Close build options">×</button></div><div class="build-chips">${buildOptions.map((o,i) => `<button class="build-chip" data-action="build" data-index="${i}">${escapeHtml(o.label)} <small>${o.detail}</small></button>`).join('')}</div></div>` : ''}
-          <div class="feedback ${toast ? 'visible' : ''}" aria-live="polite">${toast ? escapeHtml(toast) : (capture && !capture.ok && pickedTable.size && pickedCard ? escapeHtml(capture.reason) : 'Select a hand card, then any table cards.')}</div>
-        </section>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.2</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.3.2</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     bindSettings();
