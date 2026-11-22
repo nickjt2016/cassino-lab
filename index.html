@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#143c33"><meta name="description" content="Play Cassino and customizable variants against a computer opponent.">
+<title>Cassino Lab — Fishing Card Games</title>
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml">
+<style>:root{--bg:#0d1615;--surface:#172320;--line:#354943;--text:#f1f4ec;--sub:#a6b6ac;--gold:#f5c878;--felt:#174e40;--felt-deep:#0d3a31;--positive:#6de0b4;--danger:#d85d63;font-family:Inter,"Segoe UI",Arial,sans-serif;color:var(--text);background:var(--bg);font-synthesis:none}*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;min-height:100vh}button,select,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.4}button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #f5c878;outline-offset:2px}#app{width:100%;min-height:100vh}.shell{max-width:1100px;margin:0 auto;padding:18px 20px 30px}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px}.brand{display:flex;align-items:center;gap:12px}.brand-icon{background:linear-gradient(145deg,#dcb86b,#7c5b2d);border-radius:14px;width:43px;height:43px;display:grid;place-items:center;color:#1a271e;font-size:28px;box-shadow:0 4px 18px #0005}.eyebrow{color:var(--gold);font-size:10px;letter-spacing:2.1px;font-weight:800}.brand h1{margin:2px 0 0;font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1}.brand h1 span{font-style:italic;color:var(--gold);font-weight:400}.header-actions{display:flex;gap:8px}.top-btn{border:1px solid var(--line);background:#1c2b28;color:var(--text);border-radius:10px;padding:10px 12px;min-width:42px;min-height:41px;font-weight:700;display:flex;justify-content:center;align-items:center;gap:8px}.top-btn:hover,.top-btn:focus-visible{background:#274035}.top-label{font-size:12px;font-weight:600}.match-bar{display:grid;grid-template-columns:1fr minmax(150px,1.5fr) 1fr;align-items:center;border:1px solid #3a4b42;background:linear-gradient(110deg,#1b2c28,#20332d,#1b2c28);border-radius:14px 14px 0 0;padding:12px 20px;gap:12px}.score-player{display:flex;gap:11px;align-items:center}.score-player span:not(.player-dot){display:flex;gap:1px;flex-direction:column}.score-player small{font-size:10px;letter-spacing:1.5px;color:var(--sub);font-weight:700}.score-player b{font-size:26px;line-height:1.15;font-variant-numeric:tabular-nums}.cpu-score{justify-content:flex-end;text-align:right}.player-dot{border-radius:50%;width:9px;height:9px;box-shadow:0 0 0 4px #ffffff10}.your-dot{background:#eec779}.cpu-dot{background:#87bcbd}.match-center{text-align:center;display:flex;flex-direction:column;gap:3px}.match-center b{font-family:Georgia,serif;font-size:17px;font-weight:400}.match-center span{font-size:11px;color:#a6b7ad}.match-center i{font-style:normal;padding:0 6px;color:#d0b57d}.felt{min-height:505px;border:1px solid #3a564c;border-top:0;border-radius:0 0 18px 18px;position:relative;overflow:hidden;padding:18px 26px 11px;display:flex;flex-direction:column;background:radial-gradient(ellipse at 48% 45%,#24644e 0%,#15483a 48%,#0d382f 100%);box-shadow:inset 0 0 70px #001e1a9c,0 10px 32px #0004}.table-grain{pointer-events:none;position:absolute;inset:0;opacity:.18;background-image:repeating-linear-gradient(35deg,transparent 0 2px,#ffffff08 3px 3.4px,transparent 4px 7px);mix-blend-mode:screen}.opponent-area,.table-area,.human-area,.table-footer{position:relative;z-index:1}.opponent-area{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-height:90px}.player-caption{display:flex;align-items:center;gap:10px}.player-caption span:not(.avatar){display:flex;flex-direction:column;gap:3px}.player-caption b{font-size:13px}.player-caption small{font-size:11px;color:#a9cbbd}.avatar{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;font-size:10px;letter-spacing:.5px;font-weight:800}.cpu-avatar{background:#789aa4;color:#132b30}.human-avatar{background:#dfb66e;color:#33280c}.opponent-hand{display:flex;padding-right:13px;align-items:center;gap:0;min-height:61px}.card-back{background:#1f314e;border:3px solid #f1e5cb;width:43px;height:59px;border-radius:5px;box-shadow:0 3px 7px #0005;margin-left:-13px;display:grid;place-items:center;padding:3px}.back-pattern{border:1px solid #9ca9be;width:100%;height:100%;background:repeating-linear-gradient(45deg,#2d4b74 0 2px,#7f94b2 2px 3px,#2d4b74 3px 6px);display:grid;place-items:center;color:#e9d19a;font-size:19px}.table-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 0 24px;min-height:230px}.table-title{width:100%;display:flex;justify-content:space-between;color:#a8c9b7;max-width:900px;font-size:10px;font-weight:700;letter-spacing:1.6px;margin-bottom:13px}.table-title span:last-child{letter-spacing:0;text-transform:initial;font-weight:500}.table-cards{display:flex;flex-wrap:wrap;gap:11px;justify-content:center;align-items:center;min-height:102px;max-width:100%;}.table-item,.hand-item{padding:0;border:0;background:transparent;border-radius:9px;transition:transform .15s,filter .15s;flex-shrink:0}.table-item:hover,.hand-item:hover{transform:translateY(-4px)}.table-item.selected,.hand-item.selected{transform:translateY(-9px);filter:drop-shadow(0 0 7px #facb72)}.playing-card{width:70px;height:100px;display:inline-block;position:relative;vertical-align:middle;border-radius:8px;background:linear-gradient(135deg,#fffdf6,#f7f3e9);color:#18231f;border:1px solid #dad8cd;box-shadow:0 3px 8px #091e1aa8;user-select:none}.playing-card.red{color:#c33c43}.card-corner{position:absolute;top:6px;left:7px;display:flex;flex-direction:column;gap:0;align-items:center;line-height:1.02}.card-corner b{font-family:Georgia,serif;font-size:21px;font-weight:700}.card-corner small{font-size:19px;line-height:1}.card-corner.bottom{left:auto;top:auto;right:7px;bottom:6px;transform:rotate(180deg)}.card-big{position:absolute;top:50%;left:50%;font-size:39px;transform:translate(-50%,-50%)}.playing-card.mini{width:40px;height:58px;border-radius:5px;flex-shrink:0}.mini .card-corner{top:3px;left:3px}.mini .card-corner b{font-size:13px}.mini .card-corner small{font-size:10px}.mini .card-corner.bottom{right:3px;left:auto;top:auto;bottom:3px}.mini .card-big{font-size:20px}.build-item{background:#0b3028dd;border:1px solid #89a58d;border-radius:11px;padding:7px 9px 9px;max-width:100%;min-height:91px;display:flex;flex-direction:column;gap:7px;color:#f0ecd6;transition:transform .15s}.build-item:hover{transform:translateY(-3px);border-color:#f6d391}.build-item.selected{border:2px solid #ffce69;box-shadow:0 0 0 3px #f5c87833;transform:translateY(-6px)}.build-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.build-top b{font-size:11px;letter-spacing:.8px}.build-top small{font-size:9px;color:#aec6b3}.build-top em{font-style:normal;font-size:9px;background:#5c7d82;color:#f6f9f2;padding:3px 5px;border-radius:5px}.build-top em.your-owner{background:#ab8550;color:#fff5d8}.build-groups{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.build-group{display:flex;padding-right:5px}.build-group>.playing-card:not(:first-child){margin-left:-22px}.group-plus{font-weight:800;color:#eac57e}.empty-table{border:1px dashed #a0bcb05c;border-radius:14px;min-width:220px}.table-clear{color:#b2cfc2;display:flex;align-items:center;gap:12px;font-size:13px}.table-clear span{font-size:34px;color:#d3b47c}.human-area{padding-bottom:9px}.human-area .player-caption{margin-bottom:16px}.cards-left{margin-left:auto;color:#c5d7c7;font-size:11px}.human-hand{display:flex;justify-content:center;gap:13px;min-height:100px}.hand-item{position:relative}.hand-item.selected .playing-card,.table-item.selected .playing-card{box-shadow:0 0 0 3px #f1c76e,0 8px 15px #0008}.table-footer{border-top:1px solid #ffffff2a;margin-top:4px;padding-top:11px;display:flex;justify-content:space-between;gap:12px;align-items:center}.turn-indicator{font-size:12px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:8px}.turn-light{width:7px;height:7px;border-radius:100%;background:#b3a58d}.turn-light.active{background:#8cf2bc;box-shadow:0 0 0 4px #6de0b42b}.last-move{max-width:70%;text-align:right;color:#b3cfbd;font-size:11px}.controls{background:#1a2925;border:1px solid #394a40;border-radius:15px;margin-top:14px;padding:15px 18px 11px}.selection-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:#c4d6c8;margin-bottom:12px}.text-btn{background:transparent;border:0;color:var(--gold);font-size:11px;font-weight:600;white-space:nowrap}.text-btn:disabled{color:#b4b8af}.main-actions{display:grid;grid-template-columns:1.35fr 1fr .78fr .78fr;gap:8px}.action-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:#30413b;border:1px solid #61756a;color:#f7f5ed;border-radius:9px;min-height:44px;padding:9px 13px;font-weight:700;font-size:13px}.action-btn span{font-size:20px;font-weight:400;line-height:1}.action-btn.primary{background:linear-gradient(160deg,#f3d18f,#e4b867);color:#302613;border-color:#f4d091;box-shadow:0 3px 12px #0002}.action-btn:not(:disabled):hover{filter:brightness(1.11)}.action-btn.subtle{background:transparent;border-color:#3b5147;color:#d4dfd5}.build-actions{margin-top:10px}.build-actions.has-actions{border-top:1px solid #45584b;padding-top:9px}.build-label{font-size:10px;letter-spacing:1.4px;font-weight:800;color:#e7c47f}.build-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.build-chip{border:1px solid #ddbb6d;background:#4b4833;color:#ffe3a3;border-radius:7px;padding:8px 10px;font-size:12px;font-weight:700}.build-chip small{opacity:.8;font-size:10px;font-weight:500;margin-left:3px}.subtle-help{font-size:11px;color:#94a99c}.feedback{margin-top:9px;font-size:11px;color:#b3c2b5;min-height:14px}.feedback.visible{color:#f0cd8a}.footer{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:16px 2px;color:#71887e;font-size:11px}.footer-button{border:0;background:transparent;color:#e0bb72;font-size:12px;font-weight:700}.overlay{position:fixed;z-index:10;inset:0;background:#03120fe0;display:grid;place-items:center;padding:14px;backdrop-filter:blur(7px)}.dialog{background:#192824;border:1px solid #577366;border-radius:17px;box-shadow:0 20px 100px #000c;width:min(570px,100%);max-height:min(92vh,940px);display:flex;flex-direction:column;overflow:hidden}.dialog-head{padding:22px 23px 14px;display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #354c3f}.dialog-head h2{font-family:Georgia,serif;font-size:26px;margin:6px 0 5px;font-weight:400}.dialog-head p{margin:0;color:#b1c1b7;font-size:12px;line-height:1.55}.icon-close{border:0;background:#334a40;color:white;border-radius:9px;width:33px;height:33px;font-size:25px;flex-shrink:0}.dialog-content{overflow:auto;padding:14px 22px 18px}.dialog-content h3{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#dbbd7d;margin:20px 0 10px}.setting-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:11px 0;border-bottom:1px solid #33473e}.setting-row span,.setting-select span{display:flex;flex-direction:column;gap:5px}.setting-row b,.setting-select b{font-size:13px}.setting-row small,.setting-select small{font-size:11px;color:#b1c2b6;line-height:1.45}.setting-row input{width:21px;height:21px;flex-shrink:0;accent-color:#e4b867}.setting-row.disabled{opacity:.45}.setting-select{display:flex;flex-direction:column;gap:7px;margin:13px 0 17px}.setting-select:has(span){flex-direction:row;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #33473e;padding-bottom:13px}.setting-select select{background:#293d35;color:#f2f6ef;border:1px solid #52695d;border-radius:8px;min-height:39px;padding:8px;max-width:100%;font-size:12px}.setting-warning,.smallnote,.source-note{color:#a9beb0;font-size:11px;line-height:1.55}.dialog-actions{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #3e5348}.dialog-actions .action-btn{min-width:110px}.rules-copy{font-size:13px;line-height:1.65;color:#e4e9df}.rules-copy p{margin:8px 0}.rules-copy h3{margin-top:16px}.rules-points{display:grid;grid-template-columns:1fr auto;gap:5px 15px;background:#24382f;padding:12px;border-radius:8px}.rules-points b{text-align:right}.source-note a{color:#eed08b}.move-log{padding-left:20px;line-height:1.7;font-size:12px;color:#d0ded3}.move-log li{padding:5px 2px;border-bottom:1px solid #3b5145}.results-scores{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:7px;padding:10px 0 20px}.results-scores>div:not(.result-vs){background:#263b32;border:1px solid #405c4a;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:6px;align-items:center}.results-scores small{font-size:10px;letter-spacing:1.2px;color:#c4cbba}.results-scores b{font-size:34px}.results-scores span{font-size:11px;color:#d6c390}.result-vs{font-size:10px;font-weight:700;color:#d1b67d}.result-table{border-collapse:collapse;width:100%;font-size:12px}.result-table th,.result-table td{text-align:right;padding:8px 10px;border-bottom:1px solid #354c40}.result-table th:first-child,.result-table td:first-child{text-align:left}.result-table th{font-size:10px;letter-spacing:.8px;color:#c6c9bd}.totals-row{font-weight:800;color:#f2d392;background:#2b4234}@media(max-width:700px){.shell{padding:10px 9px 22px}.header{margin-bottom:10px}.brand h1{font-size:23px}.brand-icon{width:36px;height:36px;font-size:24px;border-radius:11px}.eyebrow{font-size:8px;letter-spacing:1.2px}.top-label{display:none}.top-btn{padding:8px;min-width:35px;min-height:35px}.match-bar{padding:9px 12px;grid-template-columns:.8fr 1.5fr .8fr;gap:5px}.match-center b{font-size:14px}.match-center span{font-size:9px}.score-player b{font-size:23px}.score-player small{font-size:8px}.player-dot{width:7px;height:7px}.felt{padding:15px 12px 11px;min-height:489px}.opponent-area{min-height:74px}.table-area{padding:12px 0;min-height:230px}.table-cards{gap:7px}.playing-card{width:60px;height:88px}.card-corner b{font-size:18px}.card-corner small{font-size:15px}.card-big{font-size:33px}.mini.playing-card{width:32px;height:48px}.mini .card-corner b{font-size:11px}.mini .card-corner small{font-size:9px}.mini .card-big{font-size:16px}.build-group>.playing-card:not(:first-child){margin-left:-18px}.build-item{min-height:78px;padding:7px;gap:5px}.build-top b{font-size:10px}.build-top small,.build-top em{font-size:8px}.human-hand{gap:9px;min-height:88px}.human-area .player-caption{margin-bottom:12px}.avatar{width:30px;height:30px;font-size:9px}.player-caption b{font-size:12px}.player-caption small{font-size:10px}.card-back{width:34px;height:48px;margin-left:-11px}.table-footer{align-items:flex-start}.last-move{max-width:63%;font-size:10px}.controls{padding:12px 10px}.selection-row{font-size:11px}.main-actions{gap:6px;grid-template-columns:1.2fr .9fr .75fr .75fr}.action-btn{min-height:43px;font-size:11px;padding:7px 4px;gap:4px}.action-btn span{font-size:16px}.subtle-help{line-height:1.45}.dialog-head{padding:17px 16px 12px}.dialog-head h2{font-size:24px}.dialog-content{padding:12px 16px}.dialog-actions{padding:12px 15px}}@media(max-width:375px){.playing-card{width:53px;height:79px}.card-corner b{font-size:16px}.card-big{font-size:29px}.card-corner small{font-size:13px}.human-hand{gap:7px}.table-cards{gap:6px}.build-groups{max-width:270px}.build-item .playing-card.mini{width:29px;height:43px}.top-btn{min-width:32px}.score-player{gap:6px}.match-center b{font-size:12px}.match-center span{font-size:9px}}
+
+.update-notice{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:12px 14px;background:#253b32;color:#fff;border:1px solid #dcb86b;border-radius:12px;box-shadow:0 12px 30px #0009;font-size:13px}.update-notice button{flex-shrink:0;padding:8px 12px;background:#ebc77f;border:0;border-radius:7px;color:#272313;font-size:12px;font-weight:800}
+</style></head><body><div id="app"></div>
+<script>/* Cassino Lab — dependency-free, deterministic rules engine.
+   This file is shared by the browser and the Node.js test suite. */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.CassinoEngine = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  const SUITS = ['S', 'H', 'D', 'C'];
+  const DEFAULT_RULES = Object.freeze({
+    name: 'Classic Cassino', royal: false, spadeScoring: false,
+    sweepPoints: 0, builds: true, multipleBuilds: true,
+    allowTrailWithOwnBuild: false, winningScore: 21, difficulty: 'thoughtful'
+  });
+  const PRESETS = Object.freeze({
+    classic: { name: 'Classic Cassino', royal: false, spadeScoring: false, sweepPoints: 0, builds: true, multipleBuilds: true, allowTrailWithOwnBuild: false, winningScore: 21 },
+    royal: { name: 'Royal Cassino', royal: true, spadeScoring: false, sweepPoints: 0, builds: true, multipleBuilds: true, allowTrailWithOwnBuild: false, winningScore: 21 },
+    spade: { name: 'Spade Cassino', royal: false, spadeScoring: true, sweepPoints: 0, builds: true, multipleBuilds: true, allowTrailWithOwnBuild: false, winningScore: 61 },
+    royalSpade: { name: 'Royal Spade', royal: true, spadeScoring: true, sweepPoints: 0, builds: true, multipleBuilds: true, allowTrailWithOwnBuild: false, winningScore: 61 }
+  });
+
+  function rulesFor(preset = 'classic', overrides = {}) {
+    return { ...DEFAULT_RULES, ...(PRESETS[preset] || PRESETS.classic), ...overrides };
+  }
+  function cardName(card) {
+    return `${({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[card.rank] || card.rank}${({ S: '♠', H: '♥', D: '♦', C: '♣' })[card.suit]}`;
+  }
+  function cardValue(card, rules) {
+    return card.rank <= 10 || rules.royal ? card.rank : null;
+  }
+  function makeDeck() {
+    return SUITS.flatMap(suit => Array.from({ length: 13 }, (_, i) => ({
+      id: suit + (i + 1), suit, rank: i + 1
+    })));
+  }
+  function shuffle(array, random = Math.random) {
+    const deck = [...array];
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  }
+  function makeState(rules = rulesFor(), dealer = 1, scores = [0, 0], round = 1, random = Math.random) {
+    const state = {
+      rules: { ...rules }, players: [
+        { name: 'You', hand: [], captured: [], sweeps: 0, score: scores[0] },
+        { name: 'Computer', hand: [], captured: [], sweeps: 0, score: scores[1] }
+      ], table: [], stock: shuffle(makeDeck(), random),
+      dealer, turn: 1 - dealer, lastCapture: null, nextId: 1,
+      round, phase: 'playing', result: null, lastAction: 'New hand dealt.',
+      log: [], moveNumber: 0
+    };
+    drawCards(state, true);
+    return state;
+  }
+  function newMatch(rules = rulesFor(), random = Math.random) {
+    return makeState(rules, 1, [0, 0], 1, random);
+  }
+  function drawCards(state, initial = false) {
+    if (initial) {
+      for (let i = 0; i < 4; i++) state.table.push({
+        id: `t${state.nextId++}`, type: 'loose', card: state.stock.pop()
+      });
+    }
+    // Two-player: every deal after the first contains exactly four cards each.
+    for (let i = 0; i < 4; i++) {
+      state.players[0].hand.push(state.stock.pop());
+      state.players[1].hand.push(state.stock.pop());
+    }
+  }
+  function cardsInElement(element) {
+    return element.type === 'loose' ? [element.card] : element.groups.flat();
+  }
+  function valueHeld(hand, value, rules) {
+    return hand.some(c => cardValue(c, rules) === value);
+  }
+  function findPartition(cards, target, desired = 'any') {
+    if (!cards.length || !Number.isInteger(target) || target < 1) return null;
+    const values = cards.map(c => c.v);
+    if (values.some(v => !Number.isInteger(v) || v < 1 || v > target)) return null;
+    // First unchecked card always starts the next group, so each partition is found once.
+    const walk = (remaining, groups) => {
+      if (!remaining.length) {
+        if (desired === 'single' && groups.length !== 1) return null;
+        if (desired === 'multiple' && groups.length < 2) return null;
+        return groups;
+      }
+      const [first, ...rest] = remaining;
+      const choose = (offset, need, selected, leftovers) => {
+        if (need === 0) {
+          const result = walk(leftovers.concat(rest.slice(offset)), [...groups, [first, ...selected]]);
+          if (result) return result;
+          return null;
+        }
+        for (let i = offset; i < rest.length; i++) {
+          if (rest[i].v > need) continue;
+          const skipped = leftovers.concat(rest.slice(offset, i));
+          const result = choose(i + 1, need - rest[i].v, [...selected, rest[i]], skipped);
+          if (result) return result;
+        }
+        return null;
+      };
+      return choose(0, target - first.v, [], []);
+    };
+    const partition = walk(cards.map((card, i) => ({ ...card, v: values[i] })), []);
+    return partition && partition.map(group => group.map(x => x.card));
+  }
+  function ownBuildObligation(state, table, hand, player) {
+    for (const element of table) {
+      if (element.type === 'build' && element.owner === player && !valueHeld(hand, element.value, state.rules)) {
+        return `You must retain a ${element.value} to capture your existing build.`;
+      }
+    }
+    return null;
+  }
+  function describeCapture(selection, card, rules) {
+    if (!selection.length) return { ok: false, reason: 'Select at least one table card to capture.' };
+    const value = cardValue(card, rules);
+    if (value === null) {
+      if (selection.length !== 1 || selection[0].type !== 'loose' || selection[0].card.rank !== card.rank) {
+        return { ok: false, reason: 'In Classic Cassino a face card takes exactly one matching loose face card.' };
+      }
+      return { ok: true };
+    }
+    const loose = [];
+    for (const e of selection) {
+      if (e.type === 'build') {
+        if (e.value !== value) return { ok: false, reason: `A ${e.value}-build must be captured with a ${e.value}, not added into a larger sum.` };
+      } else {
+        const v = cardValue(e.card, rules);
+        if (v === null) return { ok: false, reason: 'Numbered cards cannot capture face cards in Classic Cassino.' };
+        loose.push({ card: e.card, v });
+      }
+    }
+    if (loose.length && !findPartition(loose, value)) {
+      return { ok: false, reason: `Selected loose cards must divide into separate groups totaling ${value}.` };
+    }
+    return { ok: true };
+  }
+  function describeBuild(selection, card, remainingHand, rules, requestedValue, requestedMode) {
+    if (!rules.builds) return { ok: false, reason: 'Building is disabled in these rules.' };
+    const playedValue = cardValue(card, rules);
+    if (playedValue === null) return { ok: false, reason: 'Face cards cannot build unless Royal values are enabled.' };
+    if (!Number.isInteger(requestedValue) || requestedValue < 1 || requestedValue > (rules.royal ? 13 : 10)) {
+      return { ok: false, reason: 'Choose a valid build value.' };
+    }
+    if (!valueHeld(remainingHand, requestedValue, rules)) {
+      return { ok: false, reason: `You must keep a ${requestedValue} in hand to capture the build.` };
+    }
+    const builds = selection.filter(e => e.type === 'build');
+    const loose = selection.filter(e => e.type === 'loose');
+    if (builds.length > 1) return { ok: false, reason: 'Separate existing builds cannot be combined.' };
+    const looseValues = loose.map(e => ({ card: e.card, v: cardValue(e.card, rules) }));
+    if (looseValues.some(x => x.v === null)) return { ok: false, reason: 'Face cards cannot be included in a Classic build.' };
+
+    if (!builds.length) {
+      if (!loose.length) return { ok: false, reason: 'Select at least one loose card to make a build.' };
+      const groups = findPartition([{ card, v: playedValue }, ...looseValues], requestedValue, requestedMode === 'single' ? 'single' : requestedMode === 'multiple' ? 'multiple' : 'any');
+      if (!groups) return { ok: false, reason: 'Those cards cannot form the requested single or multiple build.' };
+      if (groups.length > 1 && !rules.multipleBuilds) return { ok: false, reason: 'Multiple builds are disabled.' };
+      return { ok: true, build: { value: requestedValue, groups, kind: groups.length === 1 ? 'single' : 'multiple', operation: 'create' } };
+    }
+
+    const current = builds[0];
+    if (requestedValue === current.value && requestedMode !== 'raise') {
+      if (!rules.multipleBuilds) return { ok: false, reason: 'Extending a build into a multiple build is disabled.' };
+      const groups = findPartition([{ card, v: playedValue }, ...looseValues], current.value);
+      if (!groups) return { ok: false, reason: `Your played card and selected loose cards must make complete groups of ${current.value}.` };
+      return { ok: true, build: { value: current.value, groups: current.groups.concat(groups), kind: 'multiple', operation: 'extend' } };
+    }
+    if (requestedMode === 'extend') return { ok: false, reason: 'Extending a build preserves its target value.' };
+    if (current.groups.length > 1) return { ok: false, reason: 'A multiple build can never be raised.' };
+    if (current.value + playedValue !== requestedValue) {
+      return { ok: false, reason: `Raising this build with ${cardName(card)} makes ${current.value + playedValue}, not ${requestedValue}.` };
+    }
+    // Strict Pagat rule: loose table cards can only form *additional complete groups*.
+    const extraGroups = looseValues.length ? findPartition(looseValues, requestedValue) : [];
+    if (!extraGroups) return { ok: false, reason: 'Loose table cards cannot help raise the old group; they must make complete additional groups.' };
+    if (extraGroups.length && !rules.multipleBuilds) return { ok: false, reason: 'Multiple builds are disabled.' };
+    return { ok: true, build: { value: requestedValue, groups: [current.groups[0].concat(card), ...extraGroups], kind: extraGroups.length ? 'multiple' : 'single', operation: 'raise' } };
+  }
+  function validateAction(state, action) {
+    if (!state || state.phase !== 'playing') return { ok: false, reason: 'This hand has ended.' };
+    if (!action || !['capture', 'trail', 'build'].includes(action.kind)) return { ok: false, reason: 'Unknown move.' };
+    const player = state.turn;
+    const hand = state.players[player].hand;
+    const card = hand.find(c => c.id === action.cardId);
+    if (!card) return { ok: false, reason: 'Choose a card from your hand.' };
+    const selectedIds = action.targetIds || [];
+    if (new Set(selectedIds).size !== selectedIds.length) return { ok: false, reason: 'Duplicate table selection.' };
+    const selected = selectedIds.map(id => state.table.find(e => e.id === id));
+    if (selected.some(x => !x)) return { ok: false, reason: 'That table selection is no longer available.' };
+    const remainingHand = hand.filter(c => c.id !== card.id);
+    const remainingTable = state.table.filter(e => !selectedIds.includes(e.id));
+    let outcome;
+    if (action.kind === 'trail') {
+      if (selected.length) return { ok: false, reason: 'Deselect table cards before trailing.' };
+      if (!state.rules.allowTrailWithOwnBuild && state.table.some(e => e.type === 'build' && e.owner === player)) {
+        return { ok: false, reason: 'You cannot trail while owning an active build.' };
+      }
+      outcome = { ok: true };
+    } else if (action.kind === 'capture') {
+      outcome = describeCapture(selected, card, state.rules);
+    } else {
+      outcome = describeBuild(selected, card, remainingHand, state.rules, action.value, action.mode);
+    }
+    if (!outcome.ok) return outcome;
+    const resultTable = action.kind === 'trail'
+      ? [...state.table, { id: 'preview', type: 'loose', card }]
+      : action.kind === 'capture' ? remainingTable
+      : [...remainingTable, { id: 'preview', type: 'build', value: outcome.build.value, groups: outcome.build.groups, owner: player }];
+    const obligation = ownBuildObligation(state, resultTable, remainingHand, player);
+    if (obligation) return { ok: false, reason: obligation };
+    return { ...outcome, card, selected, remainingTable };
+  }
+  function legalBuildOptions(state, cardId, targetIds) {
+    if (!state.rules.builds || !cardId) return [];
+    const hand = state.players[state.turn].hand;
+    const values = [...new Set(hand.filter(c => c.id !== cardId).map(c => cardValue(c, state.rules)).filter(v => v !== null))];
+    const selection = (targetIds || []).map(id => state.table.find(e => e.id === id));
+    const hasBuild = selection.some(e => e && e.type === 'build');
+    const possibilities = [];
+    for (const value of values) {
+      for (const mode of hasBuild ? ['extend', 'raise'] : ['single', 'multiple']) {
+        const action = { kind: 'build', cardId, targetIds: targetIds || [], value, mode };
+        const check = validateAction(state, action);
+        if (check.ok) possibilities.push({ ...action, label: `${check.build.operation === 'raise' ? 'Raise to' : check.build.operation === 'extend' ? 'Extend' : check.build.kind === 'multiple' ? 'Build multiples of' : 'Build'} ${value}`, detail: check.build.kind });
+      }
+    }
+    return possibilities;
+  }
+  function applyAction(state, action) {
+    const checked = validateAction(state, action);
+    if (!checked.ok) return { ok: false, reason: checked.reason };
+    const playerIndex = state.turn;
+    const player = state.players[playerIndex];
+    const opponent = state.players[1 - playerIndex];
+    player.hand = player.hand.filter(c => c.id !== action.cardId);
+    const played = checked.card;
+    let description;
+    if (action.kind === 'trail') {
+      state.table.push({ id: `t${state.nextId++}`, type: 'loose', card: played });
+      description = `${player.name} trailed ${cardName(played)}.`;
+    } else if (action.kind === 'capture') {
+      state.table = checked.remainingTable;
+      const won = [played, ...checked.selected.flatMap(cardsInElement)];
+      player.captured.push(...won);
+      state.lastCapture = playerIndex;
+      const swept = state.table.length === 0;
+      if (swept) player.sweeps += 1;
+      description = `${player.name} captured ${won.length - 1} table card${won.length === 2 ? '' : 's'} with ${cardName(played)}${swept ? ' — sweep!' : '.'}`;
+    } else {
+      state.table = checked.remainingTable;
+      state.table.push({ id: `t${state.nextId++}`, type: 'build', value: checked.build.value, groups: checked.build.groups, owner: playerIndex });
+      const op = { create: 'built', raise: 'raised a build to', extend: 'extended a build of' }[checked.build.operation];
+      description = `${player.name} ${op} ${checked.build.value} (${checked.build.kind}).`;
+    }
+    state.moveNumber++;
+    state.lastAction = description;
+    state.log.push(description);
+    if (state.log.length > 35) state.log.shift();
+    state.turn = 1 - playerIndex;
+
+    if (!player.hand.length && !opponent.hand.length) {
+      if (state.stock.length) {
+        drawCards(state);
+        state.lastAction += ' New cards dealt.';
+      } else {
+        finishHand(state);
+      }
+    }
+    return { ok: true, description };
+  }
+  function scoreHand(state) {
+    const piles = state.players.map(p => p.captured);
+    const counts = piles.map(p => p.length);
+    const spades = piles.map(p => p.filter(c => c.suit === 'S').length);
+    const rows = [0, 1].map(i => {
+      const cards = counts[i] > counts[1 - i] ? 3 : 0;
+      const spadesPoints = state.rules.spadeScoring
+        ? spades[i] + (piles[i].some(c => c.id === 'S11') ? 1 : 0)
+        : (spades[i] > spades[1 - i] ? 1 : 0);
+      const big = piles[i].some(c => c.id === 'D10') ? 2 : 0;
+      const little = piles[i].some(c => c.id === 'S2') ? 1 : 0;
+      const aces = piles[i].filter(c => c.rank === 1).length;
+      const sweeps = state.players[i].sweeps * state.rules.sweepPoints;
+      return { cards, spades: spadesPoints, big, little, aces, sweeps,
+        total: cards + spadesPoints + big + little + aces + sweeps,
+        cardCount: counts[i], spadeCount: spades[i], sweepCount: state.players[i].sweeps };
+    });
+    return rows;
+  }
+  function finishHand(state) {
+    if (state.table.length && state.lastCapture !== null) {
+      state.players[state.lastCapture].captured.push(...state.table.flatMap(cardsInElement));
+      state.lastAction += ` Remaining table cards awarded to ${state.players[state.lastCapture].name}.`;
+    }
+    if (state.table.length && state.lastCapture === null) {
+      // Extremely unusual case: no capture all hand. Leave unclaimed cards out of scoring.
+      state.lastAction += ' No player captured; table residue is unclaimed.';
+    }
+    state.table = [];
+    const totals = scoreHand(state);
+    totals.forEach((row, i) => { state.players[i].score += row.total; });
+    const scores = state.players.map(p => p.score);
+    const reached = scores.some(s => s >= state.rules.winningScore);
+    let winner = null;
+    if (reached && scores[0] !== scores[1]) winner = scores[0] > scores[1] ? 0 : 1;
+    state.phase = reached && winner !== null ? 'gameOver' : 'roundOver';
+    state.result = { points: totals, scores, winner, finishedRound: state.round };
+  }
+  function nextHand(state, random = Math.random) {
+    if (state.phase !== 'roundOver') return null;
+    return makeState(state.rules, 1 - state.dealer, state.players.map(p => p.score), state.round + 1, random);
+  }
+  // All loose-card subsets whose sum is value. Pruned by positive card values.
+  function valueGroups(state, target, max = 160) {
+    const matching = state.table.filter(e => e.type === 'build' && e.value === target).map(e => [e.id]);
+    const loose = state.table.filter(e => e.type === 'loose' && cardValue(e.card, state.rules) !== null)
+      .map(e => ({ id: e.id, v: cardValue(e.card, state.rules) }));
+    const go = (start, total, chosen) => {
+      if (matching.length >= max) return;
+      if (total === target) { matching.push([...chosen]); return; }
+      for (let i = start; i < loose.length; i++) {
+        if (total + loose[i].v > target) continue;
+        go(i + 1, total + loose[i].v, [...chosen, loose[i].id]);
+        if (matching.length >= max) break;
+      }
+    };
+    go(0, 0, []);
+    return matching;
+  }
+  function captureChoices(state, card, limit = 110) {
+    const value = cardValue(card, state.rules);
+    if (value === null) {
+      return state.table.filter(e => e.type === 'loose' && e.card.rank === card.rank).map(e => ({ kind: 'capture', cardId: card.id, targetIds: [e.id] }));
+    }
+    const groups = valueGroups(state, value);
+    const moves = [];
+    const visited = new Set();
+    const combine = (start, picked) => {
+      if (moves.length >= limit) return;
+      if (picked.length) {
+        const ids = [...picked].sort();
+        const key = ids.join(',');
+        if (!visited.has(key)) {
+          visited.add(key);
+          moves.push({ kind: 'capture', cardId: card.id, targetIds: ids });
+        }
+      }
+      for (let i = start; i < groups.length; i++) {
+        if (groups[i].some(id => picked.includes(id))) continue;
+        combine(i + 1, picked.concat(groups[i]));
+        if (moves.length >= limit) break;
+      }
+    };
+    combine(0, []);
+    return moves;
+  }
+  function buildChoices(state, card, max = 55) {
+    if (!state.rules.builds || cardValue(card, state.rules) === null) return [];
+    const relevant = state.table.filter(e => e.type === 'loose' && cardValue(e.card, state.rules) !== null);
+    const builds = state.table.filter(e => e.type === 'build');
+    const targetSets = [];
+    const collect = (start, picked, bound) => {
+      if (picked.length) targetSets.push([...picked]);
+      if (picked.length >= bound || targetSets.length >= 120) return;
+      for (let i = start; i < relevant.length; i++) collect(i + 1, [...picked, relevant[i].id], bound);
+    };
+    collect(0, [], 3);
+    for (const b of builds) {
+      targetSets.push([b.id]);
+      for (const l of relevant) targetSets.push([b.id, l.id]);
+    }
+    const moves = [];
+    const keys = new Set();
+    for (const ids of targetSets) {
+      for (const option of legalBuildOptions(state, card.id, ids)) {
+        const key = [option.value, option.mode, ...option.targetIds].join('/');
+        if (!keys.has(key)) { keys.add(key); moves.push(option); }
+        if (moves.length >= max) return moves;
+      }
+    }
+    return moves;
+  }
+  function allComputerMoves(state, limit = 500) {
+    const moves = [];
+    for (const card of state.players[state.turn].hand) {
+      const trail = { kind: 'trail', cardId: card.id, targetIds: [] };
+      if (validateAction(state, trail).ok) moves.push(trail);
+      for (const move of captureChoices(state, card)) if (validateAction(state, move).ok) moves.push(move);
+      for (const move of buildChoices(state, card)) moves.push(move);
+      if (moves.length >= limit) break;
+    }
+    return moves;
+  }
+  function moveScore(state, move) {
+    const card = state.players[state.turn].hand.find(c => c.id === move.cardId);
+    if (move.kind === 'capture') {
+      const selection = state.table.filter(e => move.targetIds.includes(e.id));
+      const cards = [card, ...selection.flatMap(cardsInElement)];
+      const swept = selection.length === state.table.length;
+      const specials = cards.reduce((s, c) => s + (c.id === 'D10' ? 4.1 : 0) + (c.id === 'S2' ? 2.7 : 0) + (c.rank === 1 ? 1.8 : 0) + (c.suit === 'S' ? state.rules.spadeScoring ? 1.2 : 0.55 : 0), 0);
+      return 3 + (cards.length - 1) * 1.3 + specials + (swept ? 3.2 + state.rules.sweepPoints * 2 : 0) + selection.filter(e => e.type === 'build').length * 1.1;
+    }
+    if (move.kind === 'build') {
+      const chosen = state.table.filter(e => move.targetIds.includes(e.id));
+      const consumed = chosen.flatMap(cardsInElement);
+      const risk = 1.2 + Math.max(0, state.players[1 - state.turn].hand.length - 2) * 0.3;
+      return 1.5 + consumed.length * 0.6 + (consumed.some(c => c.id === 'D10') ? 1.5 : 0) - risk;
+    }
+    const v = cardValue(card, state.rules) || 11;
+    return -0.1 - (card.id === 'D10' ? 4 : 0) - (card.id === 'S2' ? 2 : 0) - (card.rank === 1 ? 1.1 : 0) - (v >= 8 ? 0.35 : 0);
+  }
+  function chooseComputerMove(state, random = Math.random) {
+    const options = allComputerMoves(state);
+    if (!options.length) throw new Error('No legal moves for computer.');
+    if (state.rules.difficulty === 'casual') {
+      // Casual computer mostly captures, but not necessarily the best combination.
+      const captures = options.filter(m => m.kind === 'capture');
+      if (captures.length && random() < 0.78) return captures[Math.floor(random() * captures.length)];
+      return options[Math.floor(random() * options.length)];
+    }
+    const scored = options.map(move => ({ move, score: moveScore(state, move) + random() * 0.6 }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].move;
+  }
+  function explainMove(state, move) {
+    if (move.kind === 'trail') return `Trail ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))} onto the table.`;
+    if (move.kind === 'capture') return `Capture ${move.targetIds.length} table group${move.targetIds.length === 1 ? '' : 's'} with ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))}.`;
+    return `${move.label || 'Build'} by combining your card with the selected table cards.`;
+  }
+  return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, makeDeck, makeState, newMatch,
+    cardName, cardValue, cardsInElement, findPartition, validateAction,
+    legalBuildOptions, applyAction, scoreHand, finishHand, nextHand,
+    captureChoices, buildChoices, allComputerMoves, chooseComputerMove,
+    explainMove, moveScore };
+});
+</script>
+<script>/* Cassino Lab browser UI: all gameplay calls the shared rules engine. */
+(function () {
+  'use strict';
+  const E = globalThis.CassinoEngine;
+  if (!E) throw new Error('Cassino rules engine did not load.');
+  const STORE = 'cassino-lab-v1';
+  let game, checkpoint = null, pickedCard = null, pickedTable = new Set();
+  let toast = '', modal = '', hint = null, busy = false, pendingBot = null;
+  let draft = null, draftPreset = 'classic';
+  let buildOptions = [];
+  const app = document.getElementById('app');
+  const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (saved && saved.game && saved.game.players && saved.game.rules) {
+      game = saved.game;
+      checkpoint = saved.checkpoint || null;
+    }
+  } catch (error) { /* local storage may be unavailable on file:// */ }
+  if (!game) game = E.newMatch();
+  function persist() {
+    try { localStorage.setItem(STORE, JSON.stringify({ game, checkpoint })); } catch (error) { /* optional persistence */ }
+  }
+  function me() { return game.players[0]; }
+  function opponent() { return game.players[1]; }
+  function isRed(card) { return card.suit === 'D' || card.suit === 'H'; }
+  function prettySuit(card) { return { S: '♠', H: '♥', D: '♦', C: '♣' }[card.suit]; }
+  function prettyRank(card) { return ({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[card.rank] || card.rank; }
+  function suitClass(card) { return isRed(card) ? 'red' : 'black'; }
+  function renderCard(card, small = false) {
+    return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''}" aria-label="${escapeHtml(E.cardName(card))}">
+      <span class="card-corner"><b>${prettyRank(card)}</b><small>${prettySuit(card)}</small></span>
+      <span class="card-big">${prettySuit(card)}</span>
+      <span class="card-corner bottom"><b>${prettyRank(card)}</b><small>${prettySuit(card)}</small></span>
+    </span>`;
+  }
+  function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern">✦</span></span>'; }
+  function elCards(element) { return E.cardsInElement(element); }
+  function entryMarkup(element) {
+    const selected = pickedTable.has(element.id);
+    if (element.type === 'loose') {
+      return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table">${renderCard(element.card)}</button>`;
+    }
+    const groups = element.groups.map(group => `<span class="build-group">${group.map(card => renderCard(card, true)).join('')}</span>`).join('<span class="group-plus">+</span>');
+    const owner = element.owner === 0 ? 'YOU' : 'CPU';
+    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.value} build owned by ${element.owner === 0 ? 'you' : 'computer'}">
+      <span class="build-top"><b>${element.value}-BUILD</b><small>${element.groups.length > 1 ? 'MULTIPLE' : 'SINGLE'}</small><em class="${element.owner === 0 ? 'your-owner' : ''}">${owner}</em></span>
+      <span class="build-groups">${groups}</span>
+    </button>`;
+  }
+  function isHumanTurn() { return game.phase === 'playing' && game.turn === 0 && !busy; }
+  function currentSelection() { return [...pickedTable]; }
+  function actionReady(kind) {
+    if (!isHumanTurn() || !pickedCard) return null;
+    const move = { kind, cardId: pickedCard, targetIds: kind === 'trail' ? [] : currentSelection() };
+    return E.validateAction(game, move);
+  }
+  function numberLabel(n, singular, plural) { return `${n} ${n === 1 ? singular : plural}`; }
+  function render() {
+    if (!app) return;
+    if (game.phase !== 'playing') { pickedCard = null; pickedTable.clear(); }
+    if (pickedCard && !me().hand.some(c => c.id === pickedCard)) { pickedCard = null; pickedTable.clear(); }
+    const active = isHumanTurn();
+    const capture = actionReady('capture');
+    const trail = actionReady('trail');
+    buildOptions = active && pickedCard ? E.legalBuildOptions(game, pickedCard, currentSelection()) : [];
+    const chosen = me().hand.find(c => c.id === pickedCard);
+    const phaseText = game.phase !== 'playing' ? 'Hand finished' : busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn';
+    const statusText = chosen
+      ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
+      : 'Choose a card from your hand, then choose table cards.';
+    const rules = game.rules;
+    app.innerHTML = `
+      <div class="shell">
+        <header class="header">
+          <div class="brand"><div class="brand-icon">♠</div><div><span class="eyebrow">FISHING CARD GAMES</span><h1>Cassino <span>Lab</span></h1></div></div>
+          <div class="header-actions">
+            <button class="top-btn" data-action="history" aria-label="Game history" title="Game history">☷ <span class="top-label">History</span></button>
+            <button class="top-btn" data-action="rules" aria-label="Rules" title="Rules">? <span class="top-label">Rules</span></button>
+            <button class="top-btn" data-action="settings" aria-label="Settings" title="Settings">⚙ <span class="top-label">Rulesets</span></button>
+          </div>
+        </header>
+        <div class="match-bar">
+          <div class="score-player you-score"><span class="player-dot your-dot"></span><span><small>YOU</small><b>${me().score}</b></span></div>
+          <div class="match-center"><b>${escapeHtml(rules.name)}</b><span>Hand ${game.round} <i>•</i> First to ${rules.winningScore}</span></div>
+          <div class="score-player cpu-score"><span><small>COMPUTER</small><b>${opponent().score}</b></span><span class="player-dot cpu-dot"></span></div>
+        </div>
+        <main class="felt">
+          <div class="table-grain"></div>
+          <div class="opponent-area">
+            <div class="player-caption"><span class="avatar cpu-avatar">AI</span><span><b>Computer</b><small>${numberLabel(opponent().captured.length, 'card captured', 'cards captured')}${rules.sweepPoints ? ` · ${opponent().sweeps} sweeps` : ''}</small></span></div>
+            <div class="opponent-hand" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
+          </div>
+          <div class="table-area">
+            <div class="table-title"><span>ON THE TABLE</span><span>${numberLabel(game.table.length, 'group', 'groups')}</span></div>
+            <div class="table-cards ${game.table.length ? '' : 'empty-table'}">${game.table.length ? game.table.map(entryMarkup).join('') : '<div class="table-clear"><span>✧</span>Table cleared</div>'}</div>
+          </div>
+          <div class="human-area">
+            <div class="player-caption"><span class="avatar human-avatar">YOU</span><span><b>Your hand</b><small>${numberLabel(me().captured.length, 'card captured', 'cards captured')}${rules.sweepPoints ? ` · ${me().sweeps} sweeps` : ''}</small></span><span class="cards-left">${game.stock.length} in deck</span></div>
+            <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card)}</button>`).join('')}</div>
+          </div>
+          <div class="table-footer"><span class="turn-indicator"><span class="turn-light ${active ? 'active' : ''}"></span>${phaseText}</span><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
+        </main>
+        <section class="controls" aria-label="Your moves">
+          <div class="selection-row"><span>${escapeHtml(statusText)}</span><button class="text-btn" data-action="clear" ${pickedCard || pickedTable.size ? '' : 'disabled'}>Clear selection</button></div>
+          <div class="main-actions">
+            <button class="action-btn primary" data-action="capture" ${capture && capture.ok && pickedTable.size ? '' : 'disabled'}><span>↧</span> Capture</button>
+            <button class="action-btn" data-action="trail" ${trail && trail.ok && !pickedTable.size ? '' : 'disabled'}><span>↗</span> Trail</button>
+            <button class="action-btn subtle" data-action="hint" ${active ? '' : 'disabled'}><span>✧</span> Hint</button>
+            <button class="action-btn subtle" data-action="undo" ${checkpoint && !busy ? '' : 'disabled'}><span>↶</span> Undo</button>
+          </div>
+          <div class="build-actions ${buildOptions.length ? 'has-actions' : ''}">${buildOptions.length ? `<span class="build-label">BUILD OPTIONS</span><div class="build-chips">${buildOptions.map((o,i) => `<button class="build-chip" data-action="build" data-index="${i}">${escapeHtml(o.label)} <small>${o.detail}</small></button>`).join('')}</div>` : `<span class="subtle-help">To build: choose a hand card and one or more loose table cards. You must keep a card matching the build value.</span>`}</div>
+          <div class="feedback ${toast ? 'visible' : ''}" aria-live="polite">${toast ? escapeHtml(toast) : (capture && !capture.ok && pickedTable.size && pickedCard ? escapeHtml(capture.reason) : 'Tap a table group again to deselect it.')}</div>
+        </section>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.1.1</span><button data-action="new-match" class="footer-button">New match ↗</button></footer>
+      </div>
+      ${modal ? renderModal() : ''}`;
+    bindSettings();
+  }
+  function settingChecked(name) { return draft[name] ? 'checked' : ''; }
+  function checkRow(name, title, desc, disabled = false) {
+    return `<label class="setting-row ${disabled ? 'disabled' : ''}"><span><b>${title}</b><small>${desc}</small></span><input type="checkbox" data-setting="${name}" ${settingChecked(name)} ${disabled ? 'disabled' : ''}></label>`;
+  }
+  function renderSettings() {
+    if (!draft) draft = { ...game.rules };
+    const menu = [['classic','Classic Cassino'],['royal','Royal Cassino'],['spade','Spade Cassino'],['royalSpade','Royal Spade'],['custom','Custom settings']];
+    return `<div class="dialog-head"><div><span class="eyebrow">GAME VARIATIONS</span><h2>Rule configuration</h2><p>Start a fresh match with a traditional preset or change individual mechanics.</p></div><button data-action="close" class="icon-close" aria-label="Close">×</button></div>
+      <div class="dialog-content">
+        <label class="setting-select"><b>Ruleset preset</b><select id="preset-selector" data-setting="preset">${menu.map(([id,name]) => `<option value="${id}" ${draftPreset === id ? 'selected' : ''}>${name}</option>`).join('')}</select></label>
+        <h3>Capturing & building</h3>
+        ${checkRow('royal', 'Royal face-card values', 'Jack 11 · Queen 12 · King 13. Aces remain 1.')}
+        ${checkRow('builds', 'Allow building', 'Combine cards for a later capture.')}
+        ${checkRow('multipleBuilds', 'Allow multiple builds', 'Groups of equal target value.', !draft.builds)}
+        ${checkRow('allowTrailWithOwnBuild', 'Relaxed trailing', 'Let a player trail while owning a build, provided they retain its capture card.', !draft.builds)}
+        <h3>Scoring</h3>
+        ${checkRow('spadeScoring', 'Spade Cassino scoring', 'Each spade earns 1; Jack of spades earns 1 extra. Replaces most-spades bonus.')}
+        <label class="setting-select"><span><b>Sweep bonus</b><small>Points when a capture clears the table</small></span><select data-setting="sweepPoints"><option value="0" ${Number(draft.sweepPoints) === 0 ? 'selected' : ''}>No bonus (Classic)</option><option value="1" ${Number(draft.sweepPoints) === 1 ? 'selected' : ''}>+1 per sweep</option><option value="2" ${Number(draft.sweepPoints) === 2 ? 'selected' : ''}>+2 per sweep (custom)</option></select></label>
+        <label class="setting-select"><span><b>Winning score</b><small>First to this total after hand scoring</small></span><select data-setting="winningScore">${[11,21,31,50,61].map(n => `<option value="${n}" ${Number(draft.winningScore) === n ? 'selected' : ''}>${n} points</option>`).join('')}</select></label>
+        <h3>Computer opponent</h3>
+        <label class="setting-select"><span><b>Difficulty</b><small>Both levels always obey the same rules</small></span><select data-setting="difficulty"><option value="casual" ${draft.difficulty === 'casual' ? 'selected' : ''}>Casual</option><option value="thoughtful" ${draft.difficulty === 'thoughtful' ? 'selected' : ''}>Thoughtful</option></select></label>
+        <p class="setting-warning">Changing the rules starts a new match. Some custom combinations are experimental rather than recognized historical variants.</p>
+      </div>
+      <div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="apply-settings" class="action-btn primary">Start with these rules</button></div>`;
+  }
+  function renderRules() {
+    return `<div class="dialog-head"><div><span class="eyebrow">HOW TO PLAY</span><h2>Cassino, in brief</h2><p>A capture-and-build fishing card game.</p></div><button data-action="close" class="icon-close">×</button></div>
+      <div class="dialog-content rules-copy">
+      <h3>Your turn</h3><p>Play exactly one card from your hand. <b>Capture</b> selected loose cards whose values split into groups equal to your played card, or take a matching build. <b>Trail</b> to place your card loose on the table. <b>Build</b> to combine your played card with table cards for a later capture.</p>
+      <h3>Making builds</h3><p>To create a build, keep another card with its announced value in your hand. A <b>single build</b> contains one group summing to that value. A <b>multiple build</b> has two or more such groups. You can add an equal-valued group to any build; you can raise a single build by contributing its increase from your hand. Multiple builds cannot be raised. Builds are indivisible and can only be captured at their announced value.</p>
+      <p>In standard Cassino, you cannot trail while owning an active build, or play away its last matching capture card.</p>
+      <h3>Scoring</h3><div class="rules-points"><span>Most cards</span><b>3</b><span>Most spades</span><b>${game.rules.spadeScoring ? 'Replaced' : '1'}</b><span>10♦ (Big Cassino)</span><b>2</b><span>2♠ (Little Cassino)</span><b>1</b><span>Each ace</span><b>1</b><span>Sweeps</span><b>${game.rules.sweepPoints ? '+'+game.rules.sweepPoints : '0'}</b></div>
+      ${game.rules.spadeScoring ? '<p>Spade rules: every captured spade is worth 1, plus 1 extra for J♠.</p>' : ''}
+      <h3>After the final deal</h3><p>The player who made the last actual capture receives all cards still on the table. The scoring bonuses are calculated and added to the match totals. Tied majorities earn no points.</p>
+      <p class="source-note">Rules basis: <a href="https://www.pagat.com/fishing/casino.html" target="_blank" rel="noopener noreferrer">Pagat — Cassino</a>. House rules differ. This first release supports the two-player core and selected variations.</p>
+      </div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Back to game</button></div>`;
+  }
+  function renderHistory() {
+    return `<div class="dialog-head"><div><span class="eyebrow">MATCH JOURNAL</span><h2>Move history</h2><p>Latest actions in this hand.</p></div><button data-action="close" class="icon-close">×</button></div>
+      <div class="dialog-content">${game.log.length ? `<ol class="move-log">${game.log.slice().reverse().map(line => `<li>${escapeHtml(line)}</li>`).join('')}</ol>` : '<p>No moves yet.</p>'}</div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Close</button></div>`;
+  }
+  function renderRound() {
+    if (!game.result) return '';
+    const p = game.result.points;
+    const scores = game.result.scores;
+    const winner = game.result.winner;
+    const ended = game.phase === 'gameOver';
+    const heads = ['Most cards','Spades','10♦','2♠','Aces','Sweeps','This hand'];
+    const keys = ['cards','spades','big','little','aces','sweeps','total'];
+    return `<div class="dialog-head"><div><span class="eyebrow">HAND ${game.result.finishedRound} COMPLETE</span><h2>${ended ? (winner === 0 ? 'You win the match!' : 'Computer wins the match') : 'Hand results'}</h2><p>${ended ? 'Match complete. Play another?' : 'Scores are added. Continue to the next hand.'}</p></div><button data-action="close" class="icon-close">×</button></div>
+      <div class="dialog-content"><div class="results-scores"><div><small>YOU</small><b>${scores[0]}</b><span>+${p[0].total} this hand</span></div><div class="result-vs">VS</div><div><small>COMPUTER</small><b>${scores[1]}</b><span>+${p[1].total} this hand</span></div></div>
+      <table class="result-table"><thead><tr><th>Category</th><th>You</th><th>Computer</th></tr></thead><tbody>${heads.map((name,i) => `<tr class="${i === heads.length-1 ? 'totals-row' : ''}"><td>${name}</td><td>${p[0][keys[i]]}</td><td>${p[1][keys[i]]}</td></tr>`).join('')}</tbody></table>
+      <p class="smallnote">Cards captured: ${p[0].cardCount}–${p[1].cardCount}. Spades captured: ${p[0].spadeCount}–${p[1].spadeCount}.</p></div>
+      <div class="dialog-actions"><button data-action="undo" class="action-btn" ${!checkpoint ? 'disabled' : ''}>Undo last turn</button><button data-action="${ended ? 'new-match' : 'next-hand'}" class="action-btn primary">${ended ? 'New match' : 'Next hand'} →</button></div>`;
+  }
+  function renderModal() {
+    const body = modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
+    return `<div class="overlay" role="presentation"><section class="dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(modal)}">${body}</section></div>`;
+  }
+  function bindSettings() { /* delegated event listeners live on #app */ }
+  function resetSelection() { pickedCard = null; pickedTable.clear(); hint = null; }
+  function botTurn() {
+    if (busy || game.phase !== 'playing' || game.turn !== 1) return;
+    busy = true;
+    render();
+    pendingBot = setTimeout(() => {
+      pendingBot = null;
+      if (!busy || game.phase !== 'playing' || game.turn !== 1) { busy = false; render(); return; }
+      try {
+        const move = E.chooseComputerMove(game);
+        const outcome = E.applyAction(game, move);
+        if (!outcome.ok) throw new Error(outcome.reason);
+      } catch (error) {
+        toast = `Computer move error: ${error.message}`;
+      }
+      busy = false;
+      if (game.phase !== 'playing') modal = 'round';
+      persist(); render();
+      if (game.turn === 1 && game.phase === 'playing') botTurn();
+    }, 500);
+  }
+  function play(action) {
+    if (!isHumanTurn()) return;
+    const check = E.validateAction(game, action);
+    if (!check.ok) { toast = check.reason; render(); return; }
+    checkpoint = JSON.stringify(game);
+    const result = E.applyAction(game, action);
+    if (!result.ok) { toast = result.reason; return render(); }
+    toast = result.description;
+    resetSelection();
+    if (game.phase !== 'playing') modal = 'round';
+    persist(); render();
+    if (game.turn === 1 && game.phase === 'playing') botTurn();
+  }
+  function undo() {
+    if (!checkpoint) return;
+    if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
+    busy = false;
+    game = JSON.parse(checkpoint);
+    checkpoint = null;
+    modal = '';
+    toast = 'Turn undone. Choose another move.';
+    resetSelection(); persist(); render();
+  }
+  function nextHand() {
+    const next = E.nextHand(game);
+    if (!next) return;
+    game = next; checkpoint = null; resetSelection(); toast = ''; modal = '';
+    persist(); render(); if (game.turn === 1) botTurn();
+  }
+  function startNewMatch(rules = game.rules, ask = true) {
+    if (ask && game.phase === 'playing' && !confirm('Start a new match? Your current match will be replaced.')) return;
+    if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
+    busy = false; game = E.newMatch(rules); checkpoint = null; modal = ''; toast = '';
+    resetSelection(); draft = null; persist(); render();
+  }
+  function openSettings() { draft = { ...game.rules }; draftPreset = Object.keys(E.PRESETS).find(k => {
+    const a = E.PRESETS[k];
+    return ['royal','spadeScoring','sweepPoints','builds','multipleBuilds','allowTrailWithOwnBuild','winningScore'].every(key => a[key] === game.rules[key]);
+  }) || 'custom'; modal = 'settings'; render(); }
+  function parseSetting(name, raw) {
+    if (['sweepPoints', 'winningScore'].includes(name)) return Number(raw);
+    return raw;
+  }
+  app.addEventListener('change', ev => {
+    const target = ev.target;
+    if (!(target instanceof HTMLElement) || !target.dataset.setting || !draft) return;
+    const prop = target.dataset.setting;
+    if (prop === 'preset') {
+      draftPreset = target.value;
+      if (draftPreset !== 'custom') draft = { ...E.rulesFor(draftPreset), difficulty: draft.difficulty };
+    } else {
+      draft[prop] = target.type === 'checkbox' ? target.checked : parseSetting(prop, target.value);
+      draftPreset = 'custom';
+      draft.name = 'Custom Cassino';
+    }
+    render();
+  });
+  app.addEventListener('click', event => {
+    const node = event.target.closest('[data-action]');
+    if (!node) return;
+    const action = node.dataset.action;
+    if (action === 'settings') return openSettings();
+    if (action === 'rules' || action === 'history') { modal = action; render(); return; }
+    if (action === 'close') { modal = ''; render(); return; }
+    if (action === 'new-match') return startNewMatch(game.rules, true);
+    if (action === 'next-hand') return nextHand();
+    if (action === 'undo') return undo();
+    if (action === 'apply-settings') {
+      const nextRules = { ...draft };
+      if (draftPreset !== 'custom') nextRules.name = E.PRESETS[draftPreset].name;
+      if (!nextRules.builds) { nextRules.multipleBuilds = false; nextRules.allowTrailWithOwnBuild = false; }
+      if (game.phase === 'playing' && !confirm('Start a new match with these rules?')) return;
+      return startNewMatch(nextRules, false);
+    }
+    if (action === 'hand') {
+      if (!isHumanTurn()) return;
+      const id = node.dataset.id;
+      if (pickedCard === id) { resetSelection(); toast = ''; } else { pickedCard = id; pickedTable.clear(); hint = null; toast = ''; }
+      return render();
+    }
+    if (action === 'table') {
+      if (!isHumanTurn() || !pickedCard) { toast = 'Choose a card from your hand first.'; render(); return; }
+      const id = node.dataset.id;
+      if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
+      toast = ''; hint = null; return render();
+    }
+    if (action === 'clear') { resetSelection(); toast = ''; return render(); }
+    if (action === 'trail' || action === 'capture') return play({ kind: action, cardId: pickedCard, targetIds: action === 'trail' ? [] : currentSelection() });
+    if (action === 'build') return play(buildOptions[Number(node.dataset.index)]);
+    if (action === 'hint') {
+      if (!isHumanTurn()) return;
+      const move = E.chooseComputerMove(game);
+      pickedCard = move.cardId; pickedTable = new Set(move.targetIds || []);
+      hint = move;
+      toast = `Suggestion: ${E.explainMove(game, move)}`;
+      return render();
+    }
+  });
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && modal) { modal = ''; render(); }
+    else if (ev.key.toLowerCase() === 'u' && !modal && checkpoint) undo();
+  });
+  render();
+  if (game.turn === 1 && game.phase === 'playing') botTurn();
+  else if (game.phase !== 'playing') { modal = 'round'; render(); }
+  if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
+    // A new deployment becomes available on the same URL. Let the player
+    // choose when to reload so an ongoing turn is not interrupted.
+    const hadController = !!navigator.serviceWorker.controller;
+    if (hadController) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (document.getElementById('update-notice')) return;
+        const bar = document.createElement('div');
+        bar.id = 'update-notice';
+        bar.className = 'update-notice';
+        bar.innerHTML = '<span>A new Cassino Lab version is ready.</span><button type="button">Update now</button>';
+        bar.querySelector('button').addEventListener('click', () => {
+          persist();
+          location.reload();
+        });
+        document.body.appendChild(bar);
+      });
+    }
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(registration => {
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') registration.update().catch(() => {});
+        });
+      }).catch(() => {});
+  }
+})();
+</script>
+</body></html>
