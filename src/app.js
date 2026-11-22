@@ -14,6 +14,9 @@
   let screen = 'home';
   let hasSavedMatch = false;
   let setup = { difficulty: 'thoughtful', preset: 'classic' };
+  let settingsOrigin = 'home';
+  const CUSTOM_STORE = 'cassino-lab-custom-rules-v1';
+  let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
   let prefs = { sound: true, animations: true };
@@ -88,15 +91,16 @@
       document.body.appendChild(ghost);
       const fromCenter=center(start);
       const to=(point,rot=0,scale=1)=>`translate(${point.x-fromCenter.x}px,${point.y-fromCenter.y}px) rotate(${rot}deg) scale(${scale})`;
+      const endingOpacity = kind === 'capture' ? .08 : 1;
       const frames=via ? [
         {transform:to(fromCenter),opacity:1,offset:0},
         {transform:to({x:(fromCenter.x+via.x)/2,y:(fromCenter.y+via.y)/2-18},-6,1.02),opacity:1,offset:.28},
         {transform:to(via,3,1),opacity:1,offset:.55},
-        {transform:to(destinationPoint,5,.52),opacity:.1,offset:1}
+        {transform:to(destinationPoint,5,kind === 'capture' ? .52 : 1),opacity:endingOpacity,offset:1}
       ] : [
         {transform:to(fromCenter),opacity:1},
         {transform:to({x:(fromCenter.x+destinationPoint.x)/2,y:(fromCenter.y+destinationPoint.y)/2-18},-4,1.05),opacity:1,offset:.53},
-        {transform:to(destinationPoint,5,.66),opacity:.1}
+        {transform:to(destinationPoint,5,kind === 'capture' ? .66 : 1),opacity:endingOpacity}
       ];
       if (ghost.animate) {
         const anim=ghost.animate(frames,{duration,delay:stagger,easing:'cubic-bezier(.25,.75,.25,1)'});
@@ -123,6 +127,14 @@
     }
   } catch (error) { /* local storage may be unavailable on file:// */ }
   if (!game) game = E.newMatch();
+  try {
+    const stored = JSON.parse(localStorage.getItem(CUSTOM_STORE) || 'null');
+    if (stored && typeof stored === 'object') customRules = {...E.rulesFor('classic'),...stored};
+  } catch (_) { /* Custom rules are optional. */ }
+  if (!customRules) customRules = {...E.rulesFor('classic'), name:'Custom Cassino'};
+  function saveCustomRules() {
+    try { localStorage.setItem(CUSTOM_STORE, JSON.stringify(customRules)); } catch (_) {}
+  }
   function persist() {
     hasSavedMatch = true;
     try { localStorage.setItem(STORE, JSON.stringify({ game, checkpoint })); } catch (error) { /* optional persistence */ }
@@ -165,10 +177,12 @@
     return `<main class="launch-screen">
       <div class="launch-scroll">
         <div class="launch-brand">
-          <div class="launch-fan" aria-hidden="true">
-            <span class="fan-card fan-left">${renderCard({rank:2,suit:'S'})}</span>
-            <span class="fan-card fan-middle">${renderCard({rank:10,suit:'D'})}</span>
-            <span class="fan-card fan-right">${renderCard({rank:1,suit:'C'})}</span>
+          <div class="launch-logo-art" aria-hidden="true">
+            <svg viewBox="0 0 290 174" xmlns="http://www.w3.org/2000/svg" role="img">
+              <g transform="translate(52 28) rotate(-15 48 66)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="9" y="28" font-size="25" fill="#151715" font-family="Georgia">2♠</text><text x="48" y="104" text-anchor="middle" font-size="76" fill="#151715" font-family="Georgia">2</text></g>
+              <g transform="translate(159 29) rotate(15 48 66)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="8" y="28" font-size="25" fill="#151715" font-family="Georgia">A♣</text><text x="48" y="104" text-anchor="middle" font-size="78" fill="#151715" font-family="Georgia">A</text></g>
+              <g transform="translate(104 16)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="8" y="28" font-size="23" fill="#d01d19" font-family="Georgia">10♦</text><text x="48" y="104" text-anchor="middle" font-size="65" fill="#d01d19" font-family="Georgia">10</text></g>
+            </svg>
           </div>
           <h1>Cassino</h1><div class="gold-divider">◆</div><p>FISHING CARD GAMES · LAB</p>
         </div>
@@ -184,7 +198,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.0 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.1 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -197,7 +211,7 @@
         <h3>PLAYERS</h3><div class="pill-row"><button class="pill-choice selected">2</button><button class="pill-choice" disabled title="Coming later">3 <small>soon</small></button><button class="pill-choice" disabled title="Coming later">4 <small>soon</small></button></div>
         <h3>DIFFICULTY</h3><div class="pill-row diff-row">${diffButtons.map(([k,v])=>`<button class="pill-choice ${setup.difficulty===k?'selected':''}" data-action="setup-difficulty" data-value="${k}">${v}</button>`).join('')}<button class="pill-choice" disabled>Hard <small>soon</small></button><button class="pill-choice" disabled>Insane <small>soon</small></button></div>
         <h3>VARIATION</h3><div class="pill-row">${presets.map(([k,v])=>`<button class="pill-choice ${setup.preset===k?'selected':''}" data-action="setup-preset" data-value="${k}">${v}</button>`).join('')}</div>
-        <p class="newgame-note">Original uses traditional Cassino rules. Royal gives numerical values to face cards. Custom uses your current rule settings.</p>
+        <p class="newgame-note">Original uses traditional Cassino rules. Royal gives numerical values to face cards. Tap Custom to open and edit your saved custom rules before playing.</p>
       </div>
       <div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="start-game" class="action-btn primary">Start Game</button></div>`;
   }
@@ -230,7 +244,7 @@
     const phaseText = game.phase !== 'playing' ? 'Hand finished' : (hint && toast) || moveAnnouncement || (busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn');
     const statusText = hint && toast ? toast : chosen
       ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
-      : 'Choose a card from your hand, then choose table cards.';
+      : pickedTable.size ? `${numberLabel(pickedTable.size, 'table card', 'table cards')} selected · choose a hand card` : 'Choose cards to build or capture.';
     const rules = game.rules;
     const motion = lastMotion;
     lastMotion = '';
@@ -269,7 +283,7 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.0</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.1</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
@@ -330,7 +344,7 @@
         <h3>MATCH SETTINGS</h3><label class="setting-select"><b>Winning score</b><select data-setting="winningScore">${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
         <label class="setting-select"><b>Computer difficulty</b><select data-setting="difficulty"><option value="casual" ${draft.difficulty==='casual'?'selected':''}>Easy</option><option value="thoughtful" ${draft.difficulty==='thoughtful'?'selected':''}>Medium</option></select></label>
         <p class="setting-warning">Switching options begins a new match. Custom combinations are experimental; use the ⓘ icons to read how each option changes legal moves.</p>
-      </div><div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="apply-settings" class="action-btn primary">Start with these rules</button></div>`;
+      </div><div class="dialog-actions"><button data-action="close" class="action-btn">${settingsOrigin === 'newgame' ? 'Back' : 'Cancel'}</button><button data-action="apply-settings" class="action-btn primary">${settingsOrigin === 'newgame' ? 'Start Game' : 'Start with these rules'}</button></div>`;
   }
   function renderSettingInfo() {
     const item=SETTING_INFO[detailSetting] || ['Game rule','Not yet documented.'];
@@ -454,7 +468,9 @@
     screen = 'game'; resetSelection(); draft = null; persist(); render();
     if (game.turn === 1) botTurn();
   }
-  function openSettings() { variationsScrollTop = 0; draft = { ...game.rules }; draftPreset = Object.keys(E.PRESETS).find(k => {
+  function openSettings(origin = screen) { variationsScrollTop = 0; settingsOrigin = origin;
+    draft = { ...(origin === 'newgame' ? customRules : game.rules) }; draft.difficulty = origin === 'newgame' ? setup.difficulty : draft.difficulty;
+    draftPreset = origin === 'newgame' ? 'custom' : Object.keys(E.PRESETS).find(k => {
     const a = E.PRESETS[k];
     return ['royal','spadeScoring','sweepPoints','builds','multipleBuilds','allowTrailWithOwnBuild','winningScore'].every(key => a[key] === game.rules[key]) && !['drawMode','sweepCancel','royalAces','royalBigLittle','pirateCaptures','pirateBuilds','buildAnything'].some(key => game.rules[key]);
   }) || 'custom'; modal = 'settings'; render(); }
@@ -495,13 +511,17 @@
       render(); return;
     }
     if (action === 'setup-difficulty') { setup.difficulty=node.dataset.value; render(); return; }
-    if (action === 'setup-preset') { setup.preset=node.dataset.value; render(); return; }
+    if (action === 'setup-preset') {
+      setup.preset = node.dataset.value;
+      if (setup.preset === 'custom') return openSettings('newgame');
+      render(); return;
+    }
     if (action === 'start-game') {
-      const rules = setup.preset==='custom' ? { ...game.rules,difficulty:setup.difficulty } : E.rulesFor(setup.preset,{difficulty:setup.difficulty});
-      startNewMatch(rules,false);return;
+      if (setup.preset === 'custom') return openSettings('newgame');
+      startNewMatch(E.rulesFor(setup.preset,{difficulty:setup.difficulty}),false);return;
     }
     if (action === 'menu') { modal = 'menu'; sound('tap'); render(); return; }
-    if (action === 'settings') return openSettings();
+    if (action === 'settings') return openSettings(screen);
     if (action === 'rules' || action === 'history') { modal = action; render(); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render(); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render(); return; }
@@ -511,25 +531,28 @@
       buildMenuOpen = !buildMenuOpen; sound('tap'); render(); return;
     }
     if (action === 'hide-builds') { buildMenuOpen = false; render(); return; }
-    if (action === 'close') { modal = ''; render(); return; }
+    if (action === 'close') { modal = modal === 'settings' && settingsOrigin === 'newgame' ? 'newgame' : ''; render(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
     if (action === 'undo') return undo();
     if (action === 'apply-settings') {
       const nextRules = { ...draft };
       if (draftPreset !== 'custom') nextRules.name = E.PRESETS[draftPreset].name;
+      else {nextRules.name='Custom Cassino';customRules = {...nextRules};saveCustomRules();}
       if (!nextRules.builds) { nextRules.multipleBuilds = false; nextRules.allowTrailWithOwnBuild = false; nextRules.buildAnything = false; nextRules.pirateBuilds = false; }
+      if (settingsOrigin === 'newgame') nextRules.difficulty = setup.difficulty;
       if (screen === 'game' && game.phase === 'playing' && !confirm('Start a new match with these rules?')) return;
       return startNewMatch(nextRules, false);
     }
     if (action === 'hand') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
-      if (pickedCard === id) { resetSelection(); toast = ''; } else { pickedCard = id; pickedTable.clear(); hint = null; buildMenuOpen = false; toast = ''; }
+      if (pickedCard === id) { pickedCard = null; hint = null; buildMenuOpen = false; toast = ''; }
+      else { pickedCard = id; hint = null; buildMenuOpen = false; toast = ''; }
       sound('tap'); return render();
     }
     if (action === 'table') {
-      if (!isHumanTurn() || !pickedCard) { toast = 'Choose a card from your hand first.'; render(); return; }
+      if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
       toast = ''; hint = null; buildMenuOpen = false; sound('tap'); return render();
