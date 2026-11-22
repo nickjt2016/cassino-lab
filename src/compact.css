@@ -1,4 +1,3 @@
-
 /* Cassino Lab v0.2 — a fixed, single-viewport game surface. Menus scroll internally. */
 html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscroll-behavior:none; }
 .shell { box-sizing:border-box; width:100%; max-width:1180px; height:100vh; height:100dvh;
@@ -535,3 +534,78 @@ html,body,#app{background:#005d0b;color:#fff}
 @media (prefers-reduced-motion:reduce) {
  .contextual-controls,.overlay,.dialog {animation:none!important;}
 }
+
+/* v0.4.4 — physical overlapping builds, one flush value label on the top card. */
+.table-builds{max-width:42%;align-items:flex-end;overflow:visible}
+.build-item{display:block;flex:0 0 auto;background:transparent!important;border:0!important;box-shadow:none!important;
+  padding:0!important;min-width:0!important;max-width:none!important;border-radius:0;overflow:visible;line-height:1}
+.build-pile{--stack-card-width:clamp(53px,16.5vw,76px);position:relative;display:block;
+  width:calc(var(--stack-card-width) + min(var(--layers),8)*4px);
+  height:calc(var(--stack-card-width)/.715 + min(var(--layers),8)*2px);}
+.build-layer{position:absolute;top:0;left:0;width:var(--stack-card-width);height:calc(var(--stack-card-width)/.715);
+  z-index:var(--layer);transform:translate(calc(min(var(--layer),8)*4px),calc(min(var(--layer),8)*2px));
+  filter:drop-shadow(0 1px 1px #00150070);}
+.build-layer .playing-card:not(.mini){width:100%;height:100%!important;display:block;border-radius:2px}
+.build-value{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:center;justify-content:center;
+  min-height:20%;background:#17140cea;color:#fff4c6;border:1px solid #e0c980;
+  border-top-width:2px;font:bold clamp(11px,3vw,16px)/1.1 Arial,sans-serif;letter-spacing:.02em}
+.build-item.selected .build-layer .playing-card{background:#fff59b!important;border-color:#ffe176!important}
+.build-item.selected .build-pile{outline:2px solid #ffde4f;outline-offset:3px;border-radius:3px}
+.build-item.selected .build-value{background:#65520c;color:#fff5be}
+/* Each royalty rank uses its own optical cap height, never touching the bottom border. */
+.playing-card:not(.mini) .card-big{font-size:82cqw;top:59%;line-height:.9;font-family:Georgia,'Times New Roman',serif}
+.playing-card.rank-j:not(.mini) .card-big{font-size:76cqw;top:56%}
+.playing-card.rank-q:not(.mini) .card-big{font-size:75cqw;top:57%}
+.playing-card.rank-k:not(.mini) .card-big{font-size:79cqw;top:58%}
+.playing-card.rank-a:not(.mini) .card-big{font-size:79cqw;top:58%}
+.playing-card:not(.mini) .card-corner b{font-size:26cqw}
+.playing-card:not(.mini) .card-corner small{font-size:20cqw}
+@media(max-height:700px){.build-pile{--stack-card-width:clamp(47px,14.2vw,63px)}}
+@media(orientation:landscape) and (max-height:450px){.build-pile{--stack-card-width:clamp(37px,6.9vw,59px)}.build-layer{transform:translate(calc(min(var(--layer),8)*3px),calc(min(var(--layer),8)*1px))}}
+@media(prefers-reduced-motion:reduce){.card-flight{display:none}}
+
+/* v0.4.5 — a virtual draw pile in the left table gutter. The cards visibly
+   originate here during every deal; the centre table stays unobstructed. */
+.table-stage{position:absolute;isolation:isolate}
+.draw-stock{position:absolute;z-index:3;left:clamp(3px,1vw,12px);top:50%;
+  transform:translateY(-50%);width:clamp(36px,10.5vw,48px);
+  display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
+.stock-stack{width:100%;height:auto;aspect-ratio:.715;position:relative;display:block}
+.stock-back{position:absolute;inset:0;display:block;width:100%;height:100%}
+.stock-back>.card-back{width:100%;height:100%;margin:0;display:block;aspect-ratio:.715}
+.stock-bottom{transform:translate(-3px,3px)}
+.stock-middle{transform:translate(-1.5px,1.5px)}
+.stock-top{transform:none}
+.draw-stock-count{display:block;color:#f2e8ac;background:#06410bba;border:1px solid #b6aa65aa;
+  font-size:11px;line-height:1;min-width:25px;text-align:center;padding:3px 6px;border-radius:12px}
+.draw-stock.empty .stock-stack{opacity:.18}
+.draw-stock.empty .draw-stock-count{opacity:.6}
+/* Reserve balanced gutters so the loose cards remain centred even with the pile. */
+.table-stage .table-cards{width:calc(100% - 2 * clamp(41px,11.7vw,58px));max-width:calc(100% - 2 * clamp(41px,11.7vw,58px));margin-inline:auto}
+.table-stage:has(.table-builds:not(:empty)) .table-cards{width:calc(100% - 2 * clamp(68px,18vw,98px));max-width:calc(100% - 2 * clamp(68px,18vw,98px));}
+/* The finished pile is made solely of overlapping cards; the value bar touches
+   the bottom edge of the topmost card, with no separate icon or tile. */
+.build-pile .build-value{bottom:0;left:0;right:0;border-radius:0 0 2px 2px;}
+@media(max-height:700px){.draw-stock{width:clamp(29px,8.6vw,39px);gap:2px}.draw-stock-count{font-size:9px;padding:2px 4px}
+ .table-stage .table-cards{width:calc(100% - 2 * clamp(34px,10vw,47px));max-width:calc(100% - 2 * clamp(34px,10vw,47px));}}
+@media(orientation:landscape) and (max-height:450px){.draw-stock{width:clamp(18px,3.7vw,28px);gap:1px;top:50%}
+ .draw-stock-count{font-size:7px;padding:1px 3px}.table-stage .table-cards{width:calc(100% - 2 * 38px);max-width:calc(100% - 2 * 38px)}
+ .table-stage:has(.table-builds:not(:empty)) .table-cards{width:calc(100% - 2 * 70px);max-width:calc(100% - 2 * 70px)}}
+
+/* v0.4.6 — high-contrast hand results and meaningful score emphasis. */
+.dialog .hand-winner-message{font-weight:800;text-align:center;color:#12552c;font-size:15px;margin:4px 0 11px}
+.dialog .results-scores>div:not(.result-vs){background:#f5f0df;color:#24241d;border:2px solid #d2c49f}
+.dialog .results-scores small{color:#484638}
+.dialog .results-scores b{color:#142719}
+.dialog .results-scores span{color:#4e492b;font-weight:650}
+.dialog .results-scores .round-winner{background:#e0eed5!important;border:3px solid #246c3f!important;box-shadow:0 0 0 2px #f3d987}
+.dialog .result-vs{color:#554e3b}
+.dialog .result-table{width:100%;border-collapse:collapse;color:#25251e;font-size:13px;background:#fbf7eb}
+.dialog .result-table th{color:#253d2c;background:#e9e1ce;font-weight:800;letter-spacing:0}
+.dialog .result-table th,.dialog .result-table td{border-bottom:1px solid #cdc4ac;padding:9px 8px}
+.dialog .result-table tr:nth-child(even):not(.totals-row){background:#f4eddc}
+.dialog .result-table .round-leading{color:#0e532a;background:#dcebd9;font-weight:900}
+.dialog .result-table .round-leading strong{font-weight:900}
+.dialog .result-table .totals-row{background:#e8ce84;color:#252011;font-weight:900}
+.dialog .result-table .totals-row .round-leading{background:#c8e0ab;color:#0d4424}
+.dialog .smallnote{color:#4a4635}
