@@ -1,3 +1,4 @@
+
 /* Cassino Lab v0.2 — a fixed, single-viewport game surface. Menus scroll internally. */
 html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscroll-behavior:none; }
 .shell { box-sizing:border-box; width:100%; max-width:1180px; height:100vh; height:100dvh;
@@ -473,4 +474,64 @@ html,body,#app{background:#005d0b;color:#fff}
  .playing-card{width:clamp(40px,6.7vw,61px)}
  .card-back{width:22px;height:31px;padding:2px}
  .back-pattern:after{font-size:8px}
+}
+
+/* v0.4.2: reference-video card proportions, typography, and physical Foley motion. */
+/* Portrait sizes match the compact face-up playing cards in the recording,
+   while remaining comfortably readable on a 390 CSS-pixel viewport. */
+.playing-card:not(.mini) { width:clamp(53px,16.5vw,76px); height:auto; aspect-ratio: .715; border-radius:2px; background:#fff; border:1px solid #c8c8c8;
+  box-shadow:0 2px 3px #00270064; contain:layout style; container-type:inline-size; overflow:hidden; }
+.playing-card:not(.mini) .card-corner { position:absolute; left:4%; top:2%; width:auto; height:20%; display:flex; flex-direction:row;
+  gap:1px; align-items:baseline; font-family:Georgia,'Times New Roman',serif; white-space:nowrap; line-height:1; }
+.playing-card:not(.mini) .card-corner b { font-family:Georgia,'Times New Roman',serif; font-weight:400; font-size:29cqw; line-height:1; }
+.playing-card:not(.mini) .card-corner small {font-size:22cqw; line-height:1; }
+.playing-card:not(.mini) .card-big {position:absolute; left:50%; top:63%; transform:translate(-50%,-50%);
+  font-family:Georgia,'Times New Roman',serif; font-weight:400; font-size:90cqw; line-height:1; }
+.playing-card.ten-card:not(.mini) .card-big {font-size:71cqw; letter-spacing:-.05em;}
+.playing-card.mini {background:#fff;color:#121212;}
+.playing-card.mini.red {color:#c71918;}
+.human-hand {gap:clamp(9px,2.8vw,16px);}
+.table-cards {gap:clamp(7px,2.4vw,14px);}
+.card-back {width:clamp(39px,11vw,52px);height:auto;aspect-ratio:.715;border-radius:1px;background:#fff;
+ border:2px solid #fbfbfa;padding:2px;box-shadow:0 2px 4px #00200088;}
+.back-pattern { width:100%;height:100%; border:1px solid #14237a; background: #283db1 url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%3E%3Crect%20width%3D%2240%22%20height%3D%2240%22%20fill%3D%22%23283db1%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23d2d7fa%22%20stroke-width%3D%221.9%22%20stroke-linejoin%3D%22miter%22%3E%3Cpath%20d%3D%22M2%202H17V17H2V32H17V39M22%202V17H38V2M22%2022H37V37H22V22ZM7%207H12V12H7Z%22%2F%3E%3Cpath%20d%3D%22M3%2022H12V27H7V37M27%207H33V12H27M25%2027H32V32%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M0%200H40V40%22%20fill%3D%22none%22%20stroke%3D%22%23192682%22%20stroke-width%3D%221%22%2F%3E%3C%2Fsvg%3E") repeat; background-size:20px 20px;
+  box-shadow:inset 0 0 0 2px #d2d7fa;}
+.back-pattern:before,.back-pattern:after{content:none;display:none}
+.opponent-hand .card-back {margin-left:-12px}
+.card-flight {filter:drop-shadow(0 5px 6px #001e0055);transform-origin:center;backface-visibility:hidden;}
+.card-flight .playing-card {width:100%;height:100%;box-sizing:border-box;}
+/* Selection keeps the video's yellow fill; cards never fade on builds/trails. */
+.hand-item.selected .playing-card,.table-item.selected .playing-card { background:#fff59b!important; color:#151715; border-color:#ffe176; }
+.hand-item.selected .playing-card.red,.table-item.selected .playing-card.red{color:#c72118}
+.animations-on .felt[data-motion="trail"] .table-cards,
+.animations-on .felt[data-motion="build"] .table-cards {animation:none;}
+.animations-on .felt[data-motion="capture"] .table-cards {animation:none;}
+@media(max-height:700px) {
+ .playing-card:not(.mini) {width:clamp(48px,14.2vw,63px);height:auto;}
+ .card-back{width:clamp(32px,9vw,40px);height:auto;}
+}
+@media(orientation:landscape) and (max-height:450px) {
+ .playing-card:not(.mini){width:clamp(40px,6.9vw,59px);height:auto;}
+ .card-back{width:clamp(21px,3.6vw,31px);height:auto;}
+ .table-stage{top:46%;}
+}
+@media(prefers-reduced-motion:reduce){.card-flight{display:none}}
+
+/* The cards in the remaining hand must stay opaque while a move travels. */
+.human-hand .hand-item:disabled,.table-item:disabled,.build-item:disabled{opacity:1;filter:none}
+
+/* v0.4.3 motion polish. The moving physical cards are always opaque until
+   their final capture-pile arrival; an opponent's played card is shown face-up. */
+.animations-on .felt[data-motion="deal"] .opponent-hand,
+.animations-on .felt[data-motion="deal"] .human-hand {animation:none!important}
+.card-flight { contain:layout paint; isolation:isolate; filter:drop-shadow(0 5px 7px #001e0055); }
+/* Only overlays and prompts may softly enter; playing cards do not fade. */
+.contextual-controls {animation:prompt-settle .26s cubic-bezier(.18,.8,.26,1) both;}
+@keyframes prompt-settle {from{transform:translateY(7px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.overlay {animation:dialog-backdrop .22s ease-out both;}
+.dialog {animation:dialog-settle .27s cubic-bezier(.2,.83,.24,1) both;}
+@keyframes dialog-backdrop {from{opacity:0}to{opacity:1}}
+@keyframes dialog-settle {from{transform:translateY(10px) scale(.985)}to{transform:translateY(0) scale(1)}}
+@media (prefers-reduced-motion:reduce) {
+ .contextual-controls,.overlay,.dialog {animation:none!important;}
 }
