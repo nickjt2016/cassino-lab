@@ -526,6 +526,22 @@ html,body,#app{background:#005d0b;color:#fff}
 
 /* The cards in the remaining hand must stay opaque while a move travels. */
 .human-hand .hand-item:disabled,.table-item:disabled,.build-item:disabled{opacity:1;filter:none}
+
+/* v0.4.3 motion polish. The moving physical cards are always opaque until
+   their final capture-pile arrival; an opponent's played card is shown face-up. */
+.animations-on .felt[data-motion="deal"] .opponent-hand,
+.animations-on .felt[data-motion="deal"] .human-hand {animation:none!important}
+.card-flight { contain:layout paint; isolation:isolate; filter:drop-shadow(0 5px 7px #001e0055); }
+/* Only overlays and prompts may softly enter; playing cards do not fade. */
+.contextual-controls {animation:prompt-settle .26s cubic-bezier(.18,.8,.26,1) both;}
+@keyframes prompt-settle {from{transform:translateY(7px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.overlay {animation:dialog-backdrop .22s ease-out both;}
+.dialog {animation:dialog-settle .27s cubic-bezier(.2,.83,.24,1) both;}
+@keyframes dialog-backdrop {from{opacity:0}to{opacity:1}}
+@keyframes dialog-settle {from{transform:translateY(10px) scale(.985)}to{transform:translateY(0) scale(1)}}
+@media (prefers-reduced-motion:reduce) {
+ .contextual-controls,.overlay,.dialog {animation:none!important;}
+}
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -1114,13 +1130,73 @@ html,body,#app{background:#005d0b;color:#fff}
   // their actual positions in the newly rendered state.  Nothing fades except
   // cards being captured.  The opponent's card is turned face-up in flight.
   let motionGeneration = 0;
+  const motionAllowed = () => !!prefs.animations &&
+    !(globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  // FLIP transitions: capture positions before replacing HTML, then translate
+  // surviving cards from their old screen positions to their new ones. Using
+  // the independent `translate` property preserves the selected-card transform.
+  function layoutPositions() {
+    if (!app || !app.querySelectorAll) return null;
+    const positions = new Map();
+    app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]').forEach(node => {
+      const key = node.dataset.action + ':' + node.dataset.id;
+      const rect = node.getBoundingClientRect();
+      if (rect.width && rect.height) positions.set(key, {x:rect.left+rect.width/2,y:rect.top+rect.height/2});
+    });
+    app.querySelectorAll('.opponent-hand .card-back').forEach((node,i)=>{
+      const rect=node.getBoundingClientRect();
+      if(rect.width && rect.height) positions.set('cpu-back:'+i,{x:rect.left+rect.width/2,y:rect.top+rect.height/2});
+    });
+    return positions;
+  }
+  function animateLayout(previous) {
+    if (!previous || !motionAllowed() || !app.querySelectorAll) return;
+    const nodes = [...app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]'),
+      ...app.querySelectorAll('.opponent-hand .card-back')];
+    let cpu=0;
+    nodes.forEach(node => {
+      const key = node.classList.contains('card-back') ? 'cpu-back:'+(cpu++) : node.dataset.action+':'+node.dataset.id;
+      const from=previous.get(key);
+      if(!from || !node.animate) return;
+      const rect=node.getBoundingClientRect();
+      const dx=from.x-(rect.left+rect.width/2), dy=from.y-(rect.top+rect.height/2);
+      if(Math.abs(dx)<2 && Math.abs(dy)<2) return;
+      node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
+        {duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});
+    });
+  }
+  function animateNewDeal() {
+    if (!motionAllowed() || !app.querySelectorAll) return;
+    const stock = app.querySelector('.game-stats');
+    if(!stock) return;
+    const sr=stock.getBoundingClientRect();
+    const start={x:sr.left+sr.width*.84,y:sr.top+sr.height/2};
+    const cards=[...app.querySelectorAll('.opponent-hand .card-back'),
+      ...app.querySelectorAll('.human-hand .playing-card')];
+    cards.forEach((card,i)=>{
+      if(!card.animate) return;
+      const r=card.getBoundingClientRect();
+      const dx=start.x-(r.left+r.width/2),dy=start.y-(r.top+r.height/2);
+      card.animate([
+        {translate:`${dx}px ${dy}px`,rotate:i%2?'7deg':'-7deg'},
+        {translate:'0px 0px',rotate:'0deg'}
+      ],{duration:540,delay:i*48,easing:'cubic-bezier(.2,.84,.22,1)',fill:'backwards'});
+    });
+  }
+  function animateTurnMessage(previous) {
+    if (!motionAllowed() || !app.querySelector || previous===null) return;
+    const node=app.querySelector('.turn-banner');
+    if (node && node.textContent!==previous && node.animate)
+      node.animate([{opacity:.55,translate:'0px 5px'},{opacity:1,translate:'0px 0px'}],
+        {duration:320,easing:'ease-out'});
+  }
   function cancelMotion() {
     motionGeneration++;
     if (document.querySelectorAll) document.querySelectorAll('.card-flight').forEach(node => node.remove());
   }
   function takeMotionSnapshot(move, byComputer = false) {
-    if (!prefs.animations || !document.body || !app.querySelector ||
-        (globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches)) return null;
+    if (!motionAllowed() || !document.body || !app.querySelector) return null;
     const from = byComputer
       ? app.querySelector('.opponent-hand .card-back:last-child')
       : app.querySelector(`.hand-item[data-id="${move.cardId}"] .playing-card`);
@@ -1151,7 +1227,7 @@ html,body,#app{background:#005d0b;color:#fff}
     // The final trail/build group must not appear before the flying card arrives.
     if (!capture) target.style.visibility = 'hidden';
     const tasks = [snapshot.played,...snapshot.groups];
-    const duration = snapshot.byComputer ? 860 : 640;
+    const duration = snapshot.byComputer ? 880 : 660;
     const animationPromises = tasks.map((piece,index) => new Promise(resolve => {
       const ghost = document.createElement('div');
       ghost.className = 'card-flight';
@@ -1170,8 +1246,9 @@ html,body,#app{background:#005d0b;color:#fff}
       // Trails and builds slide directly to their new table location, opaque.
       const frames = [
         {transform:'translate(0px,0px) rotate(0deg) scale(1)',opacity:1,offset:0},
-        {transform:`translate(${dx*.48}px,${dy*.48-11}px) rotate(${index%2 ? -3 : 3}deg) scale(${snapshot.byComputer && index === 0 ? 1.3 : 1.02})`,opacity:1,offset:.48},
-        {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(${scale})`,opacity:capture?.06:1,offset:1}
+        {transform:`translate(${dx*.48}px,${dy*.48-11}px) rotate(${index%2 ? -3 : 3}deg) scale(${snapshot.byComputer && index === 0 ? 1.18 : 1.02})`,opacity:1,offset:.48},
+        {transform:`translate(${dx*.83}px,${dy*.83-3}px) rotate(1deg) scale(${scale+.12})`,opacity:1,offset:.84},
+        {transform:`translate(${dx}px,${dy}px) rotate(0deg) scale(${scale})`,opacity:capture?.04:1,offset:1}
       ];
       if (ghost.animate) {
         const animation=ghost.animate(frames,{duration,delay:index*62,fill:'forwards',easing:'cubic-bezier(.23,.68,.28,1)'});
@@ -1267,7 +1344,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.2 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.3 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -1297,6 +1374,8 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   function render() {
     if (!app) return;
+    const oldLayout = screen === 'game' && motionAllowed() ? layoutPositions() : null;
+    const previousTurn = app.querySelector ? app.querySelector('.turn-banner')?.textContent ?? null : null;
     rememberVariationsScroll();
     if (screen === 'home') { app.innerHTML = renderHome(); restoreVariationsScroll(); return; }
     if (game.phase !== 'playing') { pickedCard = null; pickedTable.clear(); }
@@ -1352,11 +1431,14 @@ html,body,#app{background:#005d0b;color:#fff}
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.2</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.3</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
     bindSettings();
+    animateLayout(oldLayout);
+    if (motion === 'deal') animateNewDeal();
+    animateTurnMessage(previousTurn);
   }
   function settingChecked(name) { return draft[name] ? 'checked' : ''; }
   function checkRow(name, title, desc, disabled = false) {
@@ -1486,7 +1568,7 @@ html,body,#app{background:#005d0b;color:#fff}
         moveAnnouncement = outcome.description;
         if (announcementTimer !== null) clearTimeout(announcementTimer);
         // Keep the message readable after the cards have settled.
-        announcementTimer = setTimeout(() => { announcementTimer=null; moveAnnouncement=''; if(screen==='game'&&game.phase==='playing') render(); }, 3300);
+        announcementTimer = setTimeout(() => { announcementTimer=null; moveAnnouncement=''; if(screen==='game'&&game.phase==='playing') render(); }, 4000);
         sound(game.phase !== 'playing' ? 'score' : move.kind);
         persist(); render();
         playMotion(before, () => {
