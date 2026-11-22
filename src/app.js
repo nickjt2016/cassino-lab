@@ -448,9 +448,22 @@
           // Computer trails: flip face-up while still over the hand, THEN
           // smoothly grow to the exact width and height of the table card.
           // Reveal the destination only after the flight has landed.
-          const landingCard=destination.querySelector('.playing-card');
-          const landingRect=landingCard?.getBoundingClientRect() || targetRect;
-          const landingCenter=center(landingRect);
+          const landingCard=destination.querySelector('.playing-card') ||
+            app.querySelector('.table-cards .playing-card') ||
+            app.querySelector('.human-hand .playing-card');
+          let landingRect=landingCard?.getBoundingClientRect();
+          if(!landingRect){
+            // On a last-card trail, the scoring engine may have already
+            // cleared the DOM table: measure a card, not the table itself.
+            const probe=document.createElement('span');
+            probe.className='playing-card';
+            Object.assign(probe.style,{position:'fixed',visibility:'hidden'});
+            document.body.appendChild(probe);
+            landingRect=probe.getBoundingClientRect();
+            probe.remove();
+          }
+          const landingCenter=destination.matches('[data-action="table"]')?
+            center(landingRect):end;
           await Promise.all(ghosts.map((g,i)=>move(g,{x:landingCenter.x+i*3,y:landingCenter.y+i*2},
             snapshot.byComputer?610:490,{
               scale:landingRect.width/Math.max(1,g.rect.width),
