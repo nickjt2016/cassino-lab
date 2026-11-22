@@ -63,3 +63,7 @@ Card movements now use eased physical flights, staggered redeals, and FLIP trans
 During a capture, the player's actual face-up card moves from their hand over the selected table cards. Every captured card, including cards inside a build, slides beneath it, then the whole assembled stack travels back to that player's capture area. Only the returning captured stack fades.
 
 At the end of a hand, loose cards remaining on the table are collected by the player who made the last capture. This collection finishes before hand scoring appears. The results table now labels category point values (such as Most cards (3), Aces (1–4)), bolds the higher number in each category and highlights the hand winner. Dealing uses a louder quick sequence of original synthesized card-snap sounds synchronized with cards flying from the stock on the left.
+
+## Readable build stacks (v0.4.7)
+
+Builds remain physical card piles, not icons. The cards form a stepped solitaire stack, with the upper rank and suit of each constituent card exposed. The numerical build-value strip is flush with the bottom of the last card, and it appears after the cards settle. Compact spacing is used on shorter screens and for large builds.
