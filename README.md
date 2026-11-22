@@ -41,3 +41,13 @@ Card rank and suit indices scale with their cards to prevent overlap on narrow A
 ## v0.4 – Expanded Game Variations
 
 The Royal Aces and Royal 2-and-10 options can now use alternative numerical values in legal captures and builds. Pirate Captures, Pirate Builds, Pirate Trails, and the experimental Build To Anything option affect move legality. Draw and Sweep continue to work. Changing any variation retains its scroll position. The mobile interface uses larger centered table cards and brief context-sensitive actions like **Build J**, **Multiple build 10**, **Capture cards** and **Trail**. Computer moves pause longer and animate toward the table or capture area. All 25 automated checks pass.
+
+
+## Version 0.4.1 — UI and Royal labels
+
+- New Game → Custom opens the editable variations menu; Back returns to New Game; Start Game uses the selected custom rules and selected difficulty. Custom choices are saved separately from the current match.
+- Main-menu title now uses a clean SVG card fan and responsive type instead of overlapping HTML cards.
+- Hands, table cards and opponent card backs are larger; the backs use a woven diamond motif.
+- Cards fly at full opacity when trailed or built; only captured cards fade on the way to the captured pile.
+- You may select loose table cards or builds before selecting a hand card; highlights persist. Selected build stacks now glow yellow, including their constituent cards.
+- Royal move labels pair rank and target value: Build Q (14), Build A (14), Multiple Build A (14) when the indicated move is legal. Royal J/Q/K normally count as 11/12/13, and Royal Aces as 1 or 14; displaying a target beside a rank does not change that card's inherent value.
