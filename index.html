@@ -441,6 +441,47 @@ html,body,#app{background:#005d0b;color:#fff}
  .contextual-controls .main-actions{max-height:68px;gap:4px}
  .contextual-controls .action-btn{min-height:25px;font-size:10px;padding:3px 8px;min-width:74px}
 }
+
+/* v0.4.1 — stable logo, legible card sizes, textured backs and selection. */
+.launch-logo-art {width:min(78vw,290px);height:auto;aspect-ratio:290/174; margin:0 auto 0; flex:0 0 auto;filter:drop-shadow(0 4px 8px #003d0e99)}
+.launch-logo-art svg {display:block;width:100%;height:100%;overflow:visible}
+.launch-brand h1 {margin:2px 0 0; letter-spacing:-.045em;line-height:1.05;font-size:clamp(62px,13.7vw,86px);text-shadow:0 2px 4px #00361299;}
+@media(max-height:690px){.launch-logo-art{width:min(66vw,225px);}.launch-brand h1{font-size:clamp(48px,11vw,66px);}}
+/* Face cards scale as a unit using container-query typography. */
+.playing-card {width:clamp(64px,20vw,104px);overflow:hidden}
+.playing-card .card-corner{left:5%;width:90%;top:3%}
+.playing-card .card-corner b{font-size:23cqw;line-height:1}
+.playing-card .card-corner small{font-size:18cqw;line-height:1}
+.playing-card .card-big{font-size:74cqw;top:63%;line-height:1}
+.playing-card.ten-card .card-big{font-size:60cqw}
+.human-hand{gap:clamp(5px,1.9vw,14px)}
+.table-cards{gap:clamp(5px,1.6vw,12px)}
+/* Woven diamond pattern with a framed central medallion on each card back. */
+.card-back {width:clamp(43px,11.8vw,54px);height:clamp(59px,16vw,75px);padding:3px;
+  background:#f9f5e8;border:2px solid #fcf7ed;border-radius:4px;box-shadow:0 3px 6px #001e0055}
+.back-pattern{position:relative;display:grid;place-items:center;overflow:hidden;border:1px solid #e8d8a7;
+ background:repeating-linear-gradient(45deg,transparent 0 5px,#c4d0fc66 5px 6px,transparent 6px 11px),
+ repeating-linear-gradient(-45deg,transparent 0 5px,#e1e8ffbb 5px 6px,transparent 6px 11px),
+ #273c9b;color:#e7d9a8;font-size:13px}
+.back-pattern:before{content:'';position:absolute;inset:13% 22%;border:1px solid #e9dba8;border-radius:3px;transform:rotate(45deg);box-shadow:0 0 0 2px #233b95}
+.back-pattern:after{content:'◆';font-size:clamp(9px,2.8vw,15px);position:relative;color:#f0d894;text-shadow:0 1px 2px #132d79}
+/* A selected build highlights the cards as well as its outer container. */
+.build-item.selected {background:#174f21;outline:3px solid #ffe76b;outline-offset:1px;box-shadow:0 0 0 5px #f8dc4d4d,0 4px 12px #0006;}
+.build-item.selected .playing-card.mini{background:#fff99b!important;border-color:#ffe54f;}
+.build-item.selected .playing-card.mini.red{color:#ce201a!important}
+.build-item.selected .playing-card.mini.black{color:#161800!important}
+.build-item.selected .build-top{background:#695a17;color:#fff5be}
+/* Cards and labels stay opaque except when they are actually being captured. */
+@keyframes cards-deal {from{transform:translateY(-12px) scale(.96)}to{transform:translateY(0) scale(1)}}
+@media(max-height:700px){
+ .playing-card{width:clamp(55px,16.9vw,78px)}
+ .card-back{width:35px;height:49px}
+}
+@media(orientation:landscape) and (max-height:450px){
+ .playing-card{width:clamp(40px,6.7vw,61px)}
+ .card-back{width:22px;height:31px;padding:2px}
+ .back-pattern:after{font-size:8px}
+}
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -696,6 +737,20 @@ html,body,#app{background:#005d0b;color:#fff}
     if (obligation) return { ok: false, reason: obligation };
     return { ...outcome, card, selected, remainingTable };
   }
+  // Keep the visible card rank and the numerical target together in Royal
+  // variants. For example playing Q into a 14-build reads "Build Q (14)";
+  // playing A into a 14-multiple reads "Multiple Build A (14)".
+  function buildActionLabel(card, value, build, rules) {
+    const title = build.operation === 'raise' ? 'Raise to'
+      : build.kind === 'multiple' ? 'Multiple Build' : 'Build';
+    const playedRoyal = (card.rank >= 11 && rules.royal) || (card.rank === 1 && rules.royalAces);
+    const rank = playedRoyal ? ({1:'A',11:'J',12:'Q',13:'K'})[card.rank]
+      : ({11:'J',12:'Q',13:'K'})[value] && rules.royal ? ({11:'J',12:'Q',13:'K'})[value]
+      : value === 14 && rules.royalAces ? 'A'
+      : value === 15 && rules.royalBigLittle ? '2♠'
+      : value === 16 && rules.royalBigLittle ? '10♦' : '';
+    return rank ? `${title} ${rank} (${value})` : `${title} ${value}`;
+  }
   function legalBuildOptions(state, cardId, targetIds) {
     if (!state.rules.builds || !cardId) return [];
     const hand = state.players[state.turn].hand;
@@ -708,9 +763,8 @@ html,body,#app{background:#005d0b;color:#fff}
         const action = { kind: 'build', cardId, targetIds: targetIds || [], value, mode };
         const check = validateAction(state, action);
         if (check.ok) {
-          const valueLabel = ({11:'J',12:'Q',13:'K',14:'A (14)',15:'2♠ (15)',16:'10♦ (16)'})[value] || String(value);
-          const title = check.build.operation === 'raise' ? 'Raise to' : check.build.operation === 'extend' ? 'Multiple build' : check.build.kind === 'multiple' ? 'Multiple build' : 'Build';
-          possibilities.push({...action,label:`${title} ${valueLabel}`,detail:check.build.kind});
+          const label = buildActionLabel(hand.find(c => c.id === cardId), value, check.build, state.rules);
+          possibilities.push({...action,label,detail:check.build.kind});
         }
       }
     }
@@ -937,7 +991,7 @@ html,body,#app{background:#005d0b;color:#fff}
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove,
-    explainMove, moveScore };
+    explainMove, moveScore, buildActionLabel };
 });
 </script>
 <script>/* Cassino Lab browser UI: all gameplay calls the shared rules engine. */
@@ -956,6 +1010,9 @@ html,body,#app{background:#005d0b;color:#fff}
   let screen = 'home';
   let hasSavedMatch = false;
   let setup = { difficulty: 'thoughtful', preset: 'classic' };
+  let settingsOrigin = 'home';
+  const CUSTOM_STORE = 'cassino-lab-custom-rules-v1';
+  let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
   let prefs = { sound: true, animations: true };
@@ -1030,15 +1087,16 @@ html,body,#app{background:#005d0b;color:#fff}
       document.body.appendChild(ghost);
       const fromCenter=center(start);
       const to=(point,rot=0,scale=1)=>`translate(${point.x-fromCenter.x}px,${point.y-fromCenter.y}px) rotate(${rot}deg) scale(${scale})`;
+      const endingOpacity = kind === 'capture' ? .08 : 1;
       const frames=via ? [
         {transform:to(fromCenter),opacity:1,offset:0},
         {transform:to({x:(fromCenter.x+via.x)/2,y:(fromCenter.y+via.y)/2-18},-6,1.02),opacity:1,offset:.28},
         {transform:to(via,3,1),opacity:1,offset:.55},
-        {transform:to(destinationPoint,5,.52),opacity:.1,offset:1}
+        {transform:to(destinationPoint,5,kind === 'capture' ? .52 : 1),opacity:endingOpacity,offset:1}
       ] : [
         {transform:to(fromCenter),opacity:1},
         {transform:to({x:(fromCenter.x+destinationPoint.x)/2,y:(fromCenter.y+destinationPoint.y)/2-18},-4,1.05),opacity:1,offset:.53},
-        {transform:to(destinationPoint,5,.66),opacity:.1}
+        {transform:to(destinationPoint,5,kind === 'capture' ? .66 : 1),opacity:endingOpacity}
       ];
       if (ghost.animate) {
         const anim=ghost.animate(frames,{duration,delay:stagger,easing:'cubic-bezier(.25,.75,.25,1)'});
@@ -1065,6 +1123,14 @@ html,body,#app{background:#005d0b;color:#fff}
     }
   } catch (error) { /* local storage may be unavailable on file:// */ }
   if (!game) game = E.newMatch();
+  try {
+    const stored = JSON.parse(localStorage.getItem(CUSTOM_STORE) || 'null');
+    if (stored && typeof stored === 'object') customRules = {...E.rulesFor('classic'),...stored};
+  } catch (_) { /* Custom rules are optional. */ }
+  if (!customRules) customRules = {...E.rulesFor('classic'), name:'Custom Cassino'};
+  function saveCustomRules() {
+    try { localStorage.setItem(CUSTOM_STORE, JSON.stringify(customRules)); } catch (_) {}
+  }
   function persist() {
     hasSavedMatch = true;
     try { localStorage.setItem(STORE, JSON.stringify({ game, checkpoint })); } catch (error) { /* optional persistence */ }
@@ -1107,10 +1173,12 @@ html,body,#app{background:#005d0b;color:#fff}
     return `<main class="launch-screen">
       <div class="launch-scroll">
         <div class="launch-brand">
-          <div class="launch-fan" aria-hidden="true">
-            <span class="fan-card fan-left">${renderCard({rank:2,suit:'S'})}</span>
-            <span class="fan-card fan-middle">${renderCard({rank:10,suit:'D'})}</span>
-            <span class="fan-card fan-right">${renderCard({rank:1,suit:'C'})}</span>
+          <div class="launch-logo-art" aria-hidden="true">
+            <svg viewBox="0 0 290 174" xmlns="http://www.w3.org/2000/svg" role="img">
+              <g transform="translate(52 28) rotate(-15 48 66)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="9" y="28" font-size="25" fill="#151715" font-family="Georgia">2♠</text><text x="48" y="104" text-anchor="middle" font-size="76" fill="#151715" font-family="Georgia">2</text></g>
+              <g transform="translate(159 29) rotate(15 48 66)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="8" y="28" font-size="25" fill="#151715" font-family="Georgia">A♣</text><text x="48" y="104" text-anchor="middle" font-size="78" fill="#151715" font-family="Georgia">A</text></g>
+              <g transform="translate(104 16)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="8" y="28" font-size="23" fill="#d01d19" font-family="Georgia">10♦</text><text x="48" y="104" text-anchor="middle" font-size="65" fill="#d01d19" font-family="Georgia">10</text></g>
+            </svg>
           </div>
           <h1>Cassino</h1><div class="gold-divider">◆</div><p>FISHING CARD GAMES · LAB</p>
         </div>
@@ -1126,7 +1194,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.0 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.1 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -1139,7 +1207,7 @@ html,body,#app{background:#005d0b;color:#fff}
         <h3>PLAYERS</h3><div class="pill-row"><button class="pill-choice selected">2</button><button class="pill-choice" disabled title="Coming later">3 <small>soon</small></button><button class="pill-choice" disabled title="Coming later">4 <small>soon</small></button></div>
         <h3>DIFFICULTY</h3><div class="pill-row diff-row">${diffButtons.map(([k,v])=>`<button class="pill-choice ${setup.difficulty===k?'selected':''}" data-action="setup-difficulty" data-value="${k}">${v}</button>`).join('')}<button class="pill-choice" disabled>Hard <small>soon</small></button><button class="pill-choice" disabled>Insane <small>soon</small></button></div>
         <h3>VARIATION</h3><div class="pill-row">${presets.map(([k,v])=>`<button class="pill-choice ${setup.preset===k?'selected':''}" data-action="setup-preset" data-value="${k}">${v}</button>`).join('')}</div>
-        <p class="newgame-note">Original uses traditional Cassino rules. Royal gives numerical values to face cards. Custom uses your current rule settings.</p>
+        <p class="newgame-note">Original uses traditional Cassino rules. Royal gives numerical values to face cards. Tap Custom to open and edit your saved custom rules before playing.</p>
       </div>
       <div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="start-game" class="action-btn primary">Start Game</button></div>`;
   }
@@ -1172,7 +1240,7 @@ html,body,#app{background:#005d0b;color:#fff}
     const phaseText = game.phase !== 'playing' ? 'Hand finished' : (hint && toast) || moveAnnouncement || (busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn');
     const statusText = hint && toast ? toast : chosen
       ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
-      : 'Choose a card from your hand, then choose table cards.';
+      : pickedTable.size ? `${numberLabel(pickedTable.size, 'table card', 'table cards')} selected · choose a hand card` : 'Choose cards to build or capture.';
     const rules = game.rules;
     const motion = lastMotion;
     lastMotion = '';
@@ -1211,7 +1279,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.0</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.1</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
@@ -1272,7 +1340,7 @@ html,body,#app{background:#005d0b;color:#fff}
         <h3>MATCH SETTINGS</h3><label class="setting-select"><b>Winning score</b><select data-setting="winningScore">${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
         <label class="setting-select"><b>Computer difficulty</b><select data-setting="difficulty"><option value="casual" ${draft.difficulty==='casual'?'selected':''}>Easy</option><option value="thoughtful" ${draft.difficulty==='thoughtful'?'selected':''}>Medium</option></select></label>
         <p class="setting-warning">Switching options begins a new match. Custom combinations are experimental; use the ⓘ icons to read how each option changes legal moves.</p>
-      </div><div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="apply-settings" class="action-btn primary">Start with these rules</button></div>`;
+      </div><div class="dialog-actions"><button data-action="close" class="action-btn">${settingsOrigin === 'newgame' ? 'Back' : 'Cancel'}</button><button data-action="apply-settings" class="action-btn primary">${settingsOrigin === 'newgame' ? 'Start Game' : 'Start with these rules'}</button></div>`;
   }
   function renderSettingInfo() {
     const item=SETTING_INFO[detailSetting] || ['Game rule','Not yet documented.'];
@@ -1396,7 +1464,9 @@ html,body,#app{background:#005d0b;color:#fff}
     screen = 'game'; resetSelection(); draft = null; persist(); render();
     if (game.turn === 1) botTurn();
   }
-  function openSettings() { variationsScrollTop = 0; draft = { ...game.rules }; draftPreset = Object.keys(E.PRESETS).find(k => {
+  function openSettings(origin = screen) { variationsScrollTop = 0; settingsOrigin = origin;
+    draft = { ...(origin === 'newgame' ? customRules : game.rules) }; draft.difficulty = origin === 'newgame' ? setup.difficulty : draft.difficulty;
+    draftPreset = origin === 'newgame' ? 'custom' : Object.keys(E.PRESETS).find(k => {
     const a = E.PRESETS[k];
     return ['royal','spadeScoring','sweepPoints','builds','multipleBuilds','allowTrailWithOwnBuild','winningScore'].every(key => a[key] === game.rules[key]) && !['drawMode','sweepCancel','royalAces','royalBigLittle','pirateCaptures','pirateBuilds','buildAnything'].some(key => game.rules[key]);
   }) || 'custom'; modal = 'settings'; render(); }
@@ -1437,13 +1507,17 @@ html,body,#app{background:#005d0b;color:#fff}
       render(); return;
     }
     if (action === 'setup-difficulty') { setup.difficulty=node.dataset.value; render(); return; }
-    if (action === 'setup-preset') { setup.preset=node.dataset.value; render(); return; }
+    if (action === 'setup-preset') {
+      setup.preset = node.dataset.value;
+      if (setup.preset === 'custom') return openSettings('newgame');
+      render(); return;
+    }
     if (action === 'start-game') {
-      const rules = setup.preset==='custom' ? { ...game.rules,difficulty:setup.difficulty } : E.rulesFor(setup.preset,{difficulty:setup.difficulty});
-      startNewMatch(rules,false);return;
+      if (setup.preset === 'custom') return openSettings('newgame');
+      startNewMatch(E.rulesFor(setup.preset,{difficulty:setup.difficulty}),false);return;
     }
     if (action === 'menu') { modal = 'menu'; sound('tap'); render(); return; }
-    if (action === 'settings') return openSettings();
+    if (action === 'settings') return openSettings(screen);
     if (action === 'rules' || action === 'history') { modal = action; render(); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render(); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render(); return; }
@@ -1453,25 +1527,28 @@ html,body,#app{background:#005d0b;color:#fff}
       buildMenuOpen = !buildMenuOpen; sound('tap'); render(); return;
     }
     if (action === 'hide-builds') { buildMenuOpen = false; render(); return; }
-    if (action === 'close') { modal = ''; render(); return; }
+    if (action === 'close') { modal = modal === 'settings' && settingsOrigin === 'newgame' ? 'newgame' : ''; render(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
     if (action === 'undo') return undo();
     if (action === 'apply-settings') {
       const nextRules = { ...draft };
       if (draftPreset !== 'custom') nextRules.name = E.PRESETS[draftPreset].name;
+      else {nextRules.name='Custom Cassino';customRules = {...nextRules};saveCustomRules();}
       if (!nextRules.builds) { nextRules.multipleBuilds = false; nextRules.allowTrailWithOwnBuild = false; nextRules.buildAnything = false; nextRules.pirateBuilds = false; }
+      if (settingsOrigin === 'newgame') nextRules.difficulty = setup.difficulty;
       if (screen === 'game' && game.phase === 'playing' && !confirm('Start a new match with these rules?')) return;
       return startNewMatch(nextRules, false);
     }
     if (action === 'hand') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
-      if (pickedCard === id) { resetSelection(); toast = ''; } else { pickedCard = id; pickedTable.clear(); hint = null; buildMenuOpen = false; toast = ''; }
+      if (pickedCard === id) { pickedCard = null; hint = null; buildMenuOpen = false; toast = ''; }
+      else { pickedCard = id; hint = null; buildMenuOpen = false; toast = ''; }
       sound('tap'); return render();
     }
     if (action === 'table') {
-      if (!isHumanTurn() || !pickedCard) { toast = 'Choose a card from your hand first.'; render(); return; }
+      if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
       toast = ''; hint = null; buildMenuOpen = false; sound('tap'); return render();
