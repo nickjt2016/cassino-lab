@@ -1,6 +1,6 @@
 /* Offline-capable, network-first browser cache; updated when a new release is deployed. */
 const CACHE_PREFIX = 'cassino-lab-';
-const CACHE = CACHE_PREFIX + '768f21e3a055';
+const CACHE = CACHE_PREFIX + '949d32f12c88';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE)
