@@ -71,3 +71,7 @@ Builds remain physical card piles, not icons. The cards form a stepped solitaire
 
 ### v0.4.8 — computer trails
 The opponent's trailed card flips face-up over the hand, scales smoothly to exactly the loose-table-card dimensions, and lands without a size jump. The same sizing applies when the trail finishes the hand, with a separate safeguard for an already-cleared table. This update preserves the existing animation timing and legal moves.
+
+
+### v0.4.9 — physical replacement-card dealing
+Replacement cards in Draw mode no longer appear immediately in the hand: each travels face-down from the left stock, flips on arrival, and then becomes selectable. New hands and initial table cards are dealt face-down as well. Card input is held while dealing. Build columns align straight and the felt no longer displays an empty-table caption.
