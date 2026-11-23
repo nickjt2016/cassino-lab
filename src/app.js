@@ -78,6 +78,8 @@
   // Track actual card IDs so draw-mode only animates replacement cards.
   let pendingDeal = null;
   let pendingStockOrigin = null;
+  let dealAnimation = Promise.resolve();
+  let dealing = false;
   function collectDeal(beforeHuman = [], beforeCpu = [], beforeTable = []) {
     const oldHuman = new Set(beforeHuman), oldCpu = new Set(beforeCpu), oldTable = new Set(beforeTable);
     const humanIds = game.players[0].hand.filter(c => !oldHuman.has(c.id)).map(c => c.id);
@@ -128,42 +130,112 @@
         {duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});
     });
   }
+  // Dealt cards never materialize in the hand. Until the deck animation
+  // reaches them, their DOM destinations remain hidden but retain layout space.
+  function dealTargets(deal, includeTable = true) {
+    if (!app.querySelectorAll) return [];
+    const items=[];
+    const tableCards=[...app.querySelectorAll('.table-cards .playing-card[data-card-id]')];
+    const handCards=[...app.querySelectorAll('.human-hand .playing-card[data-card-id]')];
+    const backs=[...app.querySelectorAll('.opponent-hand .card-back')];
+    if(includeTable) for(const id of deal.tableIds||[]) {
+      const node=tableCards.find(c=>c.dataset.cardId===id);
+      if(node) items.push({node,faceUp:true});
+    }
+    const human=(deal.humanIds||[]).map(id=>handCards.find(c=>c.dataset.cardId===id));
+    const cpu=(deal.cpuIndices||[]).map(i=>backs[i]);
+    for(let i=0;i<Math.max(human.length,cpu.length);i++){
+      if(cpu[i]) items.push({node:cpu[i],faceUp:false});
+      if(human[i]) items.push({node:human[i],faceUp:true});
+    }
+    return items;
+  }
+  function hidePendingDealCards() {
+    if (!pendingDeal || !app.querySelectorAll) return;
+    for (const {node} of dealTargets(pendingDeal,true)) node.style.visibility='hidden';
+  }
+  // One face-down card travels out of the physical stock for EACH replacement.
+  // The human/table cards turn face-up only once they reach their destinations.
   function animateNewDeal(includeTable = true) {
-    if (!motionAllowed() || !app.querySelectorAll) { pendingDeal = null; pendingStockOrigin = null; return; }
-    const deck = app.querySelector('.draw-stock .stock-back');
-    const r=deck?.getBoundingClientRect();
-    const start=pendingStockOrigin || (r ? {x:r.left+r.width/2,y:r.top+r.height/2}:null);
-    if(!start) { pendingDeal = null; return; }
     const deal = pendingDeal || {
-      humanIds:game.players[0].hand.map(c => c.id),
+      humanIds:game.players[0].hand.map(c=>c.id),
       cpuIndices:game.players[1].hand.map((_,i)=>i),
       tableIds:includeTable?game.table.filter(e=>e.type==='loose').map(e=>e.card.id):[]
     };
-    const cards=[];
-    if(includeTable) for(const id of deal.tableIds) {
-      const node=Array.from(app.querySelectorAll('.table-cards .playing-card')).find(el=>el.dataset.cardId===id);
-      if(node)cards.push(node);
-    }
-    const backs=[...app.querySelectorAll('.opponent-hand .card-back')];
-    const human=deal.humanIds.map(id=>Array.from(app.querySelectorAll('.human-hand .playing-card')).find(el=>el.dataset.cardId===id)).filter(Boolean);
-    const cpu=deal.cpuIndices.map(i=>backs[i]).filter(Boolean);
-    for(let i=0;i<Math.max(human.length,cpu.length);i++) {
-      if(cpu[i])cards.push(cpu[i]);
-      if(human[i])cards.push(human[i]);
-    }
-    pendingDeal = null;
-    pendingStockOrigin = null;
-    cards.forEach((card,i)=>{
-      if(!card.animate)return;
-      const rect=card.getBoundingClientRect();
-      const dx=start.x-(rect.left+rect.width/2),dy=start.y-(rect.top+rect.height/2);
-      card.animate([
-        {translate:`${dx}px ${dy}px`,rotate:(i%2?'6deg':'-6deg')},
-        {translate:'0px 0px',rotate:'0deg'}
-      ],{duration:460,delay:i*94,easing:'cubic-bezier(.2,.84,.22,1)',fill:'backwards'});
+    const items=dealTargets(deal,includeTable);
+    const deck=app.querySelector?.('.draw-stock .stock-back');
+    const deckRect=deck?.getBoundingClientRect();
+    const start=pendingStockOrigin || (deckRect && {
+      x:deckRect.left+deckRect.width/2,y:deckRect.top+deckRect.height/2
     });
-    const stockCount = app.querySelector('.draw-stock-count');
-    if(stockCount && stockCount.animate) stockCount.animate([{scale:1.06},{scale:1}],{duration:250});
+    pendingDeal=null;
+    pendingStockOrigin=null;
+    if(!motionAllowed() || !start || !items.length || !document.body || !document.createElement){
+      items.forEach(item=>{item.node.style.visibility='';});
+      return Promise.resolve();
+    }
+    const generation=motionGeneration;
+    const flyOne=({node,faceUp},index)=>new Promise(resolve=>{
+      setTimeout(()=>{
+        if(generation!==motionGeneration || !node.isConnected){
+          node.style.visibility='';resolve();return;
+        }
+        const rect=node.getBoundingClientRect();
+        if(!rect.width || !rect.height || !node.animate){
+          node.style.visibility='';resolve();return;
+        }
+        const dest={x:rect.left+rect.width/2,y:rect.top+rect.height/2};
+        const ghost=document.createElement('div');
+        ghost.className='card-flight dealt-card-flight';
+        const initialScale=Math.max(.28,Math.min(.95,(deckRect?.width || rect.width*.55)/rect.width));
+        Object.assign(ghost.style,{
+          position:'fixed',pointerEvents:'none',zIndex:'95',
+          left:(start.x-rect.width/2)+'px',top:(start.y-rect.height/2)+'px',
+          width:rect.width+'px',height:rect.height+'px',
+          transformOrigin:'center',willChange:'transform',
+          transform:`scale(${initialScale})`
+        });
+        ghost.innerHTML=renderBack();
+        const back=ghost.querySelector('.card-back');
+        if(back)Object.assign(back.style,{width:'100%',height:'100%',margin:'0',boxSizing:'border-box'});
+        document.body.appendChild(ghost);
+        const dx=dest.x-start.x,dy=dest.y-start.y;
+        const end=`translate(${dx}px,${dy}px) scale(1)`;
+        const done=()=>{node.style.visibility='';ghost.remove();resolve();};
+        const run=(frames,options)=>new Promise(finish=>{
+          if(!ghost.animate){finish();return;}
+          const anim=ghost.animate(frames,{fill:'forwards',...options});
+          anim.onfinish=finish;anim.oncancel=finish;
+        });
+        (async()=>{
+          try{
+            await run([
+              {transform:`scale(${initialScale}) rotate(-3deg)`},
+              {transform:`translate(${dx*.70}px,${dy*.70-6}px) scale(${initialScale+(1-initialScale)*.7}) rotate(2deg)`,offset:.72},
+              {transform:end}
+            ],{duration:440,easing:'cubic-bezier(.22,.74,.24,1)'});
+            if(generation!==motionGeneration)return;
+            ghost.style.transform=end;
+            ghost.getAnimations().forEach(a=>a.cancel());
+            if(faceUp){
+              await run([{transform:end+' rotateY(0deg)'},{transform:end+' rotateY(90deg)'}],{duration:100,easing:'ease-in'});
+              if(generation!==motionGeneration)return;
+              const face=node.cloneNode(true);
+              face.style.visibility='visible';
+              face.style.width='100%';
+              face.style.setProperty('height','100%','important');
+              face.style.margin='0';
+              ghost.replaceChildren(face);
+              ghost.getAnimations().forEach(a=>a.cancel());
+              await run([{transform:end+' rotateY(-90deg)'},{transform:end+' rotateY(0deg)'}],{duration:110,easing:'ease-out'});
+            }
+          }finally{done();}
+        })();
+      },index*94);
+    });
+    const stockCount=app.querySelector('.draw-stock-count');
+    if(stockCount?.animate)stockCount.animate([{scale:1.06},{scale:1}],{duration:250});
+    return Promise.all(items.map(flyOne)).then(()=>{});
   }
   function animateTurnMessage(previous) {
     if (!motionAllowed() || !app.querySelector || previous===null) return;
@@ -268,8 +340,6 @@
     const move=(entry,where,duration,options={})=>{
       const c=center(entry.rect), dx=where.x-c.x,dy=where.y-c.y;
       const scale=options.scale??1;
-      // Opponent card backs are smaller than the face-up table cards.
-      // Match both landing dimensions to avoid a visible size jump.
       const scaleY=options.scaleY??scale;
       const from=options.from || {x:0,y:0,scale:1};
       const fromScaleY=from.scaleY??from.scale;
@@ -445,25 +515,18 @@
             buildGhosts.forEach(piece=>piece.ghost.remove());
           }
         } else {
-          // Computer trails: flip face-up while still over the hand, THEN
-          // smoothly grow to the exact width and height of the table card.
-          // Reveal the destination only after the flight has landed.
+          // Computer trails: flip face-up before movement and match destination size.
           const landingCard=destination.querySelector('.playing-card') ||
             app.querySelector('.table-cards .playing-card') ||
             app.querySelector('.human-hand .playing-card');
           let landingRect=landingCard?.getBoundingClientRect();
           if(!landingRect){
-            // On a last-card trail, the scoring engine may have already
-            // cleared the DOM table: measure a card, not the table itself.
-            const probe=document.createElement('span');
-            probe.className='playing-card';
+            const probe=document.createElement('span');probe.className='playing-card';
             Object.assign(probe.style,{position:'fixed',visibility:'hidden'});
             document.body.appendChild(probe);
-            landingRect=probe.getBoundingClientRect();
-            probe.remove();
+            landingRect=probe.getBoundingClientRect();probe.remove();
           }
-          const landingCenter=destination.matches('[data-action="table"]')?
-            center(landingRect):end;
+          const landingCenter=destination.matches('[data-action="table"]')?center(landingRect):end;
           await Promise.all(ghosts.map((g,i)=>move(g,{x:landingCenter.x+i*3,y:landingCenter.y+i*2},
             snapshot.byComputer?610:490,{
               scale:landingRect.width/Math.max(1,g.rect.width),
@@ -565,7 +628,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.8 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.4.9 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -610,7 +673,7 @@
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
     const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
-    const phaseText = game.phase !== 'playing' ? 'Hand finished' : (hint && toast) || moveAnnouncement || (busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn');
+    const phaseText = game.phase !== 'playing' ? 'Hand finished' : dealing ? 'Dealing cards…' : (hint && toast) || moveAnnouncement || (busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn');
     const statusText = hint && toast ? toast : chosen
       ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
       : pickedTable.size ? `${numberLabel(pickedTable.size, 'table card', 'table cards')} selected · choose a hand card` : 'Choose cards to build or capture.';
@@ -636,7 +699,7 @@
             <div class="table-stage"><div class="draw-stock ${game.stock.length===0?'empty':''}" aria-label="Draw pile: ${game.stock.length} cards remaining" role="img">
               <span class="stock-stack" aria-hidden="true"><span class="stock-back stock-bottom">${renderBack()}</span><span class="stock-back stock-middle">${renderBack()}</span><span class="stock-back stock-top">${renderBack()}</span></span>
               <span class="draw-stock-count">${game.stock.length}</span>
-            </div><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : (game.table.length ? '' : '<span class="table-empty">Table cleared</span>')}</div>
+            </div><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
             <div class="turn-banner" aria-live="polite">${phaseText}</div>
           </div>
@@ -655,13 +718,14 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.8</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.4.9</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
     bindSettings();
+    hidePendingDealCards();
     animateLayout(oldLayout);
-    if (motion === 'deal' || motion === 'deal-hands') animateNewDeal(motion === 'deal');
+    if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
     animateTurnMessage(previousTurn);
   }
   function settingChecked(name) { return draft[name] ? 'checked' : ''; }
@@ -814,7 +878,18 @@
         persist(); render();
         playMotion(before, () => {
           if (screen !== 'game') return;
-          if (cardsDealt > 0) { lastMotion = 'deal-hands'; sound('deal', cardsDealt); }
+          if (cardsDealt > 0) {
+            lastMotion = 'deal-hands'; dealing = true; busy = true;
+            sound('deal', cardsDealt); persist(); render();
+            Promise.resolve(dealAnimation).then(() => {
+              if (screen !== 'game') return;
+              dealing = false; busy = false;
+              if (game.phase !== 'playing') modal = 'round';
+              persist(); render();
+              if (game.turn === 1 && game.phase === 'playing') botTurn();
+            });
+            return;
+          }
           busy = false;
           if (game.phase !== 'playing') modal = 'round';
           persist(); render();
@@ -849,7 +924,18 @@
     busy = !!before;
     persist(); render();
     playMotion(before, () => {
-      if (cardsDealt > 0) { lastMotion = 'deal-hands'; sound('deal', cardsDealt); }
+      if (cardsDealt > 0) {
+        lastMotion = 'deal-hands'; dealing = true; busy = true;
+        sound('deal', cardsDealt); persist(); render();
+        Promise.resolve(dealAnimation).then(() => {
+          if (screen !== 'game') return;
+          dealing = false; busy = false;
+          if (game.phase !== 'playing') modal = 'round';
+          persist(); render();
+          if (game.turn === 1 && game.phase === 'playing') botTurn();
+        });
+        return;
+      }
       busy = false;
       if (game.phase !== 'playing') modal = 'round';
       persist(); render();
@@ -874,7 +960,13 @@
     if (!next) return;
     game = next; checkpoint = null; resetSelection(); toast = ''; modal = ''; lastMotion = 'deal';
     collectDeal(); pendingStockOrigin=null;
-    sound('deal',12); persist(); render(); if (game.turn === 1) botTurn();
+    dealing = busy = !!(motionAllowed() && app.querySelectorAll);
+    sound('deal',12); persist(); render();
+    Promise.resolve(dealAnimation).then(() => {
+      if(screen!=='game')return;
+      dealing=false;busy=false;persist();render();
+      if(game.turn===1)botTurn();
+    });
   }
   function startNewMatch(rules = game.rules, ask = true) {
     if (ask && game.phase === 'playing' && !confirm('Start a new match? Your current match will be replaced.')) return;
@@ -882,8 +974,14 @@
     cancelMotion();
     busy = false; game = E.newMatch(rules); checkpoint = null; modal = ''; toast = ''; lastMotion = 'deal';
     collectDeal(); pendingStockOrigin=null;
-    screen = 'game'; resetSelection(); draft = null; sound('deal',12); persist(); render();
-    if (game.turn === 1) botTurn();
+    screen = 'game'; resetSelection(); draft = null;
+    dealing = busy = !!(motionAllowed() && app.querySelectorAll);
+    sound('deal',12); persist(); render();
+    Promise.resolve(dealAnimation).then(() => {
+      if(screen!=='game')return;
+      dealing=false;busy=false;persist();render();
+      if(game.turn===1)botTurn();
+    });
   }
   function openSettings(origin = screen) { variationsScrollTop = 0; settingsOrigin = origin;
     draft = { ...(origin === 'newgame' ? customRules : game.rules) }; draft.difficulty = origin === 'newgame' ? setup.difficulty : draft.difficulty;
