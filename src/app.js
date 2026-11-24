@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.13';
+  const APP_VERSION = '0.5.14';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.

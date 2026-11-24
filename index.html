@@ -1232,22 +1232,13 @@ html,body,#app{background:#005d0b;color:#fff}
     if (obligation) return { ok: false, reason: obligation };
     return { ...outcome, card, selected, remainingTable };
   }
-  // Keep the visible card rank and the numerical target together in Royal
-  // variants. For example playing Q into a 14-build reads "Build Q (14)";
-  // playing A into a 14-multiple reads "Multiple Build A (14)".
-  function buildActionLabel(card, value, build, rules) {
+  // Label the resulting stack, never the rank of the card being played.
+  // All currently legal builds have numerical targets. If a future rule
+  // supports non-numerical face-rank builds, their target can be J, Q or K.
+  function buildActionLabel(_card, value, build, _rules) {
     const title = build.operation === 'raise' ? 'Raise to'
       : build.kind === 'multiple' ? 'Multiple Build' : 'Build';
-    // For raises, label the resulting build value, never the card used to raise it.
-    // Playing A (1) on a 9-build while retaining a 10 is "Raise to 10".
-    const playedRoyal = build.operation !== 'raise' &&
-      ((card.rank >= 11 && rules.royal) || (card.rank === 1 && rules.royalAces));
-    const rank = playedRoyal ? ({1:'A',11:'J',12:'Q',13:'K'})[card.rank]
-      : ({11:'J',12:'Q',13:'K'})[value] && rules.royal ? ({11:'J',12:'Q',13:'K'})[value]
-      : value === 14 && rules.royalAces ? 'A'
-      : value === 15 && rules.royalBigLittle ? '2♠'
-      : value === 16 && rules.royalBigLittle ? '10♦' : '';
-    return rank ? `${title} ${rank} (${value})` : `${title} ${value}`;
+    return `${title} ${value}`;
   }
   function legalBuildOptions(state, cardId, targetIds) {
     if (!state.rules.builds || !cardId) return [];
@@ -1515,7 +1506,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.13';
+  const APP_VERSION = '0.5.14';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.

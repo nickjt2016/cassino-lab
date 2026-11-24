@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.13**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.14**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -128,3 +128,6 @@ Fixed a deadlock in Build To Anything when the owner cannot capture their own bu
 
 ### v0.5.13 — direct captures
 The played card and captured cards fly directly to a stack in front of the capturing player, with the played card on top. No intermediate stop at the table center or over a build. The stack then moves into the capture total; computer captures mirror the human position.
+
+### v0.5.14 — build labels
+Build, Multiple Build and Raise to display only the numerical target of the resulting stack, including Royal Aces and the special 2/10 values. Played-card ranks and parenthesized totals are omitted. Non-numerical face-card builds are not currently legal in Classic Cassino; no game rules were changed.
