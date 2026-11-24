@@ -498,6 +498,19 @@
     scored.sort((a, b) => b.score - a.score);
     return scored[0].move;
   }
+  // Hints rank legal moves independently of the opponent's difficulty.
+  // Include every hand card and choose deterministically without playing.
+  function chooseHintMove(state) {
+    const moves = allComputerMoves(state, Infinity);
+    let best = null, bestScore = -Infinity;
+    for (const move of moves) {
+      if (!validateAction(state, move).ok) continue;
+      const score = moveScore(state, move);
+      if (score > bestScore) { best = move; bestScore = score; }
+    }
+    if (!best) throw new Error('No legal move found.');
+    return best;
+  }
   function explainMove(state, move) {
     if (move.kind === 'trail') return `Trail ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))} onto the table.`;
     if (move.kind === 'capture') return `Capture ${move.targetIds.length} table group${move.targetIds.length === 1 ? '' : 's'} with ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))}.`;
@@ -506,6 +519,6 @@
   return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, applyAction, scoreHand, finishHand, nextHand,
-    captureChoices, buildChoices, allComputerMoves, chooseComputerMove,
+    captureChoices, buildChoices, allComputerMoves, chooseComputerMove, chooseHintMove,
     explainMove, moveScore, buildActionLabel };
 });

@@ -9,9 +9,9 @@
   let draft = null, draftPreset = 'classic';
   let detailSetting = '';
   let variationsScrollTop = 0;
-  let buildOptions = [], lastMotion = '';
+  let buildOptions = [], lastMotion = '', suggestedMove = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.17';
+  const APP_VERSION = '0.5.18';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -54,7 +54,7 @@
   let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
-  let prefs = { sound: true, animations: true };
+  let prefs = { sound: true, animations: true, undo: true };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_STORE) || '{}') }; } catch (_) {}
   let audioContext = null;
   const app = document.getElementById('app');
@@ -691,6 +691,41 @@
     const move = { kind, cardId: pickedCard, targetIds: kind === 'trail' ? [] : currentSelection() };
     return E.validateAction(game, move);
   }
+  // A hint identifies the precise legal action without executing it.
+  function suggestedAction(kind, option = null) {
+    if (!suggestedMove || suggestedMove.kind !== kind || suggestedMove.cardId !== pickedCard) return false;
+    const selected=currentSelection();
+    const targets=suggestedMove.targetIds || [];
+    if (selected.length!==targets.length || !targets.every(id=>pickedTable.has(id))) return false;
+    return kind !== 'build' || !!option && option.value===suggestedMove.value && option.mode===suggestedMove.mode;
+  }
+  function actionButton(kind, label, option = null, index = -1) {
+    const recommended=suggestedAction(kind,option);
+    return `<button class="action-btn ${kind==='build'?'build-main':kind==='capture'?'primary':''}${recommended?' hint-recommended':''}" data-action="${kind}" ${kind==='build'?`data-index="${index}"`:''} ${recommended?`aria-label="Suggested move: ${escapeHtml(label)}"`:''}>${escapeHtml(label)}</button>`;
+  }
+  function suggestMove() {
+    if (!isHumanTurn()) return;
+    try {
+      const move=E.chooseHintMove(game);
+      const check=E.validateAction(game,move);
+      if (!check.ok) throw new Error(check.reason);
+      suggestedMove=move;
+      pickedCard=move.cardId;
+      pickedTable=new Set(move.targetIds || []);
+      toast='';
+    } catch (error) { resetSelection(); toast=error.message; }
+    render();
+  }
+  function renderToolbar(active) {
+    return `<header class="header game-toolbar" aria-label="Game controls">
+      <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
+      <div class="header-actions">
+        <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
+        ${prefs.undo?`<button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo" ${checkpoint?'':'disabled'}>↶</button>`:''}
+        <button class="game-help" data-action="menu" aria-label="Open game menu">☰</button>
+      </div>
+    </header>`;
+  }
   function renderHome() {
     return `<main class="launch-screen">
       <div class="launch-scroll">
@@ -764,8 +799,8 @@
       restoreVariationsScroll();
       return;
     }
-    if (game.phase !== 'playing') { pickedCard = null; pickedTable.clear(); }
-    if (pickedCard && !me().hand.some(c => c.id === pickedCard)) { pickedCard = null; pickedTable.clear(); }
+    if (game.phase !== 'playing') resetSelection();
+    if (pickedCard && !me().hand.some(c => c.id === pickedCard)) resetSelection();
     const active = isHumanTurn();
     const capture = actionReady('capture');
     const trail = actionReady('trail');
@@ -779,11 +814,7 @@
     lastMotion = '';
     app.innerHTML = `
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
-        <header class="header game-toolbar" aria-label="Game controls">
-          <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
-          <div class="header-actions"><button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint">✧</button><button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo">↶</button><button class="game-help" data-action="rules" aria-label="Rules">ⓘ</button><button class="game-help" data-action="menu" aria-label="Open game menu">☰</button></div>
-        </header>
-
+        ${renderToolbar(active)}
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
           <div class="opponent-area">
@@ -797,9 +828,9 @@
           </div>
           ${active && pickedCard && visibleActionCount ? `<section class="controls contextual-controls" aria-label="Legal moves">
             <div class="main-actions">
-              ${buildOptions.map((o,i) => `<button class="action-btn build-main" data-action="build" data-index="${i}">${escapeHtml(o.label)}</button>`).join('')}
-              ${canTrail ? '<button class="action-btn" data-action="trail">Trail</button>' : ''}
-              ${canCapture ? '<button class="action-btn primary" data-action="capture">Capture cards</button>' : ''}
+              ${buildOptions.map((o,i) => actionButton('build',o.label,o,i)).join('')}
+              ${canTrail ? actionButton('trail','Trail') : ''}
+              ${canCapture ? actionButton('capture','Capture cards') : ''}
             </div>
           </section>` : ''}
           <div class="human-area">
@@ -893,6 +924,7 @@
         <button data-action="history" class="menu-row"><span>☷</span><b>Move history</b></button>
         <button data-action="toggle-sound" class="menu-row"><span>${prefs.sound ? '♫' : '♪'}</span><b>Sound effects</b><em>${prefs.sound ? 'On' : 'Off'}</em></button>
         <button data-action="toggle-animations" class="menu-row"><span>✦</span><b>Card animations</b><em>${prefs.animations ? 'On' : 'Off'}</em></button>
+        <button data-action="toggle-undo" class="menu-row" aria-pressed="${prefs.undo}"><span>↶</span><b>Undo button</b><em>${prefs.undo ? 'On' : 'Off'}</em></button>
         <button data-action="new-match" class="menu-row danger-row"><span>↻</span><b>Start new match</b></button>
       </div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Back to table</button></div>`;
   }
@@ -935,7 +967,7 @@
       <div class="results-scores"><div class="${lead===0?'round-winner':''}"><small>YOU</small><b>${scores[0]}</b><span>+${p[0].total} this hand</span></div><div class="result-vs">VS</div><div class="${lead===1?'round-winner':''}"><small>COMPUTER</small><b>${scores[1]}</b><span>+${p[1].total} this hand</span></div></div>
       <table class="result-table"><thead><tr><th>Category</th><th>You</th><th>Computer</th></tr></thead><tbody>${heads.map((name,i) => `<tr class="${i === heads.length-1 ? 'totals-row' : ''}"><td>${name}</td>${scoreCell(keys[i],0)}${scoreCell(keys[i],1)}</tr>`).join('')}</tbody></table>
       <p class="smallnote">Cards captured: ${p[0].cardCount}–${p[1].cardCount}. Spades captured: ${p[0].spadeCount}–${p[1].spadeCount}.</p></div>
-      <div class="dialog-actions"><button data-action="undo" class="action-btn" ${!checkpoint ? 'disabled' : ''}>Undo last turn</button><button data-action="${ended ? 'new-match' : 'next-hand'}" class="action-btn primary">${ended ? 'New match' : 'Next hand'} →</button></div>`;
+      <div class="dialog-actions">${prefs.undo?`<button data-action="undo" class="action-btn" ${!checkpoint ? 'disabled' : ''}>Undo last turn</button>`:''}<button data-action="${ended ? 'new-match' : 'next-hand'}" class="action-btn primary">${ended ? 'New match' : 'Next hand'} →</button></div>`;
   }
   function renderExitConfirm() {
     return `<div class="dialog-head"><div><h2>Exit game?</h2><p>Are you sure you want to exit this game?</p></div></div>
@@ -981,7 +1013,7 @@
     persist(); resetSelection(); sound('tap'); render();
     applyPendingUpdate();
   }
-  function resetSelection() { pickedCard = null; pickedTable.clear(); }
+  function resetSelection() { pickedCard = null; pickedTable.clear(); suggestedMove = null; }
   function botTurn() {
     if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
     busy = true;
@@ -1056,7 +1088,8 @@
     } else finish();
   }
   function undo() {
-    if (!checkpoint) return;
+    if (!prefs.undo || !checkpoint || screen !== 'game') return;
+    pendingDeal = null; pendingStockOrigin = null;
     cancelMotion();
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
     busy = false;
@@ -1170,6 +1203,7 @@
     if (action === 'rules' || action === 'history') { modal = action; render(); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render(); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render(); return; }
+    if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render(); return; }
     if (action === 'close') { modal = ''; render(); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
@@ -1185,34 +1219,26 @@
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       pickedCard = pickedCard === id ? null : id;
-      toast = '';
+      suggestedMove = null; toast = '';
       sound('tap'); return render();
     }
     if (action === 'table') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
-      toast = ''; sound('tap'); return render();
+      suggestedMove = null; toast = ''; sound('tap'); return render();
     }
     if (action === 'clear') { resetSelection(); toast = ''; return render(); }
     if (action === 'trail' || action === 'capture') return play({ kind: action, cardId: pickedCard, targetIds: action === 'trail' ? [] : currentSelection() });
     if (action === 'build') return play(buildOptions[Number(node.dataset.index)]);
-    if (action === 'hint') {
-      if (!isHumanTurn()) return;
-      try {
-        const move = E.chooseComputerMove(game);
-        pickedCard = move.cardId; pickedTable = new Set(move.targetIds || []);
-        toast = '';
-      } catch (error) { toast = error.message; }
-      return render();
-    }
+    if (action === 'hint') return suggestMove();
   });
   document.addEventListener('keydown', ev => {
     if (ev.key === 'Escape' && modal) {
       if (modal === 'exit-confirm') { cancelExit(); return; }
       modal = ''; render(); applyPendingUpdate(); return;
     }
-    else if (ev.key.toLowerCase() === 'u' && !modal && checkpoint) undo();
+    else if (ev.key.toLowerCase() === 'u' && !modal && prefs.undo && checkpoint) undo();
   });
   render(); // The main menu is the entry point; the computer does not move until Resume/Start.
   if (/^https?:/.test(location.protocol)) {

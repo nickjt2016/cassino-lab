@@ -87,11 +87,17 @@ test('Captured build panel is snapshotted and fades at the beginning of the capt
   assert.match(css,/\.capture-label-flight > \.build-value \{\s*height:100%!important/);
 });
 
-test('The five top controls form a left vertical rail without taking a row',()=>{
-  assert.match(app,/class="header game-toolbar"/);
-  const section=css.slice(css.indexOf('/* v0.5.16'));
-  assert.match(section,/\.shell \.game-toolbar \{\s*position:absolute;top:/);
-  assert.match(section,/left:max\(5px,env\(safe-area-inset-left\)\)/);
-  assert.match(section,/\.game-toolbar \.header-actions \{\s*display:flex;flex-direction:column/);
+test('Horizontal toolbar keeps Exit left and three optional controls right',()=>{
+  const toolbar=app.slice(app.indexOf('  function renderToolbar('),app.indexOf('  function renderHome('));
+  assert.match(toolbar,/class="header game-toolbar"/);
+  assert.ok(toolbar.indexOf('data-action="home"')<toolbar.indexOf('class="header-actions"'));
+  assert.match(toolbar,/data-action="hint"/);
+  assert.match(toolbar,/data-action="undo"/);
+  assert.match(toolbar,/data-action="menu"/);
+  assert.doesNotMatch(toolbar,/data-action="rules"/);
+  const section=css.slice(css.indexOf('/* v0.5.18'));
+  assert.match(section,/\.shell \.game-toolbar \{\s*position:relative;[^}]*flex-direction:row/);
+  assert.match(section,/justify-content:space-between/);
+  assert.match(section,/\.game-toolbar \.header-actions \{\s*display:flex;flex-direction:row/);
   assert.match(section,/\.table-stage\{top:53%!important/);
 });

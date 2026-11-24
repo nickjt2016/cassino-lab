@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.17**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.18**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -140,3 +140,6 @@ The controls form a vertical top-left rail, freeing the row above the opponent. 
 
 ### v0.5.17 — unified game setup
 New Game and Game Variations now use a single scrollable dialog. Select Original, Royal, Spade, Royal Spade, or Custom once. All rule switches and the winning-score control display the selected preset and are locked until Custom is selected. Difficulty stays independent. Custom edits survive switching between presets in the same session and are saved when starting a custom match; on first use, Custom inherits the previously previewed preset. Rule explanations expand inline. No gameplay rules changed.
+
+### v0.5.18 — toolbar and hints
+Restored a horizontal toolbar with Exit on the left and Hint, optional Undo, and Menu on the right. The separate info button was removed; How to play remains in the menu. The Undo preference is saved on the device; while off, Undo is unavailable in the toolbar, round results, and keyboard shortcut. Hints independently rank legal candidates and highlight the relevant cards and precise recommended action (including a specific build target). They never play automatically. The opponent's measured capture lane remains intact.

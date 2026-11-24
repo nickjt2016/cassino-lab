@@ -988,43 +988,48 @@ html,body,#app{background:#005d0b;color:#fff}
 /* Exceptional errors, not a second turn banner. */
 .game-error{margin:2px 8px;padding:5px 8px;border-radius:6px;background:#451b20;color:#fff1e8;font-size:12px;text-align:center;}
 
-/* v0.5.16 — move the five controls to a vertical top-left rail. It no
-   longer consumes a whole horizontal row above the opponent's hand. */
+/* v0.5.18 — horizontal toolbar: Exit left; Hint, Undo and Menu right. */
 .shell {position:relative;}
 .shell .game-toolbar {
-  position:absolute;top:max(6px,env(safe-area-inset-top));
-  left:max(5px,env(safe-area-inset-left));right:auto;
-  z-index:20;display:flex;flex-direction:column;align-items:center;
-  justify-content:flex-start;gap:2px;width:clamp(34px,10vw,44px);
-  min-height:0;height:auto;flex:none;margin:0;padding:0;
+  position:relative;z-index:20;display:flex;flex-direction:row;
+  align-items:center;justify-content:space-between;gap:6px;
+  width:100%;min-height:0;height:clamp(34px,5dvh,42px);
+  flex:0 0 auto;margin:0;padding:0;
 }
 .game-toolbar .header-actions {
-  display:flex;flex-direction:column;align-items:center;gap:2px;margin:0;
+  display:flex;flex-direction:row;align-items:center;gap:clamp(4px,2vw,12px);margin-left:auto;
 }
 .game-toolbar .game-back,.game-toolbar .game-help {
   display:grid;place-items:center;width:clamp(34px,10vw,44px);
-  height:clamp(32px,5dvh,42px);min-width:0;min-height:0;padding:0;
+  height:100%;min-width:0;min-height:0;padding:0;
   font-size:clamp(19px,5.8vw,24px);touch-action:manipulation;
 }
 .game-toolbar .game-help:last-child {font-size:21px;}
-/* Extra vertical room between the opponent's hand and the main table row. */
+.game-toolbar .game-help:disabled {opacity:.35;cursor:default;}
+/* Keep the opponent's clear capture lane. */
 @media(orientation:portrait){
   .table-stage{top:53%!important;}
   .turn-banner{top:83%;}
 }
 @media(orientation:portrait) and (max-height:680px){
-  .shell .felt{margin-left:34px;}
-  .game-toolbar .game-back,.game-toolbar .game-help{width:32px;height:30px;font-size:19px;}
-  .shell .game-toolbar{width:32px;}
+  .shell .game-toolbar{height:32px;}
+  .game-toolbar .game-back,.game-toolbar .game-help{width:34px;font-size:19px;}
   .table-stage{top:54%!important;}
 }
 @media(orientation:landscape) and (max-height:450px){
-  .shell .felt{margin-left:40px;}
-  .shell .game-toolbar{width:34px;}
-  .game-toolbar .game-back,.game-toolbar .game-help{width:34px;height:30px;font-size:19px;}
+  .shell .game-toolbar{height:28px;}
+  .game-toolbar .game-back,.game-toolbar .game-help{width:34px;font-size:19px;}
   .shell .opponent-area{position:relative;top:auto;left:auto;right:auto;order:0;}
   .table-stage{top:57%!important;}
   .turn-banner{top:85%;}
+}
+/* Only the recommended action gets this additional cue. */
+.contextual-controls .action-btn.hint-recommended {
+  outline:2px solid #fff6d7;outline-offset:2px;
+  box-shadow:0 0 0 5px #e7c45580,0 4px 12px #002b0d77;
+}
+.contextual-controls .action-btn.hint-recommended::before {
+  content:'✧';margin-right:5px;color:#183d25;
 }
 .capture-label-flight > .build-value {
   height:100%!important;min-height:100%!important;width:100%;
