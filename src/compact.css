@@ -672,3 +672,41 @@ html,body,#app{background:#005d0b;color:#fff}
   bottom:0!important;height:36%;min-height:36%;background:#13110d!important;
   color:#f5e6aa!important;z-index:5;border-radius:0 0 2px 2px
 }
+
+/* v0.5.4 — build piles modeled after visible stacked-card transitions.
+   Full-sized, straight physical cards remain exposed at their rank/suit
+   corners; the frontmost card carries a large flush black value panel. */
+.build-pile { --stack-splay:0px!important; width:var(--stack-card-width)!important; }
+.build-pile .build-layer {
+  left:0!important;
+  transform:translateY(calc(var(--layer)*var(--stack-step)))!important;
+}
+.build-pile .build-layer:last-child .build-value {
+  position:absolute;bottom:0!important;left:0;right:0;
+  box-sizing:border-box;height:65%!important;min-height:65%!important;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;padding:2px 2px 1px;
+  border:0;border-top:1px solid #b29a64;
+  border-radius:0 0 2px 2px;background:#16140f!important;
+  color:#fff6d9!important;
+  text-align:center;z-index:10;pointer-events:none;
+  box-shadow:none;
+}
+.build-value-owner {
+  display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  font:600 clamp(8px,2.3vw,11px)/1.05 Arial,sans-serif;
+  color:#f1e8cb;
+}
+.build-value-number {
+  display:block;font:700 clamp(19px,6vw,29px)/1.08 Georgia,'Times New Roman',serif;
+  color:#fff3c5;min-width:0;
+}
+.build-item.selected .build-pile .build-layer:last-child .build-value {
+  background:#574916!important;
+  border-top-color:#ffe17e;
+}
+@media(orientation:landscape) and (max-height:450px){
+  .build-pile .build-layer:last-child .build-value{gap:0;padding:1px}
+  .build-value-owner{font-size:7px}
+  .build-value-number{font-size:clamp(15px,3vw,20px)}
+}
