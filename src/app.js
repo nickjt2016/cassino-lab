@@ -12,7 +12,7 @@
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.6';
+  const APP_VERSION = '0.5.7';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -387,7 +387,7 @@
       entry.ghost.style.opacity='1';
       return animate(entry.ghost,[
         {transform:start,opacity:1,offset:0},
-        {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58-3}px) scale(${from.scale+(scale-from.scale)*.58}, ${fromScaleY+(scaleY-fromScaleY)*.58})`,opacity:1,offset:.58},
+        {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58}px) scale(${from.scale+(scale-from.scale)*.58}, ${fromScaleY+(scaleY-fromScaleY)*.58})`,opacity:1,offset:.58},
         {transform:finish,opacity:finalOpacity,offset:1}
       ],{duration,easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
         if(generation!==motionGeneration)return;
@@ -526,19 +526,19 @@
             // together: a rapid, slightly staggered convergence, not a series
             // of slow independent flights. The bottom strips stay visible.
             await Promise.all(buildGhosts.map(async(piece,i)=>{
-              await new Promise(resolve=>setTimeout(resolve,i*72));
+              await new Promise(resolve=>setTimeout(resolve,i*48));
               if(generation!==motionGeneration)return;
               const slot=layers[order.get(piece.id)];
               if(!slot)return;
               const slotRect=slot.getBoundingClientRect();
-              await move(piece,center(slotRect),snapshot.byComputer?420:380,
-                {scale:slotRect.width/Math.max(piece.rect.width,1)});
+              await move(piece,center(slotRect),snapshot.byComputer?365:310,
+                {scale:slotRect.width/Math.max(piece.rect.width,1),scaleY:slotRect.height/Math.max(piece.rect.height,1)});
               if(generation===motionGeneration)sound('tap');
             }));
             if(generation!==motionGeneration)return;
             // A brief beat before the flush value label appears, matching the
             // finished stack settling in the video.
-            await new Promise(resolve=>setTimeout(resolve,95));
+            await new Promise(resolve=>setTimeout(resolve,65));
           } finally {
             if(generation===motionGeneration && destination.isConnected){
               destination.style.visibility='visible';
@@ -546,7 +546,7 @@
               if(label && label.animate)label.animate([
                 {opacity:0,transform:'translateY(8px)'},
                 {opacity:1,transform:'translateY(0)'}
-              ],{duration:170,easing:'ease-out'});
+              ],{duration:140,easing:'ease-out'});
             }
             buildGhosts.forEach(piece=>piece.ghost.remove());
           }
@@ -674,7 +674,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.6 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.7 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -836,7 +836,7 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.6</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.7</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
