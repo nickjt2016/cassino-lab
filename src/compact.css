@@ -710,3 +710,17 @@ html,body,#app{background:#005d0b;color:#fff}
   .build-value-owner{font-size:7px}
   .build-value-number{font-size:clamp(15px,3vw,20px)}
 }
+
+/* v0.5.5: Custom Rules sits on the already-open New Game window.
+   The existing backdrop is reused, so there is no fading main-menu flash. */
+.overlay.modal-stack { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
+.overlay.modal-stack > .dialog { grid-area:1/1; justify-self:center; align-self:center; }
+.overlay.modal-stack > .dialog-underlay {
+  position:relative;z-index:1;filter:brightness(.66);pointer-events:none;
+  animation:none!important;opacity:1!important;
+}
+.overlay.modal-stack > .dialog-foreground {
+  position:relative;z-index:2;animation:none!important;opacity:1!important;
+  background:var(--cream);color:var(--ink);
+}
+.exit-confirm-copy {font-size:15px;line-height:1.55;color:var(--ink);margin:8px 0 16px;}
