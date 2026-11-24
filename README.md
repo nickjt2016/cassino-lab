@@ -87,3 +87,9 @@ A raise is now labeled for its **new build target**, rather than the rank of the
 
 ### v0.5.2 — fully automatic safe updates
 Cassino Lab checks `version.json` when it opens, when connectivity returns, and when the app comes to the foreground. A newer release is installed automatically when the main menu is showing and no dialog is open. During play, the upgrade is deferred until the player returns to the main menu. A short reload guard prevents loops if a hosting cache temporarily serves an old page. The existing PWA service worker still provides offline play and is updated alongside each release. Game saves continue using browser-local storage.
+
+### v0.5.3 — fixes for the four reported issues
+- Custom Rules settings toggle updates preserve the existing dialog and scroll position, preventing flashes.
+- Four loose table cards fit on one row on phones down to 320px; side builds occupy an upper-right lane.
+- In Draw mode, replacement-card animations no longer incorrectly hide existing loose table cards or just-trailed cards.
+- Build labels sit flush at the bottom of the top card and cover the lower portion of its large rank.
