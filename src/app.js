@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.15';
+  const APP_VERSION = '0.5.16';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -115,6 +115,7 @@
   let pendingStockOrigin = null;
   let dealAnimation = Promise.resolve();
   let dealing = false;
+  let turnInMotion = false;
   function collectDeal(beforeHuman = [], beforeCpu = [], beforeTable = []) {
     const oldHuman = new Set(beforeHuman), oldCpu = new Set(beforeCpu), oldTable = new Set(beforeTable);
     const humanIds = game.players[0].hand.filter(c => !oldHuman.has(c.id)).map(c => c.id);
@@ -277,15 +278,32 @@
     if(stockCount?.animate)stockCount.animate([{scale:1.06},{scale:1}],{duration:250});
     return Promise.all(items.map(flyOne)).then(()=>{});
   }
+  // The engine changes turn when a move is committed, but the next player
+  // is not visually on turn until all move and replacement-deal flights end.
+  function turnBannerText() {
+    if (turnInMotion || dealing || game.phase !== 'playing') return '';
+    return game.turn === 0 ? 'Your turn' : "Opponent's turn";
+  }
   function animateTurnMessage(previous) {
-    if (!motionAllowed() || !app.querySelector || previous===null) return;
+    if (!motionAllowed() || !app.querySelector) return;
     const node=app.querySelector('.turn-banner');
-    if (node && node.textContent!==previous && node.animate)
-      node.animate([{opacity:.55,translate:'0px 5px'},{opacity:1,translate:'0px 0px'}],
-        {duration:320,easing:'ease-out'});
+    if (!node || !node.animate) return;
+    const next=node.textContent;
+    if (previous && !next) {
+      // The outgoing banner is no longer announced as a live turn.
+      // Leave it visible just long enough for its own quick fade.
+      node.textContent=previous.text;
+      node.style.opacity='0';
+      const fade=node.animate([{opacity:previous.opacity},{opacity:0}],
+        {duration:140,easing:'ease-out'});
+      fade.onfinish=()=>{if(node.isConnected)node.textContent='';};
+    } else if (next && (!previous || previous.text!==next)) {
+      node.animate([{opacity:0},{opacity:1}],{duration:180,easing:'ease-out'});
+    }
   }
   function cancelMotion() {
     motionGeneration++;
+    turnInMotion = false;
     if (document.querySelectorAll) document.querySelectorAll('.card-flight').forEach(node => node.remove());
   }
   function takeMotionSnapshot(move, byComputer = false) {
@@ -302,7 +320,9 @@
     if (!playerCard) return null;
     const groupRects = (move.targetIds || []).map(id => {
       const node = Array.from(app.querySelectorAll('[data-action="table"]')).find(el => el.dataset.id === id);
+      const label = node?.querySelector('.build-value');
       return node ? {
+        label:label ? {rect:rect(label),html:label.outerHTML,selected:node.classList.contains('selected')} : null,
         rect:rect(node),html:node.querySelector('.build-pile')?.outerHTML || node.querySelector('.playing-card')?.outerHTML || node.outerHTML,
         cards:[...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
           id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
@@ -315,7 +335,8 @@
       .flatMap(node => [...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
         id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
       })));
-    return {kind:move.kind,byComputer,played:{id:playerCard.id,rect:rect(from),html:renderCard(playerCard)},groups:groupRects,remainingCards};
+    const tableRects = [...app.querySelectorAll('.table-stage .playing-card')].map(rect);
+    return {kind:move.kind,byComputer,tableRects,played:{id:playerCard.id,rect:rect(from),html:renderCard(playerCard)},groups:groupRects,remainingCards};
   }
   function playMotion(snapshot, after) {
     if (!snapshot || !motionAllowed() || !document.body || !app.querySelector) { after(); return; }
@@ -329,12 +350,12 @@
     const targetRect = destination.getBoundingClientRect();
     const center = r => ({x:r.left+r.width/2,y:r.top+r.height/2});
     const end = center(targetRect);
-    // A completed capture visibly pauses in the open space directly in front
-    // of the capturing player. For the CPU, mirror the landing above the table.
+    // The CPU stack is positioned in the clear lane between its hand and
+    // the measured table cards, not at a fixed point near the loose-card row.
     const feltRectForCapture=app.querySelector('.table-area')?.getBoundingClientRect();
     const captureFront = capture && feltRectForCapture ? {
       x:feltRectForCapture.left + feltRectForCapture.width*.5,
-      y:feltRectForCapture.top + feltRectForCapture.height*(snapshot.byComputer ? 0.24 : 0.72)
+      y:feltRectForCapture.top + feltRectForCapture.height*.72
     } : end;
     // The new build/trail enters only when the traveling card actually lands.
     if (!capture && destination.matches('[data-action="table"]')) destination.style.visibility='hidden';
@@ -359,6 +380,18 @@
       document.body.appendChild(ghost);
       return {ghost,rect:r};
     });
+    // The build's black owner/value panel is separate from the physical cards.
+    // Retain a copy at its original position while it quickly fades away.
+    const fadingLabels = capture ? snapshot.groups.filter(group=>group.label).map(({label})=>{
+      const ghost=document.createElement('div');
+      ghost.className='card-flight capture-label-flight'+(label.selected?' selected':'');
+      ghost.innerHTML=label.html;
+      Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',zIndex:'900',
+        left:label.rect.left+'px',top:label.rect.top+'px',width:label.rect.width+'px',
+        height:label.rect.height+'px',margin:'0',padding:'0'});
+      document.body.appendChild(ghost);
+      return ghost;
+    }) : [];
     // When a hand ends, the engine awards the remaining table cards immediately
     // for correct scoring. Preserve visual copies until the collection finishes,
     // so they don't simply vanish under the scoring dialog.
@@ -458,14 +491,39 @@
     }
     (async()=>{
       try {
+        // Begin the panel fade with the move, even before a CPU card flips.
+        const labelsFaded=Promise.all(fadingLabels.map(ghost=>animate(ghost,
+          [{opacity:1},{opacity:0}],{duration:130,easing:'ease-out'}).then(()=>ghost.remove())));
         await flipComputerCard();
         if(generation!==motionGeneration)return;
         if(capture){
           // All cards fly directly to the stack in front of the capturer.
           // No intermediate stop over the table or selected build.
           const tableWidth=capturedCards[0]?.rect.width || snapshot.groups[0]?.rect.width || ghosts[0].rect.width;
+          // Measure the tallest card after matching the stack's width. Keep a
+          // visible gap above the row, including the exposed edges of a stack.
+          const tableHeight=Math.max(...ghosts.map(entry=>entry.rect.height*tableWidth/Math.max(entry.rect.width,1)));
+          let frontScale=1;
+          if(snapshot.byComputer && feltRectForCapture){
+            const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card') || [],node=>node.getBoundingClientRect());
+            const sourceRects=snapshot.tableRects || capturedCards.map(piece=>piece.rect);
+            const overlapping=[...sourceRects,...liveRects].filter(r=>
+              r.left<captureFront.x+tableWidth/2+12 && r.left+r.width>captureFront.x-tableWidth/2-4);
+            const tableTop=overlapping.length ? Math.min(...overlapping.map(r=>r.top))
+              : feltRectForCapture.top+feltRectForCapture.height*.53-tableHeight/2;
+            const clearance=Math.max(14,Math.min(26,tableHeight*.30));
+            const spread=Math.min(ghosts.length-1,7)*1.5;
+            const laneTop=feltRectForCapture.top+8;
+            const laneBottom=tableTop-clearance-spread;
+            const available=laneBottom-laneTop;
+            // A full-sized stack is preferred. On very short viewports, scale
+            // the whole stack uniformly only if needed to avoid the table row.
+            frontScale=Math.min(1,Math.max(.55,available/tableHeight));
+            const half=tableHeight*frontScale/2;
+            captureFront.y=Math.min(laneTop+Math.max(half,available/2),laneBottom-half);
+          }
           const stack=ghosts.map(entry=>({
-            entry, scale:tableWidth/Math.max(entry.rect.width,1)
+            entry, scale:frontScale*tableWidth/Math.max(entry.rect.width,1)
           }));
           const frontPositions=stack.map((_,i)=>({
             x:captureFront.x+Math.min(i,7)*1.2,
@@ -556,6 +614,7 @@
               scaleY:landingRect.height/Math.max(1,g.rect.height)
             })));
         }
+        await labelsFaded;
         await gatherEndOfHand();
       } finally {
         // Reveal the final DOM stack before removing the last flight image.
@@ -565,6 +624,7 @@
         }
         ghosts.forEach(({ghost})=>ghost.remove());
         leftoverGhosts.forEach(({ghost})=>ghost.remove());
+        fadingLabels.forEach(ghost=>ghost.remove());
         if(generation!==motionGeneration)return;
         after();
       }
@@ -688,7 +748,9 @@
   function render() {
     if (!app) return;
     const oldLayout = screen === 'game' && motionAllowed() ? layoutPositions() : null;
-    const previousTurn = app.querySelector ? app.querySelector('.turn-banner')?.textContent ?? null : null;
+    const previousBanner=app.querySelector?.('.turn-banner[data-turn-visible="true"]');
+    const previousTurn=previousBanner ? {text:previousBanner.textContent,
+      opacity:Number(globalThis.getComputedStyle?.(previousBanner).opacity ?? 1)} : null;
     rememberVariationsScroll();
     // Changes to rules redraw only the content inside the mounted settings dialog.
     // Keeping the backdrop and dialog intact prevents their opening fade from replaying.
@@ -773,14 +835,13 @@
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
     const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
-    const phaseText = game.turn === 0 ? 'Your turn' : "Opponent's turn";
+    const phaseText = turnBannerText();
     const motion = lastMotion;
     lastMotion = '';
     app.innerHTML = `
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
-        <header class="header">
+        <header class="header game-toolbar" aria-label="Game controls">
           <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
-          <div class="game-heading" aria-label="Cassino Lab"></div>
           <div class="header-actions"><button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint">✧</button><button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo">↶</button><button class="game-help" data-action="rules" aria-label="Rules">ⓘ</button><button class="game-help" data-action="menu" aria-label="Open game menu">☰</button></div>
         </header>
 
@@ -793,7 +854,7 @@
           <div class="table-area">
             <div class="table-stage"><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
-            <div class="turn-banner" aria-live="polite">${phaseText}</div>
+            <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
           </div>
           ${active && pickedCard && visibleActionCount ? `<section class="controls contextual-controls" aria-label="Legal moves">
             <div class="main-actions">
@@ -1002,6 +1063,7 @@
         rememberStockOrigin();
         const outcome = E.applyAction(game, move);
         if (!outcome.ok) throw new Error(outcome.reason);
+        turnInMotion = true;
         if (before) { before.finalHand = game.phase !== 'playing'; before.residueOwner=game.lastCapture; }
         const cardsDealt = stockBefore - game.stock.length;
         if(cardsDealt>0) collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
@@ -1010,7 +1072,7 @@
         persist(); render();
         playMotion(before, () => completeTurn(cardsDealt));
       } catch (error) {
-        busy = false;
+        busy = false; turnInMotion = false;
         toast = `Computer move error: ${error.message}`;
         render();
       }
@@ -1027,6 +1089,7 @@
     checkpoint = JSON.stringify(game);
     const result = E.applyAction(game, action);
     if (!result.ok) { toast = result.reason; return render(); }
+    turnInMotion = true;
     if (before) { before.finalHand = game.phase !== 'playing'; before.residueOwner=game.lastCapture; }
     const cardsDealt = stockBefore - game.stock.length;
     if(cardsDealt>0)collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
@@ -1034,7 +1097,7 @@
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
     toast = '';
     resetSelection();
-    busy = !!before;
+    busy = true;
     persist(); render();
     playMotion(before, () => completeTurn(cardsDealt));
   }
@@ -1044,10 +1107,13 @@
     const generation = motionGeneration;
     const finish = () => {
       if (screen !== 'game' || generation !== motionGeneration) return;
-      dealing = false; busy = false;
+      dealing = false; busy = false; turnInMotion = false;
       if (game.phase !== 'playing') modal = 'round';
-      persist(); render();
+      persist();
+      // Render only once at the real start of the next turn so the incoming
+      // banner fade isn't immediately destroyed by a second render.
       if (game.turn === 1 && game.phase === 'playing') botTurn();
+      else render();
     };
     if (cardsDealt > 0) {
       lastMotion = 'deal-hands'; dealing = true; busy = true;
@@ -1056,8 +1122,8 @@
     } else finish();
   }
   function undo() {
-    cancelMotion();
     if (!checkpoint) return;
+    cancelMotion();
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
     busy = false;
     game = JSON.parse(checkpoint);
@@ -1076,10 +1142,11 @@
     collectDeal(); pendingStockOrigin=null;
     dealing = busy = !!(motionAllowed() && app.querySelectorAll);
     sound('deal',12); persist(); render();
+    const generation=motionGeneration;
     Promise.resolve(dealAnimation).then(() => {
-      if(screen!=='game')return;
-      dealing=false;busy=false;persist();render();
-      if(game.turn===1)botTurn();
+      if(screen!=='game'||generation!==motionGeneration)return;
+      dealing=false;busy=false;turnInMotion=false;persist();
+      if(game.turn===1)botTurn();else render();
     });
   }
   function startNewMatch(rules = game.rules, ask = true) {
@@ -1091,10 +1158,11 @@
     screen = 'game'; resetSelection(); draft = null;
     dealing = busy = !!(motionAllowed() && app.querySelectorAll);
     sound('deal',12); persist(); render();
+    const generation=motionGeneration;
     Promise.resolve(dealAnimation).then(() => {
-      if(screen!=='game')return;
-      dealing=false;busy=false;persist();render();
-      if(game.turn===1)botTurn();
+      if(screen!=='game'||generation!==motionGeneration)return;
+      dealing=false;busy=false;turnInMotion=false;persist();
+      if(game.turn===1)botTurn();else render();
     });
   }
   function openSettings(origin = screen) { variationsScrollTop = 0; settingsOrigin = origin;
@@ -1132,7 +1200,7 @@
     }
     if (action === 'cancel-exit') { cancelExit(); return; }
     if (action === 'confirm-exit') { exitGameToMenu(); return; }
-    if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); render(); if(game.turn===1 && game.phase==='playing') botTurn(); else if(game.phase!=='playing'){modal='round';render();} return; }
+    if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); if(game.turn===1 && game.phase==='playing') botTurn(); else {if(game.phase!=='playing')modal='round';render();} return; }
     if (action === 'setup-new-game') { setup = {difficulty:game.rules.difficulty||'thoughtful',preset:'classic'}; modal='newgame'; sound('tap'); render(); return; }
     if (action === 'info-setting') { detailSetting=node.dataset.key; modal='info'; render(); return; }
     if (action === 'info-back') { modal='settings'; render(); return; }

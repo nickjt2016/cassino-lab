@@ -672,7 +672,8 @@ html,body,#app{background:#005d0b;color:#fff}
   left:0!important;
   transform:translateY(calc(var(--layer)*var(--stack-step)))!important;
 }
-.build-pile .build-layer:last-child .build-value {
+.build-pile .build-layer:last-child .build-value,
+.capture-label-flight > .build-value {
   position:absolute;bottom:0!important;left:0;right:0;
   box-sizing:border-box;height:65%!important;min-height:65%!important;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -692,12 +693,13 @@ html,body,#app{background:#005d0b;color:#fff}
   display:block;font:700 clamp(19px,6vw,29px)/1.08 Georgia,'Times New Roman',serif;
   color:#fff3c5;min-width:0;
 }
-.build-item.selected .build-pile .build-layer:last-child .build-value {
+.build-item.selected .build-pile .build-layer:last-child .build-value,
+.capture-label-flight.selected > .build-value {
   background:#574916!important;
   border-top-color:#ffe17e;
 }
 @media(orientation:landscape) and (max-height:450px){
-  .build-pile .build-layer:last-child .build-value{gap:0;padding:1px}
+  .build-pile .build-layer:last-child .build-value,.capture-label-flight > .build-value{gap:0;padding:1px}
   .build-value-owner{font-size:7px}
   .build-value-number{font-size:clamp(15px,3vw,20px)}
 }
@@ -789,7 +791,8 @@ html,body,#app{background:#005d0b;color:#fff}
 
 /* v0.5.8 — keep visible card corner indices, show only numeric build totals,
    and use the full felt by relocating the actual stock to the deck-stat HUD. */
-.build-pile .build-layer:last-child .build-value {
+.build-pile .build-layer:last-child .build-value,
+.capture-label-flight > .build-value {
   bottom:0!important;
   top:auto!important;
   height:77%!important;
@@ -997,3 +1000,46 @@ html,body,#app{background:#005d0b;color:#fff}
 
 /* Exceptional errors, not a second turn banner. */
 .game-error{margin:2px 8px;padding:5px 8px;border-radius:6px;background:#451b20;color:#fff1e8;font-size:12px;text-align:center;}
+
+/* v0.5.16 — move the five controls to a vertical top-left rail. It no
+   longer consumes a whole horizontal row above the opponent's hand. */
+.shell {position:relative;}
+.shell .game-toolbar {
+  position:absolute;top:max(6px,env(safe-area-inset-top));
+  left:max(5px,env(safe-area-inset-left));right:auto;
+  z-index:20;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-start;gap:2px;width:clamp(34px,10vw,44px);
+  min-height:0;height:auto;flex:none;margin:0;padding:0;
+}
+.game-toolbar .header-actions {
+  display:flex;flex-direction:column;align-items:center;gap:2px;margin:0;
+}
+.game-toolbar .game-back,.game-toolbar .game-help {
+  display:grid;place-items:center;width:clamp(34px,10vw,44px);
+  height:clamp(32px,5dvh,42px);min-width:0;min-height:0;padding:0;
+  font-size:clamp(19px,5.8vw,24px);touch-action:manipulation;
+}
+.game-toolbar .game-help:last-child {font-size:21px;}
+/* Extra vertical room between the opponent's hand and the main table row. */
+@media(orientation:portrait){
+  .table-stage{top:53%!important;}
+  .turn-banner{top:83%;}
+}
+@media(orientation:portrait) and (max-height:680px){
+  .shell .felt{margin-left:34px;}
+  .game-toolbar .game-back,.game-toolbar .game-help{width:32px;height:30px;font-size:19px;}
+  .shell .game-toolbar{width:32px;}
+  .table-stage{top:54%!important;}
+}
+@media(orientation:landscape) and (max-height:450px){
+  .shell .felt{margin-left:40px;}
+  .shell .game-toolbar{width:34px;}
+  .game-toolbar .game-back,.game-toolbar .game-help{width:34px;height:30px;font-size:19px;}
+  .shell .opponent-area{position:relative;top:auto;left:auto;right:auto;order:0;}
+  .table-stage{top:57%!important;}
+  .turn-banner{top:85%;}
+}
+.capture-label-flight > .build-value {
+  height:100%!important;min-height:100%!important;width:100%;
+  top:0!important;bottom:0!important;left:0;right:0;
+}
