@@ -5,12 +5,14 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const appSource = fs.readFileSync(path.join(__dirname, '../src/app.js'), 'utf8');
-const start = appSource.indexOf("  const APP_VERSION = '0.5.2';");
+const current = require('../package.json').version;
+const next = current.replace(/\d+$/, value => String(Number(value) + 1));
+const start = appSource.indexOf("  const APP_VERSION = '" + current + "';");
 const end = appSource.indexOf("  let hasSavedMatch = false;", start);
 assert.ok(start >= 0 && end > start, 'automatic update logic should be present');
 const updateCode = appSource.slice(start, end);
 
-function makeHarness({latest = '0.5.3', offline = false} = {}) {
+function makeHarness({latest = next, offline = false} = {}) {
   let reloads = 0;
   const stored = new Map();
   const services = {
@@ -69,7 +71,7 @@ test('open New Game dialog defers a release until the menu is clear', async () =
 });
 
 test('up-to-date installs do not reload', async () => {
-  const h = makeHarness({latest:'0.5.2'});
+  const h = makeHarness({latest:current});
   await h.api.check();
   assert.equal(h.count(), 0);
 });

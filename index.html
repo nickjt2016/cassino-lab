@@ -647,7 +647,7 @@ html,body,#app{background:#005d0b;color:#fff}
   .build-pile.large-build{--stack-step:11px}
 }
 
-/* v0.5.2: straight, unsplayed build stacks. */
+/* v0.4.9: straight, unsplayed build stacks. */
 .build-pile{--stack-splay:0px!important;width:var(--stack-card-width)!important;}
 .build-layer{left:0!important;transform:translateY(calc(var(--layer)*var(--stack-step)))!important;}
 @media(orientation:landscape) and (max-height:450px){.build-layer{transform:translateY(calc(var(--layer)*var(--stack-step)))!important;}}
@@ -679,7 +679,6 @@ html,body,#app{background:#005d0b;color:#fff}
   bottom:0!important;height:36%;min-height:36%;background:#13110d!important;
   color:#f5e6aa!important;z-index:5;border-radius:0 0 2px 2px
 }
-
 
 /* v0.5.4 — build piles modeled after visible stacked-card transitions.
    Full-sized, straight physical cards remain exposed at their rank/suit
@@ -719,7 +718,6 @@ html,body,#app{background:#005d0b;color:#fff}
   .build-value-number{font-size:clamp(15px,3vw,20px)}
 }
 
-
 /* v0.5.5: Custom Rules sits on the already-open New Game window.
    The existing backdrop is reused, so there is no fading main-menu flash. */
 .overlay.modal-stack { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
@@ -733,7 +731,6 @@ html,body,#app{background:#005d0b;color:#fff}
   background:var(--cream);color:var(--ink);
 }
 .exit-confirm-copy {font-size:15px;line-height:1.55;color:var(--ink);margin:8px 0 16px;}
-
 
 /* v0.5.6 — table geometry checked against both supplied gameplay recordings.
    Loose cards stay anchored left of the build lane, and existing cards do not
@@ -805,7 +802,6 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   .table-stage .table-builds:not(:empty){max-height:95%;}
 }
-
 
 /* v0.5.8 — keep visible card corner indices, show only numeric build totals,
    and use the full felt by relocating the actual stock to the deck-stat HUD. */
@@ -885,7 +881,6 @@ html,body,#app{background:#005d0b;color:#fff}
   .game-stats .draw-stock-count{font-size:12px}
 }
 
-
 /* Keep the relocated deck fully inside the HUD on regular phone displays. */
 @media (orientation:portrait) and (min-height:701px){
   .game-stats{min-height:61px;padding-block:5px;}
@@ -894,12 +889,10 @@ html,body,#app{background:#005d0b;color:#fff}
   .game-stats{min-height:46px;height:auto;padding-block:3px;}
 }
 
-
 /* Keep the loose cards centered when no build occupies the right-hand lane. */
 .table-stage:not(:has(.table-builds:not(:empty))) .table-cards {
   justify-content:center!important;
 }
-
 
 /* v0.5.9 — slightly smaller physical cards, with more breathing room.
    Resize the actual elements (not CSS transform:scale) so all card-flight
@@ -947,7 +940,6 @@ html,body,#app{background:#005d0b;color:#fff}
   .game-stats .draw-stock{width:12px}
 }
 
-
 /* v0.5.10 — reference footage: loose cards close gaps by sliding LEFT.
    The row has a fixed left anchor whether or not a build exists; no
    automatic centering after captures/builds. Surviving table elements use
@@ -966,7 +958,6 @@ html,body,#app{background:#005d0b;color:#fff}
   transition:filter .15s ease, box-shadow .15s ease;
 }
 
-
 /* v0.5.11 — tidy build shoulder indices: a common baseline and fixed rank
    column keep the suit consistently aligned even when cards have 10 or J/Q/K. */
 .build-pile .build-layer .playing-card:not(.mini) .card-corner {
@@ -984,6 +975,9 @@ html,body,#app{background:#005d0b;color:#fff}
   flex:0 0 auto;display:block;text-align:left;line-height:1;
   font-family:Georgia,'Times New Roman',serif;font-size:19cqw;
 }
+
+/* Exceptional errors, not a second turn banner. */
+.game-error{margin:2px 8px;padding:5px 8px;border-radius:6px;background:#451b20;color:#fff1e8;font-size:12px;text-align:center;}
 
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
@@ -1096,9 +1090,6 @@ html,body,#app{background:#005d0b;color:#fff}
   function cardsInElement(element) {
     return element.type === 'loose' ? [element.card] : element.groups.flat();
   }
-  function valueHeld(hand, value, rules) {
-    return hasValue(hand, value, rules);
-  }
   function findPartition(cards, target, desired = 'any') {
     if (!cards.length || !Number.isInteger(target) || target < 1) return null;
     const values = cards.map(c => c.v);
@@ -1132,7 +1123,7 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   function ownBuildObligation(state, table, hand, player) {
     for (const element of table) {
-      if (element.type === 'build' && element.owner === player && !state.rules.buildAnything && !valueHeld(hand, element.value, state.rules)) {
+      if (element.type === 'build' && element.owner === player && !state.rules.buildAnything && !hasValue(hand, element.value, state.rules)) {
         return `You must retain a ${element.value} to capture your existing build.`;
       }
     }
@@ -1163,7 +1154,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if (!Number.isInteger(requestedValue) || requestedValue < 1 || requestedValue > maxBuildValue(rules)) {
       return {ok:false, reason:'Choose a valid build value.'};
     }
-    if (!rules.buildAnything && !valueHeld(remainingHand, requestedValue, rules)) {
+    if (!rules.buildAnything && !hasValue(remainingHand, requestedValue, rules)) {
       return {ok:false,reason:`Keep a ${requestedValue} in hand to capture your build (or enable Build To Anything).`};
     }
     const builds = selection.filter(e => e.type === 'build');
@@ -1209,23 +1200,24 @@ html,body,#app{background:#005d0b;color:#fff}
     const selected = selectedIds.map(id => state.table.find(e => e.id === id));
     if (selected.some(x => !x)) return { ok: false, reason: 'That table selection is no longer available.' };
     const remainingHand = hand.filter(c => c.id !== card.id);
+    // An owner without a matching card under Build To Anything must not be trapped.
+    const own = state.table.filter(e => e.type === 'build' && e.owner === player &&
+      (!state.rules.buildAnything || hasValue(hand, e.value, state.rules)));
     const remainingTable = state.table.filter(e => !selectedIds.includes(e.id));
     let outcome;
     if (action.kind === 'trail') {
       if (selected.length) return { ok: false, reason: 'Deselect table cards before trailing.' };
-      if (!state.rules.allowTrailWithOwnBuild && state.table.some(e => e.type === 'build' && e.owner === player)) {
+      if (!state.rules.allowTrailWithOwnBuild && own.length) {
         return { ok: false, reason: 'You cannot trail while owning an active build.' };
       }
       outcome = { ok: true };
     } else if (action.kind === 'capture') {
       // The reference app calls these relaxed restrictions Pirate Captures.
-      const own = state.table.filter(e => e.type === 'build' && e.owner === player);
       if (own.length && !state.rules.pirateCaptures && !own.some(e => selectedIds.includes(e.id))) {
         return {ok:false,reason:'Capture your own build first, or enable Pirate Captures.'};
       }
       outcome = describeCapture(selected, card, state.rules);
     } else {
-      const own = state.table.filter(e => e.type === 'build' && e.owner === player);
       if (own.length && !state.rules.pirateBuilds && !own.some(e => selectedIds.includes(e.id))) {
         return {ok:false,reason:'Finish your current build first, or enable Pirate Builds.'};
       }
@@ -1398,26 +1390,35 @@ html,body,#app{background:#005d0b;color:#fff}
     if (!values.length) {
       return state.table.filter(e => e.type === 'loose' && e.card.rank === card.rank).map(e => ({ kind: 'capture', cardId: card.id, targetIds: [e.id] }));
     }
-    const groups = values.flatMap(v => valueGroups(state,v));
     const moves = [];
     const visited = new Set();
-    const combine = (start, picked) => {
-      if (moves.length >= limit) return;
-      if (picked.length) {
-        const ids = [...picked].sort();
-        const key = ids.join(',');
-        if (!visited.has(key)) {
-          visited.add(key);
-          moves.push({ kind: 'capture', cardId: card.id, targetIds: ids });
-        }
-      }
-      for (let i = start; i < groups.length; i++) {
-        if (groups[i].some(id => picked.includes(id))) continue;
-        combine(i + 1, picked.concat(groups[i]));
-        if (moves.length >= limit) break;
+    const add = picked => {
+      const ids = [...picked].sort();
+      const key = ids.join(',');
+      if (!visited.has(key) && moves.length < limit) {
+        visited.add(key);
+        moves.push({ kind: 'capture', cardId: card.id, targetIds: ids });
       }
     };
-    combine(0, []);
+    // Keep alternate numerical values separate: mixed-value groups are illegal.
+    const groupSets = values.map(v => valueGroups(state, v));
+    for (const groups of groupSets) {
+      const builds = groups.filter(g => g.length === 1 && state.table.some(e => e.id === g[0] && e.type === 'build'));
+      if (builds.length) add(builds.flat());
+      if (groups.length) add(groups[0]);
+    }
+    for (const groups of groupSets) {
+      const combine = (start, picked) => {
+        if (moves.length >= limit) return;
+        if (picked.length) add(picked);
+        for (let i = start; i < groups.length; i++) {
+          if (groups[i].some(id => picked.includes(id))) continue;
+          combine(i + 1, picked.concat(groups[i]));
+          if (moves.length >= limit) break;
+        }
+      };
+      combine(0, []);
+    }
     return moves;
   }
   function buildChoices(state, card, max = 55) {
@@ -1499,6 +1500,7 @@ html,body,#app{background:#005d0b;color:#fff}
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove,
     explainMove, moveScore, buildActionLabel };
 });
+
 </script>
 <script>/* Cassino Lab browser UI: all gameplay calls the shared rules engine. */
 (function () {
@@ -1507,14 +1509,13 @@ html,body,#app{background:#005d0b;color:#fff}
   if (!E) throw new Error('Cassino rules engine did not load.');
   const STORE = 'cassino-lab-v1';
   let game, checkpoint = null, pickedCard = null, pickedTable = new Set();
-  let toast = '', modal = '', hint = null, busy = false, pendingBot = null;
+  let toast = '', modal = '', busy = false, pendingBot = null;
   let draft = null, draftPreset = 'classic';
   let detailSetting = '';
   let variationsScrollTop = 0;
-  let buildOptions = [], buildMenuOpen = false, lastMotion = '';
-  let moveAnnouncement = ''; let announcementTimer = null;
+  let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.11';
+  const APP_VERSION = '0.5.12';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -2153,7 +2154,6 @@ html,body,#app{background:#005d0b;color:#fff}
   function buildPanelValue(value) {
     return String(value);
   }
-  function elCards(element) { return E.cardsInElement(element); }
   function entryMarkup(element) {
     const selected = pickedTable.has(element.id);
     if (element.type === 'loose') {
@@ -2174,7 +2174,6 @@ html,body,#app{background:#005d0b;color:#fff}
     const move = { kind, cardId: pickedCard, targetIds: kind === 'trail' ? [] : currentSelection() };
     return E.validateAction(game, move);
   }
-  function numberLabel(n, singular, plural) { return `${n} ${n === 1 ? singular : plural}`; }
   function renderHome() {
     return `<main class="launch-screen">
       <div class="launch-scroll">
@@ -2200,7 +2199,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.11 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v${APP_VERSION} · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -2312,19 +2311,13 @@ html,body,#app{background:#005d0b;color:#fff}
     const capture = actionReady('capture');
     const trail = actionReady('trail');
     buildOptions = active && pickedCard ? E.legalBuildOptions(game, pickedCard, currentSelection()) : [];
-    const chosen = me().hand.find(c => c.id === pickedCard);
     const canTrail = !!(trail && trail.ok && !pickedTable.size);
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
     const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
     const phaseText = game.turn === 0 ? 'Your turn' : "Opponent's turn";
-    const statusText = hint && toast ? toast : chosen
-      ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
-      : pickedTable.size ? `${numberLabel(pickedTable.size, 'table card', 'table cards')} selected · choose a hand card` : 'Choose cards to build or capture.';
-    const rules = game.rules;
     const motion = lastMotion;
     lastMotion = '';
-    if (!buildOptions.length) buildMenuOpen = false;
     app.innerHTML = `
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
         <header class="header">
@@ -2356,7 +2349,7 @@ html,body,#app{background:#005d0b;color:#fff}
             <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card)}</button>`).join('')}</div>
             <div class="your-score-tag">You · ${me().score} pts</div>
           </div>
-          <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
+          ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span>
             <span class="deck-stat"><span class="deck-stat-label">Cards in Deck</span><span class="deck-stat-content">
               <span class="draw-stock ${game.stock.length===0?'empty':''}" role="img" aria-label="Draw pile: ${game.stock.length} cards remaining">
@@ -2365,11 +2358,10 @@ html,body,#app{background:#005d0b;color:#fff}
             </span></span>
           </div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.11</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v${APP_VERSION}</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
-    bindSettings();
     hidePendingDealCards();
     animateLayout(oldLayout);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
@@ -2386,7 +2378,7 @@ html,body,#app{background:#005d0b;color:#fff}
     pirateCaptures: ['Captures', 'When enabled, you may capture loose cards and other builds while you still own a build. When off, you must first capture your own build.'],
     pirateBuilds: ['Builds', 'When enabled, you may start another independent build while you own one. Otherwise, resolve your current build first.'],
     allowTrailWithOwnBuild: ['Trails', 'Allows trailing a card onto the table while owning a build, as long as you retain a hand card able to capture that build.'],
-    buildAnything: ['Build To Anything', 'When enabled, build to any legal card value without holding a matching capture card. This experimental rule can leave a build vulnerable.'],
+    buildAnything: ['Build To Anything', 'When enabled, build to any legal card value without holding a matching capture card. A player without a matching card can still make other legal moves. This experimental rule can leave a build vulnerable.'],
     drawMode: ['Draw', 'After every turn, the player who played draws a replacement card until the stock is exhausted, rather than waiting for all players to run out of cards.'],
     sweepCancel: ['Sweep', 'When a capture clears the table, award a sweep. At hand scoring, each side scores only the number of sweeps beyond the opponent’s sweep count.'],
     spadeScoring: ['Spade Scoring', 'Every spade captured earns one point, plus a bonus point for the Jack of spades, replacing the ordinary most-spades award.'],
@@ -2531,14 +2523,12 @@ html,body,#app{background:#005d0b;color:#fff}
   function exitGameToMenu() {
     cancelMotion();
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
-    if (announcementTimer !== null) { clearTimeout(announcementTimer); announcementTimer = null; }
     busy = false; dealing = false;
-    modal = ''; screen = 'home'; exitReturnModal = '';
+    modal = ''; screen = 'home'; exitReturnModal = ''; toast = '';
     persist(); resetSelection(); sound('tap'); render();
     applyPendingUpdate();
   }
-  function bindSettings() { /* delegated event listeners live on #app */ }
-  function resetSelection() { pickedCard = null; pickedTable.clear(); hint = null; buildMenuOpen = false; }
+  function resetSelection() { pickedCard = null; pickedTable.clear(); }
   function botTurn() {
     if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
     busy = true;
@@ -2558,31 +2548,9 @@ html,body,#app{background:#005d0b;color:#fff}
         const cardsDealt = stockBefore - game.stock.length;
         if(cardsDealt>0) collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
         lastMotion = move.kind;
-        moveAnnouncement = outcome.description;
-        if (announcementTimer !== null) clearTimeout(announcementTimer);
-        // Keep the message readable after the cards have settled.
-        announcementTimer = setTimeout(() => { announcementTimer=null; moveAnnouncement=''; if(screen==='game'&&game.phase==='playing') render(); }, 4000);
         sound(game.phase !== 'playing' ? 'score' : move.kind);
         persist(); render();
-        playMotion(before, () => {
-          if (screen !== 'game') return;
-          if (cardsDealt > 0) {
-            lastMotion = 'deal-hands'; dealing = true; busy = true;
-            sound('deal', cardsDealt); persist(); render();
-            Promise.resolve(dealAnimation).then(() => {
-              if (screen !== 'game') return;
-              dealing = false; busy = false;
-              if (game.phase !== 'playing') modal = 'round';
-              persist(); render();
-              if (game.turn === 1 && game.phase === 'playing') botTurn();
-            });
-            return;
-          }
-          busy = false;
-          if (game.phase !== 'playing') modal = 'round';
-          persist(); render();
-          if (game.turn === 1 && game.phase === 'playing') botTurn();
-        });
+        playMotion(before, () => completeTurn(cardsDealt));
       } catch (error) {
         busy = false;
         toast = `Computer move error: ${error.message}`;
@@ -2606,29 +2574,28 @@ html,body,#app{background:#005d0b;color:#fff}
     if(cardsDealt>0)collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
     lastMotion = action.kind;
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
-    toast = result.description;
+    toast = '';
     resetSelection();
-    moveAnnouncement = result.description;
     busy = !!before;
     persist(); render();
-    playMotion(before, () => {
-      if (cardsDealt > 0) {
-        lastMotion = 'deal-hands'; dealing = true; busy = true;
-        sound('deal', cardsDealt); persist(); render();
-        Promise.resolve(dealAnimation).then(() => {
-          if (screen !== 'game') return;
-          dealing = false; busy = false;
-          if (game.phase !== 'playing') modal = 'round';
-          persist(); render();
-          if (game.turn === 1 && game.phase === 'playing') botTurn();
-        });
-        return;
-      }
-      busy = false;
+    playMotion(before, () => completeTurn(cardsDealt));
+  }
+  // One shared deal/round-end/next-turn path for human and computer.
+  function completeTurn(cardsDealt) {
+    if (screen !== 'game') return;
+    const generation = motionGeneration;
+    const finish = () => {
+      if (screen !== 'game' || generation !== motionGeneration) return;
+      dealing = false; busy = false;
       if (game.phase !== 'playing') modal = 'round';
       persist(); render();
       if (game.turn === 1 && game.phase === 'playing') botTurn();
-    });
+    };
+    if (cardsDealt > 0) {
+      lastMotion = 'deal-hands'; dealing = true; busy = true;
+      sound('deal', cardsDealt); persist(); render();
+      Promise.resolve(dealAnimation).then(finish);
+    } else finish();
   }
   function undo() {
     cancelMotion();
@@ -2638,7 +2605,8 @@ html,body,#app{background:#005d0b;color:#fff}
     game = JSON.parse(checkpoint);
     checkpoint = null;
     modal = '';
-    toast = 'Turn undone. Choose another move.';
+    toast = '';
+    dealing = false;
     sound('undo');
     resetSelection(); persist(); render();
   }
@@ -2730,12 +2698,6 @@ html,body,#app{background:#005d0b;color:#fff}
     if (action === 'rules' || action === 'history') { modal = action; render(); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render(); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render(); return; }
-    if (action === 'build-menu') {
-      if (!isHumanTurn() || !buildOptions.length) return;
-      if (buildOptions.length === 1) return play(buildOptions[0]);
-      buildMenuOpen = !buildMenuOpen; sound('tap'); render(); return;
-    }
-    if (action === 'hide-builds') { buildMenuOpen = false; render(); return; }
     if (action === 'close') { modal = modal === 'settings' && settingsOrigin === 'newgame' ? 'newgame' : ''; render(); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
@@ -2752,25 +2714,26 @@ html,body,#app{background:#005d0b;color:#fff}
     if (action === 'hand') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
-      if (pickedCard === id) { pickedCard = null; hint = null; buildMenuOpen = false; toast = ''; }
-      else { pickedCard = id; hint = null; buildMenuOpen = false; toast = ''; }
+      pickedCard = pickedCard === id ? null : id;
+      toast = '';
       sound('tap'); return render();
     }
     if (action === 'table') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
-      toast = ''; hint = null; buildMenuOpen = false; sound('tap'); return render();
+      toast = ''; sound('tap'); return render();
     }
     if (action === 'clear') { resetSelection(); toast = ''; return render(); }
     if (action === 'trail' || action === 'capture') return play({ kind: action, cardId: pickedCard, targetIds: action === 'trail' ? [] : currentSelection() });
     if (action === 'build') return play(buildOptions[Number(node.dataset.index)]);
     if (action === 'hint') {
       if (!isHumanTurn()) return;
-      const move = E.chooseComputerMove(game);
-      pickedCard = move.cardId; pickedTable = new Set(move.targetIds || []);
-      hint = move;
-      toast = `Suggestion: ${E.explainMove(game, move)}`;
+      try {
+        const move = E.chooseComputerMove(game);
+        pickedCard = move.cardId; pickedTable = new Set(move.targetIds || []);
+        toast = '';
+      } catch (error) { toast = error.message; }
       return render();
     }
   });
@@ -2807,5 +2770,6 @@ html,body,#app{background:#005d0b;color:#fff}
     }
   }
 })();
+
 </script>
 </body></html>

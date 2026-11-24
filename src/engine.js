@@ -108,9 +108,6 @@
   function cardsInElement(element) {
     return element.type === 'loose' ? [element.card] : element.groups.flat();
   }
-  function valueHeld(hand, value, rules) {
-    return hasValue(hand, value, rules);
-  }
   function findPartition(cards, target, desired = 'any') {
     if (!cards.length || !Number.isInteger(target) || target < 1) return null;
     const values = cards.map(c => c.v);
@@ -144,7 +141,7 @@
   }
   function ownBuildObligation(state, table, hand, player) {
     for (const element of table) {
-      if (element.type === 'build' && element.owner === player && !state.rules.buildAnything && !valueHeld(hand, element.value, state.rules)) {
+      if (element.type === 'build' && element.owner === player && !state.rules.buildAnything && !hasValue(hand, element.value, state.rules)) {
         return `You must retain a ${element.value} to capture your existing build.`;
       }
     }
@@ -175,7 +172,7 @@
     if (!Number.isInteger(requestedValue) || requestedValue < 1 || requestedValue > maxBuildValue(rules)) {
       return {ok:false, reason:'Choose a valid build value.'};
     }
-    if (!rules.buildAnything && !valueHeld(remainingHand, requestedValue, rules)) {
+    if (!rules.buildAnything && !hasValue(remainingHand, requestedValue, rules)) {
       return {ok:false,reason:`Keep a ${requestedValue} in hand to capture your build (or enable Build To Anything).`};
     }
     const builds = selection.filter(e => e.type === 'build');
@@ -221,23 +218,24 @@
     const selected = selectedIds.map(id => state.table.find(e => e.id === id));
     if (selected.some(x => !x)) return { ok: false, reason: 'That table selection is no longer available.' };
     const remainingHand = hand.filter(c => c.id !== card.id);
+    // An owner without a matching card under Build To Anything must not be trapped.
+    const own = state.table.filter(e => e.type === 'build' && e.owner === player &&
+      (!state.rules.buildAnything || hasValue(hand, e.value, state.rules)));
     const remainingTable = state.table.filter(e => !selectedIds.includes(e.id));
     let outcome;
     if (action.kind === 'trail') {
       if (selected.length) return { ok: false, reason: 'Deselect table cards before trailing.' };
-      if (!state.rules.allowTrailWithOwnBuild && state.table.some(e => e.type === 'build' && e.owner === player)) {
+      if (!state.rules.allowTrailWithOwnBuild && own.length) {
         return { ok: false, reason: 'You cannot trail while owning an active build.' };
       }
       outcome = { ok: true };
     } else if (action.kind === 'capture') {
       // The reference app calls these relaxed restrictions Pirate Captures.
-      const own = state.table.filter(e => e.type === 'build' && e.owner === player);
       if (own.length && !state.rules.pirateCaptures && !own.some(e => selectedIds.includes(e.id))) {
         return {ok:false,reason:'Capture your own build first, or enable Pirate Captures.'};
       }
       outcome = describeCapture(selected, card, state.rules);
     } else {
-      const own = state.table.filter(e => e.type === 'build' && e.owner === player);
       if (own.length && !state.rules.pirateBuilds && !own.some(e => selectedIds.includes(e.id))) {
         return {ok:false,reason:'Finish your current build first, or enable Pirate Builds.'};
       }
@@ -410,26 +408,35 @@
     if (!values.length) {
       return state.table.filter(e => e.type === 'loose' && e.card.rank === card.rank).map(e => ({ kind: 'capture', cardId: card.id, targetIds: [e.id] }));
     }
-    const groups = values.flatMap(v => valueGroups(state,v));
     const moves = [];
     const visited = new Set();
-    const combine = (start, picked) => {
-      if (moves.length >= limit) return;
-      if (picked.length) {
-        const ids = [...picked].sort();
-        const key = ids.join(',');
-        if (!visited.has(key)) {
-          visited.add(key);
-          moves.push({ kind: 'capture', cardId: card.id, targetIds: ids });
-        }
-      }
-      for (let i = start; i < groups.length; i++) {
-        if (groups[i].some(id => picked.includes(id))) continue;
-        combine(i + 1, picked.concat(groups[i]));
-        if (moves.length >= limit) break;
+    const add = picked => {
+      const ids = [...picked].sort();
+      const key = ids.join(',');
+      if (!visited.has(key) && moves.length < limit) {
+        visited.add(key);
+        moves.push({ kind: 'capture', cardId: card.id, targetIds: ids });
       }
     };
-    combine(0, []);
+    // Keep alternate numerical values separate: mixed-value groups are illegal.
+    const groupSets = values.map(v => valueGroups(state, v));
+    for (const groups of groupSets) {
+      const builds = groups.filter(g => g.length === 1 && state.table.some(e => e.id === g[0] && e.type === 'build'));
+      if (builds.length) add(builds.flat());
+      if (groups.length) add(groups[0]);
+    }
+    for (const groups of groupSets) {
+      const combine = (start, picked) => {
+        if (moves.length >= limit) return;
+        if (picked.length) add(picked);
+        for (let i = start; i < groups.length; i++) {
+          if (groups[i].some(id => picked.includes(id))) continue;
+          combine(i + 1, picked.concat(groups[i]));
+          if (moves.length >= limit) break;
+        }
+      };
+      combine(0, []);
+    }
     return moves;
   }
   function buildChoices(state, card, max = 55) {

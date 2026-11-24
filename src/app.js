@@ -5,14 +5,13 @@
   if (!E) throw new Error('Cassino rules engine did not load.');
   const STORE = 'cassino-lab-v1';
   let game, checkpoint = null, pickedCard = null, pickedTable = new Set();
-  let toast = '', modal = '', hint = null, busy = false, pendingBot = null;
+  let toast = '', modal = '', busy = false, pendingBot = null;
   let draft = null, draftPreset = 'classic';
   let detailSetting = '';
   let variationsScrollTop = 0;
-  let buildOptions = [], buildMenuOpen = false, lastMotion = '';
-  let moveAnnouncement = ''; let announcementTimer = null;
+  let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.11';
+  const APP_VERSION = '0.5.12';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -651,7 +650,6 @@
   function buildPanelValue(value) {
     return String(value);
   }
-  function elCards(element) { return E.cardsInElement(element); }
   function entryMarkup(element) {
     const selected = pickedTable.has(element.id);
     if (element.type === 'loose') {
@@ -672,7 +670,6 @@
     const move = { kind, cardId: pickedCard, targetIds: kind === 'trail' ? [] : currentSelection() };
     return E.validateAction(game, move);
   }
-  function numberLabel(n, singular, plural) { return `${n} ${n === 1 ? singular : plural}`; }
   function renderHome() {
     return `<main class="launch-screen">
       <div class="launch-scroll">
@@ -698,7 +695,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.11 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v${APP_VERSION} · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -810,19 +807,13 @@
     const capture = actionReady('capture');
     const trail = actionReady('trail');
     buildOptions = active && pickedCard ? E.legalBuildOptions(game, pickedCard, currentSelection()) : [];
-    const chosen = me().hand.find(c => c.id === pickedCard);
     const canTrail = !!(trail && trail.ok && !pickedTable.size);
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
     const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
     const phaseText = game.turn === 0 ? 'Your turn' : "Opponent's turn";
-    const statusText = hint && toast ? toast : chosen
-      ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
-      : pickedTable.size ? `${numberLabel(pickedTable.size, 'table card', 'table cards')} selected · choose a hand card` : 'Choose cards to build or capture.';
-    const rules = game.rules;
     const motion = lastMotion;
     lastMotion = '';
-    if (!buildOptions.length) buildMenuOpen = false;
     app.innerHTML = `
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
         <header class="header">
@@ -854,7 +845,7 @@
             <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card)}</button>`).join('')}</div>
             <div class="your-score-tag">You · ${me().score} pts</div>
           </div>
-          <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
+          ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span>
             <span class="deck-stat"><span class="deck-stat-label">Cards in Deck</span><span class="deck-stat-content">
               <span class="draw-stock ${game.stock.length===0?'empty':''}" role="img" aria-label="Draw pile: ${game.stock.length} cards remaining">
@@ -863,11 +854,10 @@
             </span></span>
           </div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.11</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v${APP_VERSION}</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
-    bindSettings();
     hidePendingDealCards();
     animateLayout(oldLayout);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
@@ -884,7 +874,7 @@
     pirateCaptures: ['Captures', 'When enabled, you may capture loose cards and other builds while you still own a build. When off, you must first capture your own build.'],
     pirateBuilds: ['Builds', 'When enabled, you may start another independent build while you own one. Otherwise, resolve your current build first.'],
     allowTrailWithOwnBuild: ['Trails', 'Allows trailing a card onto the table while owning a build, as long as you retain a hand card able to capture that build.'],
-    buildAnything: ['Build To Anything', 'When enabled, build to any legal card value without holding a matching capture card. This experimental rule can leave a build vulnerable.'],
+    buildAnything: ['Build To Anything', 'When enabled, build to any legal card value without holding a matching capture card. A player without a matching card can still make other legal moves. This experimental rule can leave a build vulnerable.'],
     drawMode: ['Draw', 'After every turn, the player who played draws a replacement card until the stock is exhausted, rather than waiting for all players to run out of cards.'],
     sweepCancel: ['Sweep', 'When a capture clears the table, award a sweep. At hand scoring, each side scores only the number of sweeps beyond the opponent’s sweep count.'],
     spadeScoring: ['Spade Scoring', 'Every spade captured earns one point, plus a bonus point for the Jack of spades, replacing the ordinary most-spades award.'],
@@ -1029,14 +1019,12 @@
   function exitGameToMenu() {
     cancelMotion();
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
-    if (announcementTimer !== null) { clearTimeout(announcementTimer); announcementTimer = null; }
     busy = false; dealing = false;
-    modal = ''; screen = 'home'; exitReturnModal = '';
+    modal = ''; screen = 'home'; exitReturnModal = ''; toast = '';
     persist(); resetSelection(); sound('tap'); render();
     applyPendingUpdate();
   }
-  function bindSettings() { /* delegated event listeners live on #app */ }
-  function resetSelection() { pickedCard = null; pickedTable.clear(); hint = null; buildMenuOpen = false; }
+  function resetSelection() { pickedCard = null; pickedTable.clear(); }
   function botTurn() {
     if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
     busy = true;
@@ -1056,31 +1044,9 @@
         const cardsDealt = stockBefore - game.stock.length;
         if(cardsDealt>0) collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
         lastMotion = move.kind;
-        moveAnnouncement = outcome.description;
-        if (announcementTimer !== null) clearTimeout(announcementTimer);
-        // Keep the message readable after the cards have settled.
-        announcementTimer = setTimeout(() => { announcementTimer=null; moveAnnouncement=''; if(screen==='game'&&game.phase==='playing') render(); }, 4000);
         sound(game.phase !== 'playing' ? 'score' : move.kind);
         persist(); render();
-        playMotion(before, () => {
-          if (screen !== 'game') return;
-          if (cardsDealt > 0) {
-            lastMotion = 'deal-hands'; dealing = true; busy = true;
-            sound('deal', cardsDealt); persist(); render();
-            Promise.resolve(dealAnimation).then(() => {
-              if (screen !== 'game') return;
-              dealing = false; busy = false;
-              if (game.phase !== 'playing') modal = 'round';
-              persist(); render();
-              if (game.turn === 1 && game.phase === 'playing') botTurn();
-            });
-            return;
-          }
-          busy = false;
-          if (game.phase !== 'playing') modal = 'round';
-          persist(); render();
-          if (game.turn === 1 && game.phase === 'playing') botTurn();
-        });
+        playMotion(before, () => completeTurn(cardsDealt));
       } catch (error) {
         busy = false;
         toast = `Computer move error: ${error.message}`;
@@ -1104,29 +1070,28 @@
     if(cardsDealt>0)collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
     lastMotion = action.kind;
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
-    toast = result.description;
+    toast = '';
     resetSelection();
-    moveAnnouncement = result.description;
     busy = !!before;
     persist(); render();
-    playMotion(before, () => {
-      if (cardsDealt > 0) {
-        lastMotion = 'deal-hands'; dealing = true; busy = true;
-        sound('deal', cardsDealt); persist(); render();
-        Promise.resolve(dealAnimation).then(() => {
-          if (screen !== 'game') return;
-          dealing = false; busy = false;
-          if (game.phase !== 'playing') modal = 'round';
-          persist(); render();
-          if (game.turn === 1 && game.phase === 'playing') botTurn();
-        });
-        return;
-      }
-      busy = false;
+    playMotion(before, () => completeTurn(cardsDealt));
+  }
+  // One shared deal/round-end/next-turn path for human and computer.
+  function completeTurn(cardsDealt) {
+    if (screen !== 'game') return;
+    const generation = motionGeneration;
+    const finish = () => {
+      if (screen !== 'game' || generation !== motionGeneration) return;
+      dealing = false; busy = false;
       if (game.phase !== 'playing') modal = 'round';
       persist(); render();
       if (game.turn === 1 && game.phase === 'playing') botTurn();
-    });
+    };
+    if (cardsDealt > 0) {
+      lastMotion = 'deal-hands'; dealing = true; busy = true;
+      sound('deal', cardsDealt); persist(); render();
+      Promise.resolve(dealAnimation).then(finish);
+    } else finish();
   }
   function undo() {
     cancelMotion();
@@ -1136,7 +1101,8 @@
     game = JSON.parse(checkpoint);
     checkpoint = null;
     modal = '';
-    toast = 'Turn undone. Choose another move.';
+    toast = '';
+    dealing = false;
     sound('undo');
     resetSelection(); persist(); render();
   }
@@ -1228,12 +1194,6 @@
     if (action === 'rules' || action === 'history') { modal = action; render(); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render(); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render(); return; }
-    if (action === 'build-menu') {
-      if (!isHumanTurn() || !buildOptions.length) return;
-      if (buildOptions.length === 1) return play(buildOptions[0]);
-      buildMenuOpen = !buildMenuOpen; sound('tap'); render(); return;
-    }
-    if (action === 'hide-builds') { buildMenuOpen = false; render(); return; }
     if (action === 'close') { modal = modal === 'settings' && settingsOrigin === 'newgame' ? 'newgame' : ''; render(); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
@@ -1250,25 +1210,26 @@
     if (action === 'hand') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
-      if (pickedCard === id) { pickedCard = null; hint = null; buildMenuOpen = false; toast = ''; }
-      else { pickedCard = id; hint = null; buildMenuOpen = false; toast = ''; }
+      pickedCard = pickedCard === id ? null : id;
+      toast = '';
       sound('tap'); return render();
     }
     if (action === 'table') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
-      toast = ''; hint = null; buildMenuOpen = false; sound('tap'); return render();
+      toast = ''; sound('tap'); return render();
     }
     if (action === 'clear') { resetSelection(); toast = ''; return render(); }
     if (action === 'trail' || action === 'capture') return play({ kind: action, cardId: pickedCard, targetIds: action === 'trail' ? [] : currentSelection() });
     if (action === 'build') return play(buildOptions[Number(node.dataset.index)]);
     if (action === 'hint') {
       if (!isHumanTurn()) return;
-      const move = E.chooseComputerMove(game);
-      pickedCard = move.cardId; pickedTable = new Set(move.targetIds || []);
-      hint = move;
-      toast = `Suggestion: ${E.explainMove(game, move)}`;
+      try {
+        const move = E.chooseComputerMove(game);
+        pickedCard = move.cardId; pickedTable = new Set(move.targetIds || []);
+        toast = '';
+      } catch (error) { toast = error.message; }
       return render();
     }
   });

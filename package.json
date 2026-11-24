@@ -1,12 +1,12 @@
 {
   "name": "cassino-lab",
-  "version": "0.5.11",
+  "version": "0.5.12",
   "private": true,
   "description": "Offline single-player Cassino and configurable variations",
   "scripts": {
     "build": "node scripts/build.cjs",
     "test": "node --test tests/*.test.cjs",
-    "start": "python3 -m http.server 8080 -d dist"
+    "start": "python3 -m http.server 8080"
   },
   "license": "MIT"
 }

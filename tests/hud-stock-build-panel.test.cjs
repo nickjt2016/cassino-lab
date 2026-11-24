@@ -7,7 +7,7 @@ const css = fs.readFileSync(path.join(__dirname, '../src/compact.css'), 'utf8');
 
 test('Royal build panels always show the numerical target', () => {
   const first = app.indexOf('  function buildPanelValue(value) {');
-  const last = app.indexOf('  function elCards(element)', first);
+  const last = app.indexOf('  function entryMarkup(element)', first);
   assert.ok(first >= 0 && last > first);
   const make = new Function(app.slice(first, last) + '; return buildPanelValue;');
   const label = make();

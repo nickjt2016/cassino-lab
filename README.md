@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.3.2**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.12**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -26,7 +26,7 @@ The service worker uses a network-first strategy and updates its cache when the 
 
 ## Notes
 
-This release keeps its game engine, styling and interface together in `index.html` as a self-contained static game. The editable modular source and tests are maintained separately in the original development package. Gameplay data is stored per browser/device; it does not yet synchronize between devices.
+This release keeps its game engine, styling and interface together in `index.html` as a self-contained static game. The canonical editable sources are in `src/`. Run `npm run build` to regenerate `index.html`, then `npm test` to validate release parity and the rules engine. `npm start` serves the repository root. Gameplay data is stored per browser/device; it does not yet synchronize between devices.
 
 This is a hobbyist prototype for playtesting, not yet multiplayer or an app-store release.
 
@@ -122,3 +122,6 @@ Following reference recording `1000063678.mp4`, loose table cards retain a fixed
 
 ### v0.5.11 — mirrored capture staging and clear turn labels
 On capture, the face-up capturing card moves over selected loose cards or each card layer of a build; all captured cards converge beneath it. The assembled stack then moves into empty space in front of the capturer (lower field for the human, upper field for the computer), pauses briefly, and only then shrinks toward the captured-card area. This preserves the entire physical card stack until collection. The turn banner now displays only **Your turn** or **Opponent's turn**, including during deal/capture transitions. Build card corner ranks and suit symbols share a common baseline and rank-column width for consistent shoulder alignment.
+
+### v0.5.12 — rules engine and maintenance
+Fixed a deadlock in Build To Anything when the owner cannot capture their own build. Royal alternate capture values are enumerated separately. Human and computer turn completion share one path; obsolete menu and announcement state was removed. Added deterministic full-hand gameplay and release-parity tests.
