@@ -110,3 +110,6 @@ Compared the green-felt gameplay with the two user-supplied recordings (10000636
 
 ### v0.5.7 — reference-video straight card movement
 From the user's second reference recording (1000063673.mp4), the extension of a K-build happens over roughly half a second. Cassino Lab now starts successive cards 48ms apart instead of 72ms, flies each card in 310–365ms rather than 380–420ms, and shows the black owner/value panel after 65ms with a 140ms settling transition. Flights now follow direct paths without the previous artificial vertical hop, and cards scale in both dimensions to their final build positions. Existing trail, capture and dealing choreography remains intact.
+
+### v0.5.8 — numerical build panel and HUD deck
+The value panel on a build occupies the lower 77% of the topmost card, leaving the top 23% with the real rank/suit index visible. The label always shows the **numerical build target**, including 1/11/12/13/14 when A/J/Q/K participate numerically; it does not substitute the face-card letter. The physical draw deck is relocated into the rightmost **Cards in Deck** HUD cell alongside its count, freeing the former stock lane on the left of the table. Dealing sound and face-down card animations still originate from the actual moved `.draw-stock` element. Layout retains a side lane for builds and full-width loose cards when no build is present.
