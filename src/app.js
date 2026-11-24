@@ -628,7 +628,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.4.9 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.0 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -718,7 +718,7 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.4.9</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.0</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
@@ -1015,7 +1015,10 @@
     if (action === 'home') {
       cancelMotion();
       if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot=null; }
-      busy=false; modal=''; screen='home'; persist(); resetSelection(); sound('tap'); render(); return;
+      busy=false; modal=''; screen='home'; persist(); resetSelection(); sound('tap');
+      // Apply a waiting release at the main menu, never mid-hand.
+      if (document.getElementById('update-notice')) { location.reload(); return; }
+      render(); return;
     }
     if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); render(); if(game.turn===1 && game.phase==='playing') botTurn(); else if(game.phase!=='playing'){modal='round';render();} return; }
     if (action === 'setup-new-game') { setup = {difficulty:game.rules.difficulty||'thoughtful',preset:'classic'}; modal='newgame'; sound('tap'); render(); return; }
@@ -1091,11 +1094,16 @@
   });
   render(); // The main menu is the entry point; the computer does not move until Resume/Start.
   if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
-    // A new deployment becomes available on the same URL. Let the player
-    // choose when to reload so an ongoing turn is not interrupted.
+    // A new release applies automatically on the main menu.
+    // While playing, offer a safe manual update so no move is interrupted.
     const hadController = !!navigator.serviceWorker.controller;
     if (hadController) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (screen === 'home' && !modal) {
+          // A fresh app launch or a return to the menu is a safe update point.
+          location.reload();
+          return;
+        }
         if (document.getElementById('update-notice')) return;
         const bar = document.createElement('div');
         bar.id = 'update-notice';
@@ -1110,6 +1118,8 @@
     }
     navigator.serviceWorker.register('./service-worker.js')
       .then(registration => {
+        // Check for releases each time the app starts or comes to the foreground.
+        registration.update().catch(() => {});
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') registration.update().catch(() => {});
         });
