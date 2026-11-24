@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.12';
+  const APP_VERSION = '0.5.13';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -461,68 +461,30 @@
         await flipComputerCard();
         if(generation!==motionGeneration)return;
         if(capture){
-          // First reveal the card being played over the selected table cards.
-          // The average target centre keeps multiple captures balanced in the felt.
-          const targetCards = snapshot.groups.map(g => center(g.rect));
-          const feltRect=app.querySelector('.table-area')?.getBoundingClientRect();
-          const avg=targetCards.length ? {
-            x:targetCards.reduce((sum,p)=>sum+p.x,0)/targetCards.length,
-            y:targetCards.reduce((sum,p)=>sum+p.y,0)/targetCards.length
-          } : center(feltRect || targetRect);
-          const played=ghosts[0];
-          const tableWidth=capturedCards[0]?.rect.width || snapshot.groups[0]?.rect.width || played.rect.width;
-          const revealScale=Math.min(2.25,Math.max(1,tableWidth/Math.max(played.rect.width,1)));
-          const top= {
-            x:feltRect ? Math.max(feltRect.left+30,Math.min(feltRect.right-30,avg.x)) : avg.x,
-            y:feltRect ? Math.max(feltRect.top+30,Math.min(feltRect.bottom-30,avg.y-6)) : avg.y-6
-          };
-          await move(played,top,snapshot.byComputer?430:310,{scale:revealScale});
-          if(generation!==motionGeneration)return;
-          // Hold the capturing card face up so the opponent's chosen card is legible.
-          await new Promise(resolve=>setTimeout(resolve,snapshot.byComputer?170:90));
-          if(generation!==motionGeneration)return;
-
-          // Each captured card (including cards from builds) slides UNDER the
-          // played card, one after another. They do NOT fly directly to the pile.
-          // Small offsets show the edges of the gathered stack like solitaire.
-          const collected=ghosts.slice(1);
-          const gatherDelay=Math.min(52,Math.max(18,240/Math.max(collected.length,1)));
-          await Promise.all(collected.map(async(g,i)=>{
-            await new Promise(resolve=>setTimeout(resolve,i*gatherDelay));
-            if(generation!==motionGeneration)return;
-            const place={x:top.x + Math.min(i+1,7)*1.7,y:top.y + Math.min(i+1,7)*2.0};
-            await move(g,place,285,{scale:tableWidth/Math.max(g.rect.width,1)});
-            if(i===collected.length-1) sound('tap');
-          }));
-          if(generation!==motionGeneration)return;
-          await new Promise(resolve=>setTimeout(resolve,85));
-          if(generation!==motionGeneration)return;
-
-          // Bring the assembled real-card stack into the open space in front
-          // of the human player (or the mirrored space in front of the CPU).
-          // Do not send individual captured cards directly to a score badge.
-          const stack=ghosts.map((g,i)=>({
-            entry:g,
-            position:i===0?top:{x:top.x+Math.min(i,7)*1.7,y:top.y+Math.min(i,7)*2.0},
-            scale:i===0?revealScale:tableWidth/Math.max(g.rect.width,1)
+          // All cards fly directly to the stack in front of the capturer.
+          // No intermediate stop over the table or selected build.
+          const tableWidth=capturedCards[0]?.rect.width || snapshot.groups[0]?.rect.width || ghosts[0].rect.width;
+          const stack=ghosts.map(entry=>({
+            entry, scale:tableWidth/Math.max(entry.rect.width,1)
           }));
           const frontPositions=stack.map((_,i)=>({
             x:captureFront.x+Math.min(i,7)*1.2,
             y:captureFront.y+Math.min(i,7)*1.5
           }));
-          await Promise.all(stack.map(({entry,position,scale},i)=>move(entry,frontPositions[i],390,{
-            from:{x:position.x-center(entry.rect).x,y:position.y-center(entry.rect).y,scale},
-            scale:tableWidth/Math.max(entry.rect.width,1)
-          })));
+          const stagger=Math.min(35,150/Math.max(stack.length-1,1));
+          await Promise.all(stack.map(async({entry,scale},i)=>{
+            if(i) await new Promise(resolve=>setTimeout(resolve,i*stagger));
+            if(generation!==motionGeneration)return;
+            await move(entry,frontPositions[i],snapshot.byComputer?390:340,{scale});
+          }));
           if(generation!==motionGeneration)return;
+          sound('tap');
           await new Promise(resolve=>setTimeout(resolve,125));
           if(generation!==motionGeneration)return;
-          // Only after the single stack is shown in front of its owner should
-          // the collected cards shrink into the capture total and disappear.
-          await Promise.all(stack.map(({entry},i)=>move(entry,end,280,{
+          // Collect the complete stack as a unit, keeping the played card on top.
+          await Promise.all(stack.map(({entry,scale},i)=>move(entry,end,280,{
             from:{x:frontPositions[i].x-center(entry.rect).x,
-              y:frontPositions[i].y-center(entry.rect).y,
-              scale:tableWidth/Math.max(entry.rect.width,1)},
+              y:frontPositions[i].y-center(entry.rect).y,scale},
             scale:.32,fade:true
           })));
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {

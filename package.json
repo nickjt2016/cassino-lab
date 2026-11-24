@@ -1,6 +1,6 @@
 {
   "name": "cassino-lab",
-  "version": "0.5.12",
+  "version": "0.5.13",
   "private": true,
   "description": "Offline single-player Cassino and configurable variations",
   "scripts": {

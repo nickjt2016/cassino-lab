@@ -24,7 +24,7 @@ test('Black build owner/value panel appears only after cards settle',()=>{
 test('Computer card still flips before trail and capture; capture cards gather before return',()=>{
   const play=app.indexOf('await flipComputerCard();');
   const capture=app.indexOf('if(capture){',play);
-  const gather=app.indexOf('const collected=ghosts.slice(1);',capture);
-  const out=app.indexOf('const stack=ghosts.map(',gather);
-  assert.ok(play>=0&&capture>play&&gather>capture&&out>gather);
+  const direct=app.indexOf('await move(entry,frontPositions[i]',capture);
+  const collect=app.indexOf('move(entry,end,280',direct);
+  assert.ok(play>=0&&capture>play&&direct>capture&&collect>direct);
 });
