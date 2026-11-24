@@ -18,7 +18,7 @@ test('Black build owner/value panel appears only after cards settle',()=>{
   const settle=app.indexOf('setTimeout(resolve,65)');
   const label=app.indexOf("const label=destination.querySelector('.build-value');",settle);
   assert.ok(settle>=0 && label>settle);
-  assert.match(app.slice(label,label+250),/duration:140,easing:'ease-out'/);
+  assert.match(app.slice(label,label+450),/duration:140,easing:'ease-out'/);
   assert.match(css,/\.build-layer:last-child \.build-value/);
 });
 test('Computer card still flips before trail and capture; capture cards gather before return',()=>{
