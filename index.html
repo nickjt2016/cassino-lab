@@ -2014,7 +2014,8 @@ html,body,#app{background:#005d0b;color:#fff}
             y:captureFront.y+Math.min(i,7)*1.5
           }));
           await Promise.all(stack.map(({entry,position,scale},i)=>move(entry,frontPositions[i],390,{
-            from:{x:position.x-center(entry.rect).x,y:position.y-center(entry.rect).y,scale}
+            from:{x:position.x-center(entry.rect).x,y:position.y-center(entry.rect).y,scale},
+            scale:tableWidth/Math.max(entry.rect.width,1)
           })));
           if(generation!==motionGeneration)return;
           await new Promise(resolve=>setTimeout(resolve,125));
@@ -2023,7 +2024,8 @@ html,body,#app{background:#005d0b;color:#fff}
           // the collected cards shrink into the capture total and disappear.
           await Promise.all(stack.map(({entry},i)=>move(entry,end,280,{
             from:{x:frontPositions[i].x-center(entry.rect).x,
-              y:frontPositions[i].y-center(entry.rect).y,scale:1},
+              y:frontPositions[i].y-center(entry.rect).y,
+              scale:tableWidth/Math.max(entry.rect.width,1)},
             scale:.32,fade:true
           })));
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
