@@ -79,3 +79,7 @@ Replacement cards in Draw mode no longer appear immediately in the hand: each tr
 
 ## Install as an app (v0.5.0)
 Open the GitHub Pages URL in Chrome on Android, then choose **⋮ → Add to Home screen → Install app**. The PWA runs standalone and caches the game for offline play. Publishing updates to `main` changes the app at the existing URL; the app checks for releases at launch and when returning to the foreground. If an updated service worker takes control while you're on the main menu, Cassino Lab reloads automatically. During an active game, it waits for the player to return to the main menu or select **Update now** instead of interrupting a turn. Game data is kept in browser-local storage and doesn't synchronize across devices.
+
+
+### v0.5.1 — unambiguous build raises
+A raise is now labeled for its **new build target**, rather than the rank of the card used to raise it. For example, adding A=1 to an existing 2+7=9 build while retaining 10 correctly displays **Raise to 10**, not "Raise to A (10)." Creating and extending builds still show special Royal ranks and numeric values when useful (e.g. **Build Q (14)** and **Multiple Build A (14)**).
