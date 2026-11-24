@@ -12,7 +12,7 @@
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.10';
+  const APP_VERSION = '0.5.11';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -330,6 +330,13 @@
     const targetRect = destination.getBoundingClientRect();
     const center = r => ({x:r.left+r.width/2,y:r.top+r.height/2});
     const end = center(targetRect);
+    // A completed capture visibly pauses in the open space directly in front
+    // of the capturing player. For the CPU, mirror the landing above the table.
+    const feltRectForCapture=app.querySelector('.table-area')?.getBoundingClientRect();
+    const captureFront = capture && feltRectForCapture ? {
+      x:feltRectForCapture.left + feltRectForCapture.width*.5,
+      y:feltRectForCapture.top + feltRectForCapture.height*(snapshot.byComputer?.24:.72)
+    } : end;
     // The new build/trail enters only when the traveling card actually lands.
     if (!capture && destination.matches('[data-action="table"]')) destination.style.visibility='hidden';
     // A capture is a genuine stack of individual *face-up cards*, including
@@ -423,9 +430,7 @@
       if(generation!==motionGeneration)return;
       const pile=app.querySelector(snapshot.residueOwner===1 ? '.opponent-tag' : '.your-score-tag');
       if(!pile)return;
-      const recipient=snapshot.residueOwner===1 ? 'Computer' : 'You';
-      const message=app.querySelector('.turn-banner');
-      if(message)message.textContent=`Remaining cards collected by ${recipient}`;
+      // The turn banner remains limited to the two requested turn labels.
       const felt=app.querySelector('.table-area')?.getBoundingClientRect();
       const source=all.map(entry=>center(entry.rect));
       const together={x:felt ? felt.left+felt.width*.5 : source[0].x,
@@ -494,16 +499,30 @@
           await new Promise(resolve=>setTimeout(resolve,85));
           if(generation!==motionGeneration)return;
 
-          // Finally carry the *assembled stack* to the capture pile.  Every
-          // card shares the same timing; only the arriving cards fade out.
+          // Bring the assembled real-card stack into the open space in front
+          // of the human player (or the mirrored space in front of the CPU).
+          // Do not send individual captured cards directly to a score badge.
           const stack=ghosts.map((g,i)=>({
             entry:g,
             position:i===0?top:{x:top.x+Math.min(i,7)*1.7,y:top.y+Math.min(i,7)*2.0},
             scale:i===0?revealScale:tableWidth/Math.max(g.rect.width,1)
           }));
-          await Promise.all(stack.map(({entry,position,scale},i)=>move(entry,end,380,{
-            from:{x:position.x-center(entry.rect).x,y:position.y-center(entry.rect).y,scale},
-            scale:.34,fade:true
+          const frontPositions=stack.map((_,i)=>({
+            x:captureFront.x+Math.min(i,7)*1.2,
+            y:captureFront.y+Math.min(i,7)*1.5
+          }));
+          await Promise.all(stack.map(({entry,position,scale},i)=>move(entry,frontPositions[i],390,{
+            from:{x:position.x-center(entry.rect).x,y:position.y-center(entry.rect).y,scale}
+          })));
+          if(generation!==motionGeneration)return;
+          await new Promise(resolve=>setTimeout(resolve,125));
+          if(generation!==motionGeneration)return;
+          // Only after the single stack is shown in front of its owner should
+          // the collected cards shrink into the capture total and disappear.
+          await Promise.all(stack.map(({entry},i)=>move(entry,end,280,{
+            from:{x:frontPositions[i].x-center(entry.rect).x,
+              y:frontPositions[i].y-center(entry.rect).y,scale:1},
+            scale:.32,fade:true
           })));
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
           // Solitaire-style build: each real card slides into its exact layer in
@@ -677,7 +696,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.10 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.11 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -794,7 +813,7 @@
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
     const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
-    const phaseText = game.phase !== 'playing' ? 'Hand finished' : dealing ? 'Dealing cards…' : (hint && toast) || moveAnnouncement || (busy || game.turn === 1 ? 'Computer thinking…' : 'Your turn');
+    const phaseText = game.turn === 0 ? 'Your turn' : "Opponent's turn";
     const statusText = hint && toast ? toast : chosen
       ? `${E.cardName(chosen)} selected · ${numberLabel(pickedTable.size, 'table group', 'table groups')} selected`
       : pickedTable.size ? `${numberLabel(pickedTable.size, 'table card', 'table cards')} selected · choose a hand card` : 'Choose cards to build or capture.';
@@ -842,7 +861,7 @@
             </span></span>
           </div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.10</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.11</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
