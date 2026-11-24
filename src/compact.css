@@ -644,3 +644,31 @@ html,body,#app{background:#005d0b;color:#fff}
 .build-pile{--stack-splay:0px!important;width:var(--stack-card-width)!important;}
 .build-layer{left:0!important;transform:translateY(calc(var(--layer)*var(--stack-step)))!important;}
 @media(orientation:landscape) and (max-height:450px){.build-layer{transform:translateY(calc(var(--layer)*var(--stack-step)))!important;}}
+
+/* v0.5.3: four loose cards in one row, side-build lane, legible value overlay. */
+.table-stage .table-cards,
+.table-stage:has(.table-builds:not(:empty)) .table-cards {
+  box-sizing:border-box;width:calc(100% - 2 * clamp(34px,11vw,52px));
+  max-width:calc(100% - 2 * clamp(34px,11vw,52px));
+  flex-wrap:wrap;gap:clamp(4px,1.5vw,8px);overflow:visible;
+  align-content:center;justify-content:center;
+}
+.table-stage .table-cards {--loose-gap:clamp(4px,1.5vw,8px);gap:var(--loose-gap);padding-inline:2px}
+.table-stage .table-cards .table-item {
+  box-sizing:border-box;flex:0 0 calc((100% - 3*var(--loose-gap) - 8px)/4);
+  max-width:74px;min-width:0
+}
+.table-stage .table-cards .table-item .playing-card:not(.mini) {
+  box-sizing:border-box;width:100%!important;max-width:100%;height:auto;aspect-ratio:.715
+}
+.table-builds:not(:empty){top:5%;right:0;transform:none;max-height:90%;overflow:visible}
+@media(orientation:portrait) {
+  .table-stage .table-builds:not(:empty){top:0;right:0;transform:translateY(calc(-100% - 8px))}
+}
+@media(orientation:landscape) and (max-height:450px) {
+  .table-builds:not(:empty){top:2%;max-height:96%}
+}
+.build-layer:last-child .build-value {
+  bottom:0!important;height:36%;min-height:36%;background:#13110d!important;
+  color:#f5e6aa!important;z-index:5;border-radius:0 0 2px 2px
+}
