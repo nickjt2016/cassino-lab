@@ -795,3 +795,81 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   .table-stage .table-builds:not(:empty){max-height:95%;}
 }
+
+/* v0.5.8 — keep visible card corner indices, show only numeric build totals,
+   and use the full felt by relocating the actual stock to the deck-stat HUD. */
+.build-pile .build-layer:last-child .build-value {
+  bottom:0!important;
+  top:auto!important;
+  height:77%!important;
+  min-height:77%!important;
+  background:#12110e!important;
+  border-top:1px solid #c2ab69;
+}
+.build-pile .build-layer:last-child .playing-card .card-corner {
+  z-index:11;
+}
+.game-stats .deck-stat {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:0;gap:2px;overflow:visible;
+}
+.game-stats .deck-stat-label {
+  display:block;white-space:nowrap;font-size:clamp(9px,2.6vw,13px);line-height:1.1;
+}
+.game-stats .deck-stat-content {
+  display:flex;flex-direction:row;align-items:center;justify-content:center;
+  gap:clamp(6px,2vw,10px);width:100%;min-height:34px;border:0!important;
+}
+.game-stats .draw-stock {
+  position:relative!important;left:auto!important;top:auto!important;
+  transform:none!important;z-index:2;display:block;flex:0 0 auto;
+  width:clamp(22px,6.5vw,31px);height:auto;aspect-ratio:.715;
+  margin:0;padding:0;pointer-events:none;
+}
+.game-stats .stock-stack {
+  position:relative;display:block;width:100%;height:100%;aspect-ratio:.715;
+}
+.game-stats .stock-back {
+  position:absolute;display:block;border:0!important;
+  inset:0;width:100%;height:100%;
+}
+.game-stats .stock-back .card-back {
+  width:100%;height:100%;box-sizing:border-box;margin:0;padding:1px;
+  border:2px solid #fff;
+}
+.game-stats .draw-stock-count {
+  display:block;background:none!important;border:0!important;
+  color:#f5d87e;font-size:clamp(16px,4.6vw,23px);font-weight:800;
+  line-height:1;min-width:0;padding:0;margin:0;
+}
+.game-stats .deck-stat-content > span,
+.game-stats .stock-stack > span {
+  border-left:0!important;
+}
+.game-stats .draw-stock.empty .stock-stack {opacity:.22;}
+.game-stats .deck-stat .draw-stock.empty + .draw-stock-count {opacity:.75;}
+/* The stock no longer reserves a strip at the left of the playfield. */
+.table-stage {--stock-lane:0px!important;}
+.table-stage .table-cards,
+.table-stage:has(.table-builds:not(:empty)) .table-cards {
+  left:0!important;
+  margin:0!important;
+  width:100%!important;
+  max-width:100%!important;
+}
+.table-stage:has(.table-builds:not(:empty)) .table-cards {
+  width:calc(100% - var(--build-lane))!important;
+  max-width:calc(100% - var(--build-lane))!important;
+}
+@media(max-height:700px){
+  .game-stats .deck-stat-content{min-height:26px}
+  .game-stats .draw-stock{width:clamp(17px,4.8vw,24px)}
+  .game-stats .draw-stock-count{font-size:clamp(13px,3.5vw,18px)}
+}
+@media(orientation:landscape) and (max-height:450px){
+  .game-stats .deck-stat {flex-direction:row;gap:4px;}
+  .game-stats .deck-stat-label{font-size:8px}
+  .game-stats .deck-stat-content{min-height:18px;width:auto;gap:3px}
+  .game-stats .draw-stock{width:13px}
+  .game-stats .draw-stock-count{font-size:12px}
+}
