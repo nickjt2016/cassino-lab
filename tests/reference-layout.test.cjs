@@ -37,8 +37,9 @@ test('Legal moves remain contextual; capture cards gather before moving as a sta
   assert.match(app,/if\(capture\)/);
 });
 
-test('Layered Custom Rules and exit confirmation are preserved',()=>{
-  assert.match(app,/overlay\.classList\.add\('modal-stack'\)/);
+test('Unified setup and exit confirmation are preserved',()=>{
+  assert.match(app,/return openSettings\('newgame'\)/);
+  assert.doesNotMatch(app,/overlay\.classList\.add\('modal-stack'\)/);
   assert.match(app,/function showExitConfirm\(\)/);
   assert.match(app,/function cancelExit\(\)/);
   assert.match(app,/function exitGameToMenu\(\)/);

@@ -202,10 +202,9 @@ html,body,#app{background:#005d0b;color:#fff}
 .setting-warning,.smallnote,.source-note,.rules-copy,.move-log{color:#48433b}
 .rules-copy p,.rules-copy h3{color:#38352c}.rules-points{background:#e9e0ca;color:#222}
 .menu-row{background:#eee5cd;border-color:#d3c293;color:#183d2a}.menu-row span,.menu-row em{color:#956f26}.menu-row.danger-row{background:#f7e6d4;border-color:#d8bbae}
-.newgame-settings h3{margin:13px 0 8px}.pill-row{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:#ede5cf;border-radius:17px;padding:5px;gap:5px}
+.pill-row{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:#ede5cf;border-radius:17px;padding:5px;gap:5px}
 .pill-choice{border:0;border-radius:12px;background:transparent;color:#302b22;min-height:44px;font-size:16px;font-weight:700}.pill-choice.selected{background:#15583c;color:#fff8e6;box-shadow:0 3px 8px #0003}.pill-choice:disabled{opacity:.37}.pill-choice small{display:block;font-size:8px}
 .diff-row{grid-template-columns:repeat(2,1fr);grid-auto-flow:row;grid-auto-columns:auto}
-.newgame-note{color:#716858;font-size:11px;line-height:1.5;margin-top:17px}
 @media(max-height:690px){.launch-scroll{padding-top:12px;gap:11px}.launch-fan{transform:scale(.78);height:116px;margin-bottom:-5px}.launch-brand h1{font-size:56px;margin-top:0}.launch-actions{gap:7px;margin-top:0}.launch-actions button{min-height:46px;padding:8px}.launch-tiles{margin:0}.launch-tile{min-height:54px}.game-stats{min-height:32px}.game-stats b{font-size:13px}.opponent-area{min-height:46px}.opponent-hand{min-height:43px}.card-back{height:37px;width:26px}.match-bar{padding:2px 8px}}
 @media(max-width:360px){.launch-scroll{padding-inline:12px}.shell{padding-inline:5px}.table-cards{gap:5px}.captured-display{width:61px;flex-basis:61px}.captured-stack,.captured-display strong,.captured-display>b{width:48px}.game-heading{font-size:18px}.playing-card{width:clamp(43px,14vw,65px)}}
 @media(prefers-reduced-motion:reduce){.playing-card,.hand-item,.table-item{transition:none!important}}
@@ -704,18 +703,6 @@ html,body,#app{background:#005d0b;color:#fff}
   .build-value-number{font-size:clamp(15px,3vw,20px)}
 }
 
-/* v0.5.5: Custom Rules sits on the already-open New Game window.
-   The existing backdrop is reused, so there is no fading main-menu flash. */
-.overlay.modal-stack { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
-.overlay.modal-stack > .dialog { grid-area:1/1; justify-self:center; align-self:center; }
-.overlay.modal-stack > .dialog-underlay {
-  position:relative;z-index:1;filter:brightness(.66);pointer-events:none;
-  animation:none!important;opacity:1!important;
-}
-.overlay.modal-stack > .dialog-foreground {
-  position:relative;z-index:2;animation:none!important;opacity:1!important;
-  background:var(--cream);color:var(--ink);
-}
 .exit-confirm-copy {font-size:15px;line-height:1.55;color:var(--ink);margin:8px 0 16px;}
 
 /* v0.5.6 — table geometry checked against both supplied gameplay recordings.
@@ -1042,4 +1029,32 @@ html,body,#app{background:#005d0b;color:#fff}
 .capture-label-flight > .build-value {
   height:100%!important;min-height:100%!important;width:100%;
   top:0!important;bottom:0!important;left:0;right:0;
+}
+
+/* v0.5.17 — one scrollable setup with preset previews and editable custom rules. */
+.unified-setup>h3 {margin-top:17px;}
+.unified-setup>h3:first-child {margin-top:5px;}
+.unified-setup .preset-grid {
+  grid-auto-flow:row;grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-auto-columns:auto;
+}
+.unified-setup .preset-grid .pill-choice {font-size:clamp(12px,3.7vw,16px);padding:6px 3px;}
+.unified-setup .setup-rule-note {
+  color:#716858;font-size:12px;line-height:1.5;margin:12px 3px 0;
+}
+.unified-setup .variation-row {flex-wrap:wrap;gap:9px;}
+.unified-setup .variation-row>span {min-width:0;}
+.unified-setup .variation-row.locked>span {color:#8c897d;}
+.unified-setup .var-toggle input:disabled+i {
+  background:#e1ded3;border-color:#c9c5b7;
+}
+.unified-setup .var-toggle input:disabled+i:after {background:#aaa69b;}
+.unified-setup .var-toggle input:disabled:checked+i {
+  background:#9caaa0;border-color:#9caaa0;
+}
+.unified-setup .var-toggle input:disabled:checked+i:after {background:#f9f7ef;}
+.unified-setup .setting-select.locked {color:#8c897d;}
+.unified-setup .setting-select select:disabled {background:#e8e5d9;color:#79776c;opacity:1;cursor:default;}
+.unified-setup .inline-setting-info {
+  flex:0 0 100%;margin:0 0 12px;color:#5d584b;font-size:12px;line-height:1.5;
 }

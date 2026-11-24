@@ -62,7 +62,7 @@ test('active game is never interrupted; update installs at the menu', async () =
 
 test('open New Game dialog defers a release until the menu is clear', async () => {
   const h = makeHarness();
-  h.api.setState('home','newgame');
+  h.api.setState('home','settings');
   await h.api.check();
   assert.equal(h.count(), 0);
   h.api.setState('home');

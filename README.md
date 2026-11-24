@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.16**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.17**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -137,3 +137,6 @@ Every full-size card uses the same centered two-column shoulder index, with comp
 
 ### v0.5.16 — turn timing and opponent clearance
 The controls form a vertical top-left rail, freeing the row above the opponent. Computer captures use the measured open lane above the table cards and leave a visible gap; only cramped layouts scale the entire stack to fit. A captured build's value panel fades out over 130 ms. Both turn banners fade out on a committed move and the next one appears only after movement and replacement dealing finish. The opponent's banner stays visible while it is thinking.
+
+### v0.5.17 — unified game setup
+New Game and Game Variations now use a single scrollable dialog. Select Original, Royal, Spade, Royal Spade, or Custom once. All rule switches and the winning-score control display the selected preset and are locked until Custom is selected. Difficulty stays independent. Custom edits survive switching between presets in the same session and are saved when starting a custom match; on first use, Custom inherits the previously previewed preset. Rule explanations expand inline. No gameplay rules changed.

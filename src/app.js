@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.16';
+  const APP_VERSION = '0.5.17';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -47,7 +47,7 @@
     } catch (_) { /* Offline: continue with the installed version. */ }
   }
   let hasSavedMatch = false;
-  let setup = { difficulty: 'thoughtful', preset: 'classic' };
+  let customDraft = null;
   let settingsOrigin = 'home';
   let exitReturnModal = '';
   const CUSTOM_STORE = 'cassino-lab-custom-rules-v1';
@@ -645,7 +645,6 @@
     const stored = JSON.parse(localStorage.getItem(CUSTOM_STORE) || 'null');
     if (stored && typeof stored === 'object') customRules = {...E.rulesFor('classic'),...stored};
   } catch (_) { /* Custom rules are optional. */ }
-  if (!customRules) customRules = {...E.rulesFor('classic'), name:'Custom Cassino'};
   function saveCustomRules() {
     try { localStorage.setItem(CUSTOM_STORE, JSON.stringify(customRules)); } catch (_) {}
   }
@@ -722,18 +721,6 @@
       ${modal ? renderModal() : ''}
     </main>`;
   }
-  function renderNewGame() {
-    const diffButtons = [['casual','Easy'], ['thoughtful','Medium']];
-    const presets = [['classic','Original'],['royal','Royal'],['custom','Custom']];
-    return `<div class="dialog-head"><div><h2>New Game</h2><p class="gold-divider">◆</p></div><button data-action="close" class="icon-close" aria-label="Close">×</button></div>
-      <div class="dialog-content newgame-settings">
-        <h3>PLAYERS</h3><div class="pill-row"><button class="pill-choice selected">2</button><button class="pill-choice" disabled title="Coming later">3 <small>soon</small></button><button class="pill-choice" disabled title="Coming later">4 <small>soon</small></button></div>
-        <h3>DIFFICULTY</h3><div class="pill-row diff-row">${diffButtons.map(([k,v])=>`<button class="pill-choice ${setup.difficulty===k?'selected':''}" data-action="setup-difficulty" data-value="${k}">${v}</button>`).join('')}<button class="pill-choice" disabled>Hard <small>soon</small></button><button class="pill-choice" disabled>Insane <small>soon</small></button></div>
-        <h3>VARIATION</h3><div class="pill-row">${presets.map(([k,v])=>`<button class="pill-choice ${setup.preset===k?'selected':''}" data-action="setup-preset" data-value="${k}">${v}</button>`).join('')}</div>
-        <p class="newgame-note">Original uses traditional Cassino rules. Royal gives numerical values to face cards. Tap Custom to open and edit your saved custom rules before playing.</p>
-      </div>
-      <div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="start-game" class="action-btn primary">Start Game</button></div>`;
-  }
   // A full render replaces the scroll container. Preserve its position whenever
   // a variation changes (and while opening an explanation of a setting).
   function rememberVariationsScroll() {
@@ -764,55 +751,7 @@
     if (screen === 'home') {
       const home = app.querySelector('.launch-screen');
       const overlay = home?.querySelector('.overlay');
-      // Preserve the home screen and its scroll position while menus open.
-      // In particular, Custom Rules is pushed ABOVE the mounted New Game panel,
-      // rather than replacing its backdrop and replaying the opening fade.
-      if (home && overlay && settingsOrigin === 'newgame' && modal === 'settings') {
-        const top = overlay.querySelector('.dialog-foreground');
-        if (top) {
-          top.setAttribute('aria-label', 'settings');
-          top.innerHTML = renderSettings();
-          restoreVariationsScroll();
-          return;
-        }
-        const under = overlay.querySelector('.dialog[aria-label="newgame"]');
-        if (under) {
-          overlay.classList.add('modal-stack');
-          under.classList.add('dialog-underlay');
-          under.setAttribute('aria-hidden','true');
-          under.setAttribute('inert','');
-          const foreground = document.createElement('section');
-          foreground.className = 'dialog dialog-foreground';
-          foreground.setAttribute('role','dialog');
-          foreground.setAttribute('aria-modal','true');
-          foreground.setAttribute('aria-label','settings');
-          foreground.innerHTML = renderSettings();
-          overlay.appendChild(foreground);
-          restoreVariationsScroll();
-          return;
-        }
-      }
-      if (home && overlay && settingsOrigin === 'newgame' && modal === 'info') {
-        const top = overlay.querySelector('.dialog-foreground');
-        if (top) {
-          top.setAttribute('aria-label','info');
-          top.innerHTML = renderSettingInfo();
-          return;
-        }
-      }
-      if (home && overlay && overlay.classList.contains('modal-stack') && modal === 'newgame') {
-        overlay.querySelector('.dialog-foreground')?.remove();
-        const under = overlay.querySelector('.dialog-underlay');
-        under?.classList.remove('dialog-underlay');
-        under?.removeAttribute('aria-hidden');
-        under?.removeAttribute('inert');
-        overlay.classList.remove('modal-stack');
-        return;
-      }
-      if (home && overlay && modal === 'newgame') {
-        const panel = overlay.querySelector('.dialog[aria-label="newgame"]');
-        if (panel) { panel.innerHTML = renderNewGame(); return; }
-      }
+      // Keep the home screen mounted while the single setup dialog is open.
       if (home && !modal && overlay) { overlay.remove(); return; }
       if (home && modal && !overlay) {
         home.insertAdjacentHTML('beforeend', renderModal());
@@ -886,10 +825,6 @@
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
     animateTurnMessage(previousTurn);
   }
-  function settingChecked(name) { return draft[name] ? 'checked' : ''; }
-  function checkRow(name, title, desc, disabled = false) {
-    return `<label class="setting-row ${disabled ? 'disabled' : ''}"><span><b>${title}</b><small>${desc}</small></span><input type="checkbox" data-setting="${name}" ${settingChecked(name)} ${disabled ? 'disabled' : ''}></label>`;
-  }
   const SETTING_INFO = {
     royal: ['Face Cards', 'With Royal face cards on, Jacks, Queens and Kings have numerical values 11, 12 and 13 and may participate in sums and builds. Otherwise they capture matching face cards only.'],
     royalAces: ['Aces', 'Royal Aces may count as either 1 or 14 in captures and builds. The game chooses a legal value for the move.'],
@@ -904,20 +839,26 @@
     builds: ['Building', 'Allow single builds; with this switched off, players can only capture or trail.'],
     multipleBuilds: ['Multiple Builds', 'Allow two or more equal-valued combinations to be combined into a multiple build.'],
   };
-  function variationRow(key, title, disabled = false, extra = '') {
-    const checked = key === 'sweepCancel' ? !!draft.sweepCancel : !!draft[key];
-    return `<div class="variation-row ${disabled ? 'disabled' : ''}">
-      <button class="var-info" data-action="info-setting" data-key="${key}" aria-label="Explain ${title}">ⓘ</button>
-      <span>${title}${disabled ? '<small>Coming later</small>' : ''}</span>
-      <label class="var-toggle"><input type="checkbox" data-setting="${key}" ${checked?'checked':''} ${disabled?'disabled':''} ${extra} aria-label="${title}"><i></i></label>
+  function variationRow(key, title, unavailable = false) {
+    const locked = draftPreset !== 'custom' || unavailable;
+    const expanded = detailSetting === key;
+    return `<div class="variation-row ${locked?'locked':''}">
+      <button type="button" class="var-info" data-action="info-setting" data-key="${key}" aria-label="Explain ${title}" aria-expanded="${expanded}">ⓘ</button>
+      <span>${title}</span>
+      <label class="var-toggle"><input type="checkbox" data-setting="${key}" ${draft[key]?'checked':''} ${locked?'disabled':''} aria-label="${title}"><i></i></label>
+      ${expanded?`<p class="inline-setting-info">${escapeHtml(SETTING_INFO[key][1])}</p>`:''}
     </div>`;
   }
   function renderSettings() {
     if (!draft) draft = { ...game.rules };
-    const menu = [['classic','Original (Classic)'],['royal','Royal'],['spade','Spade'],['royalSpade','Royal Spade'],['custom','Custom']];
-    return `<div class="dialog-head"><div><span class="eyebrow">CASSINO LAB</span><h2>Game Variations</h2><p>Choose a traditional preset or customize the rules for your next match.</p></div><button data-action="close" class="icon-close" aria-label="Close">×</button></div>
-      <div class="dialog-content variations-content">
-        <h3>PRESET VARIATIONS</h3><div class="variation-card preset-options">${menu.map(([key,name])=>`<button class="preset-choice" data-action="preset-choice" data-value="${key}"><span>${name}</span><b>${draftPreset===key?'◉':'◯'}</b></button>`).join('')}</div>
+    const locked = draftPreset !== 'custom';
+    const menu = [['classic','Original'],['royal','Royal'],['spade','Spade'],['royalSpade','Royal Spade'],['custom','Custom']];
+    return `<div class="dialog-head"><div><h2>${settingsOrigin==='newgame'?'New Game':'Game Setup'}</h2></div><button data-action="close" class="icon-close" aria-label="Close">×</button></div>
+      <div class="dialog-content variations-content unified-setup">
+        <h3>PLAYERS</h3><div class="pill-row"><button class="pill-choice selected" aria-pressed="true" type="button">2</button><button class="pill-choice" disabled>3 <small>soon</small></button><button class="pill-choice" disabled>4 <small>soon</small></button></div>
+        <h3>DIFFICULTY</h3><div class="pill-row diff-row">${[['casual','Easy'],['thoughtful','Medium']].map(([key,name])=>`<button class="pill-choice ${draft.difficulty===key?'selected':''}" data-action="setup-difficulty" data-value="${key}" aria-pressed="${draft.difficulty===key}">${name}</button>`).join('')}<button class="pill-choice" disabled>Hard <small>soon</small></button><button class="pill-choice" disabled>Insane <small>soon</small></button></div>
+        <h3>VARIATION</h3><div class="pill-row preset-grid">${menu.map(([key,name])=>`<button class="pill-choice ${draftPreset===key?'selected':''}" data-action="preset-choice" data-value="${key}" aria-pressed="${draftPreset===key}">${name}</button>`).join('')}</div>
+        <p class="setup-rule-note">${locked?'Choose Custom to edit the rules below.':'Customize the rules below. Your choices are saved when you start the game.'}</p>
         <h3>ROYAL OPTIONS</h3><div class="variation-card">
           ${variationRow('royal','Face Cards')}
           ${variationRow('royalAces','Aces')}
@@ -925,7 +866,7 @@
         </div>
         <h3>PIRATE OPTIONS</h3><div class="variation-card">
           ${variationRow('pirateCaptures','Captures')}
-          ${variationRow('pirateBuilds','Builds')}
+          ${variationRow('pirateBuilds','Builds',!draft.builds)}
           ${variationRow('allowTrailWithOwnBuild','Trails',!draft.builds)}
           ${variationRow('buildAnything','Build To Anything',!draft.builds)}
         </div>
@@ -938,16 +879,9 @@
           ${variationRow('multipleBuilds','Multiple Builds',!draft.builds)}
           ${variationRow('spadeScoring','Spade Scoring')}
         </div>
-        <h3>MATCH SETTINGS</h3><label class="setting-select"><b>Winning score</b><select data-setting="winningScore">${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
-        <label class="setting-select"><b>Computer difficulty</b><select data-setting="difficulty"><option value="casual" ${draft.difficulty==='casual'?'selected':''}>Easy</option><option value="thoughtful" ${draft.difficulty==='thoughtful'?'selected':''}>Medium</option></select></label>
-        <p class="setting-warning">Switching options begins a new match. Custom combinations are experimental; use the ⓘ icons to read how each option changes legal moves.</p>
-      </div><div class="dialog-actions"><button data-action="close" class="action-btn">${settingsOrigin === 'newgame' ? 'Back' : 'Cancel'}</button><button data-action="apply-settings" class="action-btn primary">${settingsOrigin === 'newgame' ? 'Start Game' : 'Start with these rules'}</button></div>`;
-  }
-  function renderSettingInfo() {
-    const item=SETTING_INFO[detailSetting] || ['Game rule','Not yet documented.'];
-    return `<div class="dialog-head"><div><h2>${escapeHtml(item[0])}</h2><p class="gold-divider">◆</p></div></div>
-      <div class="dialog-content"><p class="setting-explainer">${escapeHtml(item[1])}</p></div>
-      <div class="dialog-actions"><button class="action-btn primary" data-action="info-back">OK</button></div>`;
+        <h3>MATCH SETTINGS</h3><label class="setting-select ${locked?'locked':''}"><b>Winning score</b><select data-setting="winningScore" ${locked?'disabled':''}>${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
+        ${settingsOrigin==='game'?'<p class="setting-warning">Starting with these rules replaces the current match.</p>':''}
+      </div><div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="apply-settings" class="action-btn primary">Start Game</button></div>`;
   }
   function renderMenu() {
     return `<div class="dialog-head"><div><span class="eyebrow">CASSINO LAB</span><h2>Game menu</h2><p>Single-player · Hand ${game.round} · ${escapeHtml(game.rules.name)}</p></div><button data-action="close" class="icon-close" aria-label="Close menu">×</button></div>
@@ -1010,7 +944,7 @@
         <button data-action="confirm-exit" class="action-btn primary">Exit to menu</button></div>`;
   }
   function renderModal() {
-    const body = modal === 'exit-confirm' ? renderExitConfirm() : modal === 'info' ? renderSettingInfo() : modal === 'newgame' ? renderNewGame() : modal === 'menu' ? renderMenu() : modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
+    const body = modal === 'exit-confirm' ? renderExitConfirm() : modal === 'menu' ? renderMenu() : modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
     return `<div class="overlay" role="presentation"><section class="dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(modal)}">${body}</section></div>`;
   }
   function showExitConfirm() {
@@ -1165,30 +1099,56 @@
       if(game.turn===1)botTurn();else render();
     });
   }
-  function openSettings(origin = screen) { variationsScrollTop = 0; settingsOrigin = origin;
-    draft = { ...(origin === 'newgame' ? customRules : game.rules) }; draft.difficulty = origin === 'newgame' ? setup.difficulty : draft.difficulty;
-    draftPreset = origin === 'newgame' ? 'custom' : Object.keys(E.PRESETS).find(k => {
-    const a = E.PRESETS[k];
-    return ['royal','spadeScoring','sweepPoints','builds','multipleBuilds','allowTrailWithOwnBuild','winningScore'].every(key => a[key] === game.rules[key]) && !['drawMode','sweepCancel','royalAces','royalBigLittle','pirateCaptures','pirateBuilds','buildAnything'].some(key => game.rules[key]);
-  }) || 'custom'; modal = 'settings'; render(); }
-  function parseSetting(name, raw) {
-    if (['sweepPoints', 'winningScore'].includes(name)) return Number(raw);
-    return raw;
+  // All setup entry points share a single draft and scrollable dialog.
+  function openSettings(origin = screen) {
+    variationsScrollTop = 0; detailSetting = ''; settingsOrigin = origin;
+    const difficulty = game.rules.difficulty || 'thoughtful';
+    if (origin === 'newgame') {
+      draftPreset = 'classic';
+      draft = E.rulesFor('classic', {difficulty});
+      customDraft = customRules ? {...customRules} : null;
+    } else {
+      draft = {...game.rules};
+      draftPreset = Object.keys(E.PRESETS).find(key => {
+        const preset = E.rulesFor(key);
+        return Object.keys(E.DEFAULT_RULES).every(prop =>
+          prop === 'name' || prop === 'difficulty' || preset[prop] === draft[prop]);
+      }) || 'custom';
+      customDraft = draftPreset === 'custom' ? {...draft} : customRules ? {...customRules} : null;
+    }
+    modal = 'settings'; render();
+  }
+  function selectVariation(key) {
+    if (!Object.hasOwn(E.PRESETS,key) && key !== 'custom') return;
+    if (key === draftPreset) return;
+    const difficulty = draft.difficulty;
+    if (draftPreset === 'custom') customDraft = {...draft};
+    if (key === 'custom') {
+      // Restore custom edits, or inherit the previewed preset on first use.
+      draft = {...(customDraft || draft),name:'Custom Cassino',difficulty};
+    } else {
+      draft = E.rulesFor(key,{difficulty});
+    }
+    draftPreset = key;
+    render();
+  }
+  function updateDraftSetting(prop, value) {
+    if (!draft || draftPreset !== 'custom' || !Object.hasOwn(E.DEFAULT_RULES,prop) ||
+        prop === 'name' || prop === 'difficulty') return;
+    if (!draft.builds && ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything'].includes(prop)) return;
+    draft[prop] = value;
+    if (prop === 'sweepCancel') draft.sweepPoints = value ? 1 : 0;
+    if (prop === 'builds' && !value) {
+      for (const dependent of ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything']) draft[dependent] = false;
+    }
+    render();
   }
   app.addEventListener('change', ev => {
     const target = ev.target;
-    if (!(target instanceof HTMLElement) || !target.dataset.setting || !draft) return;
+    if (!(target instanceof HTMLElement) || !target.dataset.setting || target.disabled || modal !== 'settings') return;
     const prop = target.dataset.setting;
-    if (prop === 'preset') {
-      draftPreset = target.value;
-      if (draftPreset !== 'custom') draft = { ...E.rulesFor(draftPreset), difficulty: draft.difficulty };
-    } else {
-      draft[prop] = target.type === 'checkbox' ? target.checked : parseSetting(prop, target.value);
-      if (prop === 'sweepCancel') draft.sweepPoints = target.checked ? 1 : 0;
-      draftPreset = 'custom';
-      draft.name = 'Custom Cassino';
-    }
-    render();
+    updateDraftSetting(prop,target.type === 'checkbox' ? target.checked :
+      ['winningScore','sweepPoints'].includes(prop) ? Number(target.value) : target.value);
   });
   app.addEventListener('click', event => {
     const node = event.target.closest('[data-action]');
@@ -1201,40 +1161,24 @@
     if (action === 'cancel-exit') { cancelExit(); return; }
     if (action === 'confirm-exit') { exitGameToMenu(); return; }
     if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); if(game.turn===1 && game.phase==='playing') botTurn(); else {if(game.phase!=='playing')modal='round';render();} return; }
-    if (action === 'setup-new-game') { setup = {difficulty:game.rules.difficulty||'thoughtful',preset:'classic'}; modal='newgame'; sound('tap'); render(); return; }
-    if (action === 'info-setting') { detailSetting=node.dataset.key; modal='info'; render(); return; }
-    if (action === 'info-back') { modal='settings'; render(); return; }
-    if (action === 'preset-choice') {
-      draftPreset=node.dataset.value;
-      if (draftPreset!=='custom') draft={...E.rulesFor(draftPreset),difficulty:draft.difficulty};
-      render(); return;
-    }
-    if (action === 'setup-difficulty') { setup.difficulty=node.dataset.value; render(); return; }
-    if (action === 'setup-preset') {
-      setup.preset = node.dataset.value;
-      if (setup.preset === 'custom') return openSettings('newgame');
-      render(); return;
-    }
-    if (action === 'start-game') {
-      if (setup.preset === 'custom') return openSettings('newgame');
-      startNewMatch(E.rulesFor(setup.preset,{difficulty:setup.difficulty}),false);return;
-    }
+    if (action === 'setup-new-game') { sound('tap'); return openSettings('newgame'); }
+    if (action === 'info-setting' && modal === 'settings') { detailSetting=detailSetting===node.dataset.key?'':node.dataset.key; render(); return; }
+    if (action === 'preset-choice' && modal === 'settings') return selectVariation(node.dataset.value);
+    if (action === 'setup-difficulty' && modal === 'settings') { draft.difficulty=node.dataset.value; render(); return; }
     if (action === 'menu') { modal = 'menu'; sound('tap'); render(); return; }
     if (action === 'settings') return openSettings(screen);
     if (action === 'rules' || action === 'history') { modal = action; render(); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render(); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render(); return; }
-    if (action === 'close') { modal = modal === 'settings' && settingsOrigin === 'newgame' ? 'newgame' : ''; render(); applyPendingUpdate(); return; }
+    if (action === 'close') { modal = ''; render(); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
     if (action === 'undo') return undo();
-    if (action === 'apply-settings') {
-      const nextRules = { ...draft };
-      if (draftPreset !== 'custom') nextRules.name = E.PRESETS[draftPreset].name;
-      else {nextRules.name='Custom Cassino';customRules = {...nextRules};saveCustomRules();}
+    if (action === 'apply-settings' && modal === 'settings') {
+      const nextRules = { ...draft, name: draftPreset==='custom'?'Custom Cassino':E.PRESETS[draftPreset].name };
       if (!nextRules.builds) { nextRules.multipleBuilds = false; nextRules.allowTrailWithOwnBuild = false; nextRules.buildAnything = false; nextRules.pirateBuilds = false; }
-      if (settingsOrigin === 'newgame') nextRules.difficulty = setup.difficulty;
       if (screen === 'game' && game.phase === 'playing' && !confirm('Start a new match with these rules?')) return;
+      if (draftPreset==='custom') {customRules = {...nextRules};saveCustomRules();}
       return startNewMatch(nextRules, false);
     }
     if (action === 'hand') {
@@ -1266,8 +1210,6 @@
   document.addEventListener('keydown', ev => {
     if (ev.key === 'Escape' && modal) {
       if (modal === 'exit-confirm') { cancelExit(); return; }
-      if (modal === 'settings' && settingsOrigin === 'newgame') { modal = 'newgame'; render(); return; }
-      if (modal === 'info') { modal = 'settings'; render(); return; }
       modal = ''; render(); applyPendingUpdate(); return;
     }
     else if (ev.key.toLowerCase() === 'u' && !modal && checkpoint) undo();
