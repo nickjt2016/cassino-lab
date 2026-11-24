@@ -886,3 +886,49 @@ html,body,#app{background:#005d0b;color:#fff}
 .table-stage:not(:has(.table-builds:not(:empty))) .table-cards {
   justify-content:center!important;
 }
+
+/* v0.5.9 — slightly smaller physical cards, with more breathing room.
+   Resize the actual elements (not CSS transform:scale) so all card-flight
+   animations still measure and land at the correct physical dimensions. */
+.human-hand .playing-card:not(.mini) {
+  width:clamp(51px,18vw,94px)!important;
+  height:auto!important;
+  aspect-ratio:.715;
+}
+.table-stage .table-cards .table-item {
+  max-width:64px;
+  justify-self:center;
+}
+.table-stage .table-cards .table-item .playing-card:not(.mini) {
+  display:block;
+  width:90%!important;
+  margin:0 auto;
+  height:auto!important;
+  aspect-ratio:.715;
+}
+.opponent-hand .card-back {
+  width:clamp(33px,9vw,41px);
+  height:clamp(46px,12.6vw,57px);
+}
+.build-pile {
+  --stack-card-width:clamp(48px,14.8vw,69px);
+  --stack-step:clamp(21px,5.5vw,26px);
+}
+.build-pile.many-cards { --stack-step:clamp(17px,4.4vw,22px); }
+.build-pile.large-build { --stack-step:clamp(15px,4.1vw,19px); }
+.game-stats .draw-stock { width:clamp(20px,5.9vw,28px); }
+@media(max-height:700px){
+  .human-hand .playing-card:not(.mini){width:clamp(46px,15.1vw,67px)!important}
+  .build-pile{--stack-card-width:clamp(42px,12.7vw,57px);--stack-step:clamp(18px,5.1vw,21px)}
+  .build-pile.many-cards{--stack-step:clamp(15px,4vw,18px)}
+  .build-pile.large-build{--stack-step:clamp(13px,3.7vw,16px)}
+  .game-stats .draw-stock{width:clamp(16px,4.3vw,22px)}
+}
+@media(orientation:landscape) and (max-height:450px){
+  .human-hand .playing-card:not(.mini){width:clamp(35px,6.1vw,53px)!important}
+  .opponent-hand .card-back{width:clamp(17px,2.8vw,26px);height:clamp(23px,3.9vw,37px)}
+  .build-pile{--stack-card-width:clamp(34px,6.2vw,53px);--stack-step:14px}
+  .build-pile.many-cards{--stack-step:12px}
+  .build-pile.large-build{--stack-step:10px}
+  .game-stats .draw-stock{width:12px}
+}
