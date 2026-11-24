@@ -12,7 +12,7 @@
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.8';
+  const APP_VERSION = '0.5.9';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -672,7 +672,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.8 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.9 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -837,7 +837,7 @@
             </span></span>
           </div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.8</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.9</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
