@@ -12,7 +12,7 @@
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.2';
+  const APP_VERSION = '0.5.3';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -663,7 +663,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.2 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.3 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -696,6 +696,15 @@
     const oldLayout = screen === 'game' && motionAllowed() ? layoutPositions() : null;
     const previousTurn = app.querySelector ? app.querySelector('.turn-banner')?.textContent ?? null : null;
     rememberVariationsScroll();
+    // Changes to rules redraw only the content inside the mounted settings dialog.
+    // Keeping the backdrop and dialog intact prevents their opening fade from replaying.
+    const existingSettings = modal === 'settings' && app.querySelector
+      ? app.querySelector('.overlay .dialog[aria-label="settings"]') : null;
+    if (existingSettings) {
+      existingSettings.innerHTML = renderSettings();
+      restoreVariationsScroll();
+      return;
+    }
     if (screen === 'home') { app.innerHTML = renderHome(); restoreVariationsScroll(); return; }
     if (game.phase !== 'playing') { pickedCard = null; pickedTable.clear(); }
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) { pickedCard = null; pickedTable.clear(); }
@@ -753,7 +762,7 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.2</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.3</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
@@ -903,7 +912,7 @@
         if (!outcome.ok) throw new Error(outcome.reason);
         if (before) { before.finalHand = game.phase !== 'playing'; before.residueOwner=game.lastCapture; }
         const cardsDealt = stockBefore - game.stock.length;
-        if(cardsDealt>0) collectDeal(preHuman,preCpu);
+        if(cardsDealt>0) collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
         lastMotion = move.kind;
         moveAnnouncement = outcome.description;
         if (announcementTimer !== null) clearTimeout(announcementTimer);
@@ -950,7 +959,7 @@
     if (!result.ok) { toast = result.reason; return render(); }
     if (before) { before.finalHand = game.phase !== 'playing'; before.residueOwner=game.lastCapture; }
     const cardsDealt = stockBefore - game.stock.length;
-    if(cardsDealt>0)collectDeal(preHuman,preCpu);
+    if(cardsDealt>0)collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
     lastMotion = action.kind;
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
     toast = result.description;
