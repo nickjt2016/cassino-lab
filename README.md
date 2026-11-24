@@ -116,3 +116,6 @@ The value panel on a build occupies the lower 77% of the topmost card, leaving t
 
 ### v0.5.9 — modest card-size reduction
 All gameplay cards are about 8–10% smaller: the player's hand, loose cards on the table, opponent card backs and stacked build cards. The tiny deck graphic in the HUD is reduced slightly too. Physical element dimensions are used rather than transform-based visual scaling, so card-flight start/end points, build stacking and face-up reveals still match their measured positions. Corner indices scale with the card via container-width units; no change to legal moves, scoring, custom settings, or automatic updates.
+
+### v0.5.10 — loose table cards close gaps from left to right
+Following reference recording `1000063678.mp4`, loose table cards retain a fixed left-side start position even as other cards are captured or converted into builds. When an 8 leaves the first loose slot to form a build, the remaining 7 shifts left to occupy that first slot over 355ms with an eased transition. The layout no longer recenters the row after the build disappears or appears. Existing cards retain their unique table IDs during FLIP transitions, and build cards remain in the independent right-side lane. The order of loose cards does not change.
