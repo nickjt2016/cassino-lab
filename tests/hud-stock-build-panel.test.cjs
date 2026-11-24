@@ -36,8 +36,8 @@ test('The visual stock is only in the Cards in Deck HUD, not on the table', () =
 
 test('Physical deal animation measures the moved stock location', () => {
   assert.match(app, /function rememberStockOrigin\(\)/);
-  assert.match(app, /querySelector\('\\.draw-stock \\.stock-back'\)/);
-  assert.match(app, /const deck=app\.querySelector\?\.\('\\.draw-stock \\.stock-back'\)/);
+  assert.ok(app.includes("querySelector('.draw-stock .stock-back')"));
+  assert.ok(app.includes("const deck=app.querySelector?.('.draw-stock .stock-back')"));
   assert.match(app, /pendingStockOrigin \|\| \(deckRect/);
   assert.match(app, /ghost\.innerHTML=renderBack\(\)/);
 });
