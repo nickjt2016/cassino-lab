@@ -12,7 +12,7 @@
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.4';
+  const APP_VERSION = '0.5.5';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -50,6 +50,7 @@
   let hasSavedMatch = false;
   let setup = { difficulty: 'thoughtful', preset: 'classic' };
   let settingsOrigin = 'home';
+  let exitReturnModal = '';
   const CUSTOM_STORE = 'cassino-lab-custom-rules-v1';
   let customRules = null;
 
@@ -673,7 +674,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.4 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.5 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -715,7 +716,70 @@
       restoreVariationsScroll();
       return;
     }
-    if (screen === 'home') { app.innerHTML = renderHome(); restoreVariationsScroll(); return; }
+    if (screen === 'home') {
+      const home = app.querySelector('.launch-screen');
+      const overlay = home?.querySelector('.overlay');
+      // Preserve the home screen and its scroll position while menus open.
+      // In particular, Custom Rules is pushed ABOVE the mounted New Game panel,
+      // rather than replacing its backdrop and replaying the opening fade.
+      if (home && overlay && settingsOrigin === 'newgame' && modal === 'settings') {
+        const top = overlay.querySelector('.dialog-foreground');
+        if (top) {
+          top.setAttribute('aria-label', 'settings');
+          top.innerHTML = renderSettings();
+          restoreVariationsScroll();
+          return;
+        }
+        const under = overlay.querySelector('.dialog[aria-label="newgame"]');
+        if (under) {
+          overlay.classList.add('modal-stack');
+          under.classList.add('dialog-underlay');
+          under.setAttribute('aria-hidden','true');
+          under.setAttribute('inert','');
+          const foreground = document.createElement('section');
+          foreground.className = 'dialog dialog-foreground';
+          foreground.setAttribute('role','dialog');
+          foreground.setAttribute('aria-modal','true');
+          foreground.setAttribute('aria-label','settings');
+          foreground.innerHTML = renderSettings();
+          overlay.appendChild(foreground);
+          restoreVariationsScroll();
+          return;
+        }
+      }
+      if (home && overlay && settingsOrigin === 'newgame' && modal === 'info') {
+        const top = overlay.querySelector('.dialog-foreground');
+        if (top) {
+          top.setAttribute('aria-label','info');
+          top.innerHTML = renderSettingInfo();
+          return;
+        }
+      }
+      if (home && overlay && overlay.classList.contains('modal-stack') && modal === 'newgame') {
+        overlay.querySelector('.dialog-foreground')?.remove();
+        const under = overlay.querySelector('.dialog-underlay');
+        under?.classList.remove('dialog-underlay');
+        under?.removeAttribute('aria-hidden');
+        under?.removeAttribute('inert');
+        overlay.classList.remove('modal-stack');
+        return;
+      }
+      if (home && overlay && modal === 'newgame') {
+        const panel = overlay.querySelector('.dialog[aria-label="newgame"]');
+        if (panel) { panel.innerHTML = renderNewGame(); return; }
+      }
+      if (home && !modal && overlay) { overlay.remove(); return; }
+      if (home && modal && !overlay) {
+        home.insertAdjacentHTML('beforeend', renderModal());
+        return;
+      }
+      const oldScroll = home?.scrollTop || 0;
+      app.innerHTML = renderHome();
+      const newHome = app.querySelector('.launch-screen');
+      if (newHome) newHome.scrollTop = oldScroll;
+      restoreVariationsScroll();
+      return;
+    }
     if (game.phase !== 'playing') { pickedCard = null; pickedTable.clear(); }
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) { pickedCard = null; pickedTable.clear(); }
     const active = isHumanTurn();
@@ -772,7 +836,7 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.4</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.5</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
@@ -899,9 +963,50 @@
       <p class="smallnote">Cards captured: ${p[0].cardCount}–${p[1].cardCount}. Spades captured: ${p[0].spadeCount}–${p[1].spadeCount}.</p></div>
       <div class="dialog-actions"><button data-action="undo" class="action-btn" ${!checkpoint ? 'disabled' : ''}>Undo last turn</button><button data-action="${ended ? 'new-match' : 'next-hand'}" class="action-btn primary">${ended ? 'New match' : 'Next hand'} →</button></div>`;
   }
+  function renderExitConfirm() {
+    return `<div class="dialog-head"><div><h2>Exit game?</h2><p>Are you sure you want to exit this game?</p></div></div>
+      <div class="dialog-content"><p class="exit-confirm-copy">Your match will be saved. You can resume it from the main menu.</p></div>
+      <div class="dialog-actions"><button data-action="cancel-exit" class="action-btn">Keep playing</button>
+        <button data-action="confirm-exit" class="action-btn primary">Exit to menu</button></div>`;
+  }
   function renderModal() {
-    const body = modal === 'info' ? renderSettingInfo() : modal === 'newgame' ? renderNewGame() : modal === 'menu' ? renderMenu() : modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
+    const body = modal === 'exit-confirm' ? renderExitConfirm() : modal === 'info' ? renderSettingInfo() : modal === 'newgame' ? renderNewGame() : modal === 'menu' ? renderMenu() : modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
     return `<div class="overlay" role="presentation"><section class="dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(modal)}">${body}</section></div>`;
+  }
+  function showExitConfirm() {
+    exitReturnModal = modal === 'menu' ? 'menu' : '';
+    modal = 'exit-confirm';
+    const panel = app.querySelector('.overlay .dialog');
+    if (panel) {
+      panel.setAttribute('aria-label','exit-confirm');
+      panel.innerHTML = renderExitConfirm();
+    } else {
+      app.insertAdjacentHTML('beforeend', renderModal());
+    }
+  }
+  function cancelExit() {
+    modal = exitReturnModal;
+    exitReturnModal = '';
+    const overlay = app.querySelector('.overlay');
+    if (modal === 'menu') {
+      const panel = overlay?.querySelector('.dialog');
+      if (panel) {
+        panel.setAttribute('aria-label','menu');
+        panel.innerHTML = renderMenu();
+        return;
+      }
+    }
+    if (overlay) overlay.remove();
+    else render();
+  }
+  function exitGameToMenu() {
+    cancelMotion();
+    if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
+    if (announcementTimer !== null) { clearTimeout(announcementTimer); announcementTimer = null; }
+    busy = false; dealing = false;
+    modal = ''; screen = 'home'; exitReturnModal = '';
+    persist(); resetSelection(); sound('tap'); render();
+    applyPendingUpdate();
   }
   function bindSettings() { /* delegated event listeners live on #app */ }
   function resetSelection() { pickedCard = null; pickedTable.clear(); hint = null; buildMenuOpen = false; }
@@ -1067,11 +1172,11 @@
     if (!node) return;
     const action = node.dataset.action;
     if (action === 'home') {
-      cancelMotion();
-      if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot=null; }
-      busy=false; modal=''; screen='home'; persist(); resetSelection(); sound('tap');
-      render(); applyPendingUpdate(); return;
+      if (screen === 'game') { showExitConfirm(); return; }
+      exitGameToMenu(); return;
     }
+    if (action === 'cancel-exit') { cancelExit(); return; }
+    if (action === 'confirm-exit') { exitGameToMenu(); return; }
     if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); render(); if(game.turn===1 && game.phase==='playing') botTurn(); else if(game.phase!=='playing'){modal='round';render();} return; }
     if (action === 'setup-new-game') { setup = {difficulty:game.rules.difficulty||'thoughtful',preset:'classic'}; modal='newgame'; sound('tap'); render(); return; }
     if (action === 'info-setting') { detailSetting=node.dataset.key; modal='info'; render(); return; }
@@ -1141,7 +1246,12 @@
     }
   });
   document.addEventListener('keydown', ev => {
-    if (ev.key === 'Escape' && modal) { modal = ''; render(); }
+    if (ev.key === 'Escape' && modal) {
+      if (modal === 'exit-confirm') { cancelExit(); return; }
+      if (modal === 'settings' && settingsOrigin === 'newgame') { modal = 'newgame'; render(); return; }
+      if (modal === 'info') { modal = 'settings'; render(); return; }
+      modal = ''; render(); applyPendingUpdate(); return;
+    }
     else if (ev.key.toLowerCase() === 'u' && !modal && checkpoint) undo();
   });
   render(); // The main menu is the entry point; the computer does not move until Resume/Start.
