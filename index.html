@@ -885,6 +885,15 @@ html,body,#app{background:#005d0b;color:#fff}
   .game-stats .draw-stock-count{font-size:12px}
 }
 
+
+/* Keep the relocated deck fully inside the HUD on regular phone displays. */
+@media (orientation:portrait) and (min-height:701px){
+  .game-stats{min-height:61px;padding-block:5px;}
+}
+@media (orientation:portrait) and (max-height:700px){
+  .game-stats{min-height:46px;height:auto;padding-block:3px;}
+}
+
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
