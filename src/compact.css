@@ -881,3 +881,8 @@ html,body,#app{background:#005d0b;color:#fff}
 @media (orientation:portrait) and (max-height:700px){
   .game-stats{min-height:46px;height:auto;padding-block:3px;}
 }
+
+/* Keep the loose cards centered when no build occupies the right-hand lane. */
+.table-stage:not(:has(.table-builds:not(:empty))) .table-cards {
+  justify-content:center!important;
+}
