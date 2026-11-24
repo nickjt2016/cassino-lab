@@ -83,3 +83,7 @@ Open the GitHub Pages URL in Chrome on Android, then choose **⋮ → Add to Hom
 
 ### v0.5.1 — unambiguous build raises
 A raise is now labeled for its **new build target**, rather than the rank of the card used to raise it. For example, adding A=1 to an existing 2+7=9 build while retaining 10 correctly displays **Raise to 10**, not "Raise to A (10)." Creating and extending builds still show special Royal ranks and numeric values when useful (e.g. **Build Q (14)** and **Multiple Build A (14)**).
+
+
+### v0.5.2 — fully automatic safe updates
+Cassino Lab checks `version.json` when it opens, when connectivity returns, and when the app comes to the foreground. A newer release is installed automatically when the main menu is showing and no dialog is open. During play, the upgrade is deferred until the player returns to the main menu. A short reload guard prevents loops if a hosting cache temporarily serves an old page. The existing PWA service worker still provides offline play and is updated alongside each release. Game saves continue using browser-local storage.
