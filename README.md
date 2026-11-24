@@ -113,3 +113,6 @@ From the user's second reference recording (1000063673.mp4), the extension of a 
 
 ### v0.5.8 — numerical build panel and HUD deck
 The value panel on a build occupies the lower 77% of the topmost card, leaving the top 23% with the real rank/suit index visible. The label always shows the **numerical build target**, including 1/11/12/13/14 when A/J/Q/K participate numerically; it does not substitute the face-card letter. The physical draw deck is relocated into the rightmost **Cards in Deck** HUD cell alongside its count, freeing the former stock lane on the left of the table. Dealing sound and face-down card animations still originate from the actual moved `.draw-stock` element. Layout retains a side lane for builds and full-width loose cards when no build is present.
+
+### v0.5.9 — modest card-size reduction
+All gameplay cards are about 8–10% smaller: the player's hand, loose cards on the table, opponent card backs and stacked build cards. The tiny deck graphic in the HUD is reduced slightly too. Physical element dimensions are used rather than transform-based visual scaling, so card-flight start/end points, build stacking and face-up reveals still match their measured positions. Corner indices scale with the card via container-width units; no change to legal moves, scoring, custom settings, or automatic updates.
