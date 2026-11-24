@@ -75,3 +75,7 @@ The opponent's trailed card flips face-up over the hand, scales smoothly to exac
 
 ### v0.4.9 — physical replacement-card dealing
 Replacement cards in Draw mode no longer appear immediately in the hand: each travels face-down from the left stock, flips on arrival, and then becomes selectable. New hands and initial table cards are dealt face-down as well. Card input is held while dealing. Build columns align straight and the felt no longer displays an empty-table caption.
+
+
+## Install as an app (v0.5.0)
+Open the GitHub Pages URL in Chrome on Android, then choose **⋮ → Add to Home screen → Install app**. The PWA runs standalone and caches the game for offline play. Publishing updates to `main` changes the app at the existing URL; the app checks for releases at launch and when returning to the foreground. If an updated service worker takes control while you're on the main menu, Cassino Lab reloads automatically. During an active game, it waits for the player to return to the main menu or select **Update now** instead of interrupting a turn. Game data is kept in browser-local storage and doesn't synchronize across devices.
