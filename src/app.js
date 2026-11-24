@@ -335,7 +335,7 @@
     const feltRectForCapture=app.querySelector('.table-area')?.getBoundingClientRect();
     const captureFront = capture && feltRectForCapture ? {
       x:feltRectForCapture.left + feltRectForCapture.width*.5,
-      y:feltRectForCapture.top + feltRectForCapture.height*(snapshot.byComputer?.24:.72)
+      y:feltRectForCapture.top + feltRectForCapture.height*(snapshot.byComputer ? 0.24 : 0.72)
     } : end;
     // The new build/trail enters only when the traveling card actually lands.
     if (!capture && destination.matches('[data-action="table"]')) destination.style.visibility='hidden';
