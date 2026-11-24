@@ -93,3 +93,7 @@ Cassino Lab checks `version.json` when it opens, when connectivity returns, and 
 - Four loose table cards fit on one row on phones down to 320px; side builds occupy an upper-right lane.
 - In Draw mode, replacement-card animations no longer incorrectly hide existing loose table cards or just-trailed cards.
 - Build labels sit flush at the bottom of the top card and cover the lower portion of its large rank.
+
+
+### v0.5.4 — reference-video build-pile refinement
+Builds remain straight stacks of actual cards, with visible rank/suit corners and no horizontal fanning. The frontmost card now has a full-width black panel covering roughly the lower two thirds, showing the owner name above the announced target (e.g. **You · K**). The black panel appears only after the existing card-stack animation finishes. The card row, Draw-mode behavior, and main-menu updates are unchanged.
