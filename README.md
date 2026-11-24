@@ -97,3 +97,10 @@ Cassino Lab checks `version.json` when it opens, when connectivity returns, and 
 
 ### v0.5.4 — reference-video build-pile refinement
 Builds remain straight stacks of actual cards, with visible rank/suit corners and no horizontal fanning. The frontmost card now has a full-width black panel covering roughly the lower two thirds, showing the owner name above the announced target (e.g. **You · K**). The black panel appears only after the existing card-stack animation finishes. The card row, Draw-mode behavior, and main-menu updates are unchanged.
+
+
+### v0.5.5 — stable New Game / Custom Rules navigation and exit confirmation
+- Opening **New Game** keeps the main-menu DOM and its scroll position intact. Selecting difficulty or preset doesn't jump the home page back to the top.
+- **New Game → Custom** pushes Game Variations as a second, opaque panel over the still-mounted New Game dialog and reuses the same backdrop, avoiding flashing between main-menu and dialog screens. Closing Game Variations returns to the unchanged New Game panel, and setting explanations preserve the stack.
+- Leaving a game from the upper-left X or from **Game menu → Main menu** now asks **“Are you sure you want to exit this game?”** with **Keep playing** and **Exit to menu**. Canceling preserves play and current menus. Confirming returns home and saves the match for Resume Game.
+- Other gameplay and automatically installed releases remain unchanged.
