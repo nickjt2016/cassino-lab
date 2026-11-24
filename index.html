@@ -806,6 +806,85 @@ html,body,#app{background:#005d0b;color:#fff}
   .table-stage .table-builds:not(:empty){max-height:95%;}
 }
 
+
+/* v0.5.8 — keep visible card corner indices, show only numeric build totals,
+   and use the full felt by relocating the actual stock to the deck-stat HUD. */
+.build-pile .build-layer:last-child .build-value {
+  bottom:0!important;
+  top:auto!important;
+  height:77%!important;
+  min-height:77%!important;
+  background:#12110e!important;
+  border-top:1px solid #c2ab69;
+}
+.build-pile .build-layer:last-child .playing-card .card-corner {
+  z-index:11;
+}
+.game-stats .deck-stat {
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:0;gap:2px;overflow:visible;
+}
+.game-stats .deck-stat-label {
+  display:block;white-space:nowrap;font-size:clamp(9px,2.6vw,13px);line-height:1.1;
+}
+.game-stats .deck-stat-content {
+  display:flex;flex-direction:row;align-items:center;justify-content:center;
+  gap:clamp(6px,2vw,10px);width:100%;min-height:34px;border:0!important;
+}
+.game-stats .draw-stock {
+  position:relative!important;left:auto!important;top:auto!important;
+  transform:none!important;z-index:2;display:block;flex:0 0 auto;
+  width:clamp(22px,6.5vw,31px);height:auto;aspect-ratio:.715;
+  margin:0;padding:0;pointer-events:none;
+}
+.game-stats .stock-stack {
+  position:relative;display:block;width:100%;height:100%;aspect-ratio:.715;
+}
+.game-stats .stock-back {
+  position:absolute;display:block;border:0!important;
+  inset:0;width:100%;height:100%;
+}
+.game-stats .stock-back .card-back {
+  width:100%;height:100%;box-sizing:border-box;margin:0;padding:1px;
+  border:2px solid #fff;
+}
+.game-stats .draw-stock-count {
+  display:block;background:none!important;border:0!important;
+  color:#f5d87e;font-size:clamp(16px,4.6vw,23px);font-weight:800;
+  line-height:1;min-width:0;padding:0;margin:0;
+}
+.game-stats .deck-stat-content > span,
+.game-stats .stock-stack > span {
+  border-left:0!important;
+}
+.game-stats .draw-stock.empty .stock-stack {opacity:.22;}
+.game-stats .deck-stat .draw-stock.empty + .draw-stock-count {opacity:.75;}
+/* The stock no longer reserves a strip at the left of the playfield. */
+.table-stage {--stock-lane:0px!important;}
+.table-stage .table-cards,
+.table-stage:has(.table-builds:not(:empty)) .table-cards {
+  left:0!important;
+  margin:0!important;
+  width:100%!important;
+  max-width:100%!important;
+}
+.table-stage:has(.table-builds:not(:empty)) .table-cards {
+  width:calc(100% - var(--build-lane))!important;
+  max-width:calc(100% - var(--build-lane))!important;
+}
+@media(max-height:700px){
+  .game-stats .deck-stat-content{min-height:26px}
+  .game-stats .draw-stock{width:clamp(17px,4.8vw,24px)}
+  .game-stats .draw-stock-count{font-size:clamp(13px,3.5vw,18px)}
+}
+@media(orientation:landscape) and (max-height:450px){
+  .game-stats .deck-stat {flex-direction:row;gap:4px;}
+  .game-stats .deck-stat-label{font-size:8px}
+  .game-stats .deck-stat-content{min-height:18px;width:auto;gap:3px}
+  .game-stats .draw-stock{width:13px}
+  .game-stats .draw-stock-count{font-size:12px}
+}
+
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -1335,7 +1414,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.7';
+  const APP_VERSION = '0.5.8';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -1942,12 +2021,10 @@ html,body,#app{background:#005d0b;color:#fff}
     </span>`;
   }
   function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern"></span></span>'; }
-  // Match the reference's build panel: a concise value/rank, separate from
-  // the identities of the constituent cards visible above the black panel.
+  // Builds are numerical targets, even when a Royal rank (A/J/Q/K) supplies
+  // that value. Leave the physical card's corner index unchanged, but show
+  // the actual build total (1, 11, 12, 13, 14, etc.) on the black panel.
   function buildPanelValue(value) {
-    if (game.rules.royal && value >= 11 && value <= 13)
-      return ({11:'J',12:'Q',13:'K'})[value];
-    if (game.rules.royalAces && value === 14) return 'A';
     return String(value);
   }
   function elCards(element) { return E.cardsInElement(element); }
@@ -1997,7 +2074,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.7 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.8 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -2137,10 +2214,7 @@ html,body,#app{background:#005d0b;color:#fff}
             <div class="opponent-hand" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
           </div>
           <div class="table-area">
-            <div class="table-stage"><div class="draw-stock ${game.stock.length===0?'empty':''}" aria-label="Draw pile: ${game.stock.length} cards remaining" role="img">
-              <span class="stock-stack" aria-hidden="true"><span class="stock-back stock-bottom">${renderBack()}</span><span class="stock-back stock-middle">${renderBack()}</span><span class="stock-back stock-top">${renderBack()}</span></span>
-              <span class="draw-stock-count">${game.stock.length}</span>
-            </div><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
+            <div class="table-stage"><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
             <div class="turn-banner" aria-live="polite">${phaseText}</div>
           </div>
@@ -2157,9 +2231,15 @@ html,body,#app{background:#005d0b;color:#fff}
             <div class="your-score-tag">You · ${me().score} pts</div>
           </div>
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
-          <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
+          <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span>
+            <span class="deck-stat"><span class="deck-stat-label">Cards in Deck</span><span class="deck-stat-content">
+              <span class="draw-stock ${game.stock.length===0?'empty':''}" role="img" aria-label="Draw pile: ${game.stock.length} cards remaining">
+                <span class="stock-stack" aria-hidden="true"><span class="stock-back stock-bottom">${renderBack()}</span><span class="stock-back stock-middle">${renderBack()}</span><span class="stock-back stock-top">${renderBack()}</span></span>
+              </span><b class="draw-stock-count">${game.stock.length}</b>
+            </span></span>
+          </div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.7</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.8</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
