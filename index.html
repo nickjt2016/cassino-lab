@@ -680,6 +680,45 @@ html,body,#app{background:#005d0b;color:#fff}
   color:#f5e6aa!important;z-index:5;border-radius:0 0 2px 2px
 }
 
+
+/* v0.5.4 — build piles modeled after visible stacked-card transitions.
+   Full-sized, straight physical cards remain exposed at their rank/suit
+   corners; the frontmost card carries a large flush black value panel. */
+.build-pile { --stack-splay:0px!important; width:var(--stack-card-width)!important; }
+.build-pile .build-layer {
+  left:0!important;
+  transform:translateY(calc(var(--layer)*var(--stack-step)))!important;
+}
+.build-pile .build-layer:last-child .build-value {
+  position:absolute;bottom:0!important;left:0;right:0;
+  box-sizing:border-box;height:65%!important;min-height:65%!important;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;padding:2px 2px 1px;
+  border:0;border-top:1px solid #b29a64;
+  border-radius:0 0 2px 2px;background:#16140f!important;
+  color:#fff6d9!important;
+  text-align:center;z-index:10;pointer-events:none;
+  box-shadow:none;
+}
+.build-value-owner {
+  display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  font:600 clamp(8px,2.3vw,11px)/1.05 Arial,sans-serif;
+  color:#f1e8cb;
+}
+.build-value-number {
+  display:block;font:700 clamp(19px,6vw,29px)/1.08 Georgia,'Times New Roman',serif;
+  color:#fff3c5;min-width:0;
+}
+.build-item.selected .build-pile .build-layer:last-child .build-value {
+  background:#574916!important;
+  border-top-color:#ffe17e;
+}
+@media(orientation:landscape) and (max-height:450px){
+  .build-pile .build-layer:last-child .build-value{gap:0;padding:1px}
+  .build-value-owner{font-size:7px}
+  .build-value-number{font-size:clamp(15px,3vw,20px)}
+}
+
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -1209,7 +1248,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.3';
+  const APP_VERSION = '0.5.4';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -1815,6 +1854,14 @@ html,body,#app{background:#005d0b;color:#fff}
     </span>`;
   }
   function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern"></span></span>'; }
+  // Match the reference's build panel: a concise value/rank, separate from
+  // the identities of the constituent cards visible above the black panel.
+  function buildPanelValue(value) {
+    if (game.rules.royal && value >= 11 && value <= 13)
+      return ({11:'J',12:'Q',13:'K'})[value];
+    if (game.rules.royalAces && value === 14) return 'A';
+    return String(value);
+  }
   function elCards(element) { return E.cardsInElement(element); }
   function entryMarkup(element) {
     const selected = pickedTable.has(element.id);
@@ -1822,7 +1869,9 @@ html,body,#app{background:#005d0b;color:#fff}
       return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table">${renderCard(element.card)}</button>`;
     }
     const cards=element.groups.flat();
-    const layers=cards.map((card,i)=>`<span class="build-layer" style="--layer:${i}">${renderCard(card)}${i===cards.length-1?`<span class="build-value">${element.value}</span>`:''}</span>`).join('');
+    const ownerName = element.owner === 0 ? 'You' : 'Computer';
+    const panelValue = buildPanelValue(element.value);
+    const layers=cards.map((card,i)=>`<span class="build-layer" style="--layer:${i}">${renderCard(card)}${i===cards.length-1?`<span class="build-value"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
     return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.value} build owned by ${element.owner === 0 ? 'you' : 'computer'}">
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
@@ -1860,7 +1909,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.3 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.4 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -1959,7 +2008,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.3</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.4</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
