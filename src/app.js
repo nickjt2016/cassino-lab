@@ -12,7 +12,7 @@
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.9';
+  const APP_VERSION = '0.5.10';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -162,8 +162,13 @@
       const rect=node.getBoundingClientRect();
       const dx=from.x-(rect.left+rect.width/2), dy=from.y-(rect.top+rect.height/2);
       if(Math.abs(dx)<2 && Math.abs(dy)<2) return;
+      // Table cards physically close gaps like the filmed fishing game.
+      // Preserve each card's identity; only the remaining cards glide into
+      // the vacated slots, never recentering the whole row.
+      const isTableCard = node.dataset.action === 'table';
       node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
-        {duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});
+        {duration:isTableCard ? 355 : 420,
+         easing:isTableCard ? 'cubic-bezier(.22,.72,.24,1)' : 'cubic-bezier(.2,.8,.2,1)'});
     });
   }
   // Dealt cards never materialize in the hand. Until the deck animation
@@ -672,7 +677,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.9 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.10 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -837,7 +842,7 @@
             </span></span>
           </div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.9</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.10</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
