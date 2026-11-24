@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.14';
+  const APP_VERSION = '0.5.15';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -411,7 +411,7 @@
       if(!snapshot.byComputer) return;
       const ghost=ghosts[0].ghost;
       const face=ghost.innerHTML;
-      ghost.innerHTML='<span class="card-back" style="margin:0;width:100%;height:100%"><span class="back-pattern"></span></span>';
+      ghost.innerHTML=renderBack();
       await animate(ghost,[{transform:'rotateY(0deg)'},{transform:'rotateY(90deg)'}],{duration:165,easing:'ease-in'});
       if(generation!==motionGeneration)return;
       ghost.innerHTML=face;

@@ -36,12 +36,14 @@ test('whole stack remains card-sized until it is moved in front of the player', 
   assert.match(app, /scale:\.32,fade:true/);
 });
 
-test('build pile shoulder rank and suit share the same baseline', () => {
-  const section = css.slice(css.indexOf('/* v0.5.11'));
-  assert.match(section, /align-items:baseline/);
-  assert.match(section, /flex:0 0 1\.35em/);
+test('All cards share centered rank and suit columns and a small fixed gap', () => {
+  const section = css.slice(css.indexOf('/* Shared card artwork:'));
+  assert.match(section, /grid-template-columns:25cqw 19cqw;column-gap:1cqw/);
+  assert.match(section, /align-items:center;justify-items:center/);
+  assert.match(section, /text-align:center/);
   assert.match(section, /font-variant-numeric:tabular-nums/);
-  assert.match(section, /card-corner small/);
+  assert.doesNotMatch(css, /\.build-pile \.build-layer \.playing-card:not\(\.mini\) \.card-corner/);
+  assert.doesNotMatch(section, /flex:0 0 1\.35em/);
 });
 
 for (const byComputer of [false,true]) {
@@ -57,8 +59,8 @@ for (const byComputer of [false,true]) {
       animate(frames){this.frames.push(frames);const anim={};Promise.resolve().then(()=>anim.onfinish?.());return anim;}
     };}};
     const host={querySelector(selector){return {getBoundingClientRect:()=>selector==='.table-area'?field:badge};}};
-    const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout',
-      app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},cb=>cb());
+    const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout','renderBack',
+      app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},cb=>cb(),()=>'<span class="card-back"><span class="back-pattern"></span></span>');
     await new Promise(resolve=>motion({kind:'capture',byComputer,played,groups:[
       {rect:cards[0].rect,cards:cards.slice(0,2)},{rect:cards[2].rect,cards:[cards[2]]}
     ],finalHand:false},resolve));

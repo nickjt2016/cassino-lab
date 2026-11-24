@@ -282,8 +282,6 @@ html,body,#app{background:#005d0b;color:#fff}
 .playing-card .card-big{top:64%;font-size:75cqw;line-height:1;left:50%;white-space:nowrap;max-width:none;transform:translate(-50%,-50%);z-index:1}
 .playing-card.ten-card .card-corner b{font-size:22cqw}.playing-card.ten-card .card-corner small{font-size:17cqw}
 .playing-card.ten-card .card-big{font-size:61cqw;letter-spacing:-.06em}
-.hand-item.selected .playing-card,.table-item.selected .playing-card{background:#ffff9b;color:#2b2b00;box-shadow:0 0 0 2px #ffe77c,0 3px 10px #0008}
-.hand-item.selected .playing-card.red,.table-item.selected .playing-card.red{color:#c01e13}
 .hand-item.selected,.table-item.selected{transform:translateY(-2px);filter:none}
 @media (max-height:700px){
  .header{min-height:31px;flex-basis:31px}.opponent-tag{font-size:10px}.opponent-hand{min-height:40px}.card-back{height:39px;width:28px}
@@ -505,11 +503,8 @@ html,body,#app{background:#005d0b;color:#fff}
   box-shadow:inset 0 0 0 2px #d2d7fa;}
 .back-pattern:before,.back-pattern:after{content:none;display:none}
 .opponent-hand .card-back {margin-left:-12px}
-.card-flight {filter:drop-shadow(0 5px 6px #001e0055);transform-origin:center;backface-visibility:hidden;}
+.card-flight {transform-origin:center;backface-visibility:hidden;}
 .card-flight .playing-card {width:100%;height:100%;box-sizing:border-box;}
-/* Selection keeps the video's yellow fill; cards never fade on builds/trails. */
-.hand-item.selected .playing-card,.table-item.selected .playing-card { background:#fff59b!important; color:#151715; border-color:#ffe176; }
-.hand-item.selected .playing-card.red,.table-item.selected .playing-card.red{color:#c72118}
 .animations-on .felt[data-motion="trail"] .table-cards,
 .animations-on .felt[data-motion="build"] .table-cards {animation:none;}
 .animations-on .felt[data-motion="capture"] .table-cards {animation:none;}
@@ -531,7 +526,6 @@ html,body,#app{background:#005d0b;color:#fff}
    their final capture-pile arrival; an opponent's played card is shown face-up. */
 .animations-on .felt[data-motion="deal"] .opponent-hand,
 .animations-on .felt[data-motion="deal"] .human-hand {animation:none!important}
-.card-flight { contain:layout paint; isolation:isolate; filter:drop-shadow(0 5px 7px #001e0055); }
 /* Only overlays and prompts may softly enter; playing cards do not fade. */
 .contextual-controls {animation:prompt-settle .26s cubic-bezier(.18,.8,.26,1) both;}
 @keyframes prompt-settle {from{transform:translateY(7px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
@@ -551,13 +545,11 @@ html,body,#app{background:#005d0b;color:#fff}
   width:calc(var(--stack-card-width) + min(var(--layers),8)*4px);
   height:calc(var(--stack-card-width)/.715 + min(var(--layers),8)*2px);}
 .build-layer{position:absolute;top:0;left:0;width:var(--stack-card-width);height:calc(var(--stack-card-width)/.715);
-  z-index:var(--layer);transform:translate(calc(min(var(--layer),8)*4px),calc(min(var(--layer),8)*2px));
-  filter:drop-shadow(0 1px 1px #00150070);}
+  z-index:var(--layer);transform:translate(calc(min(var(--layer),8)*4px),calc(min(var(--layer),8)*2px));}
 .build-layer .playing-card:not(.mini){width:100%;height:100%!important;display:block;border-radius:2px}
 .build-value{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:center;justify-content:center;
   min-height:20%;background:#17140cea;color:#fff4c6;border:1px solid #e0c980;
   border-top-width:2px;font:bold clamp(11px,3vw,16px)/1.1 Arial,sans-serif;letter-spacing:.02em}
-.build-item.selected .build-layer .playing-card{background:#fff59b!important;border-color:#ffe176!important}
 .build-item.selected .build-pile{outline:2px solid #ffde4f;outline-offset:3px;border-radius:3px}
 .build-item.selected .build-value{background:#65520c;color:#fff5be}
 /* Each royalty rank uses its own optical cap height, never touching the bottom border. */
@@ -629,7 +621,6 @@ html,body,#app{background:#005d0b;color:#fff}
 }
 .build-layer {
   transform:translate(calc(var(--layer)*var(--stack-splay)),calc(var(--layer)*var(--stack-step)));
-  filter:drop-shadow(0 1px 2px #00150088);
 }
 .build-pile.many-cards{--stack-step:clamp(19px,4.8vw,24px)}
 .build-pile.large-build{--stack-step:clamp(17px,4.5vw,21px)}
@@ -841,8 +832,7 @@ html,body,#app{background:#005d0b;color:#fff}
   inset:0;width:100%;height:100%;
 }
 .game-stats .stock-back .card-back {
-  width:100%;height:100%;box-sizing:border-box;margin:0;padding:1px;
-  border:2px solid #fff;
+  width:100%;height:100%;box-sizing:border-box;margin:0;
 }
 .game-stats .draw-stock-count {
   display:block;background:none!important;border:0!important;
@@ -958,22 +948,58 @@ html,body,#app{background:#005d0b;color:#fff}
   transition:filter .15s ease, box-shadow .15s ease;
 }
 
-/* v0.5.11 — tidy build shoulder indices: a common baseline and fixed rank
-   column keep the suit consistently aligned even when cards have 10 or J/Q/K. */
-.build-pile .build-layer .playing-card:not(.mini) .card-corner {
-  top:3.5%;left:5%;width:90%;
-  display:flex;flex-direction:row;align-items:baseline;justify-content:flex-start;
-  gap:2px;white-space:nowrap;line-height:1;
+/* Shared card artwork: the exact same shoulder grid is used in the hand,
+   on the table, in every build layer and during card flights. */
+.playing-card:not(.mini) .card-corner:not(.bottom) {
+  position:absolute;top:2%;left:1.5%;width:max-content;height:auto;
+  display:grid;grid-template-columns:25cqw 19cqw;column-gap:1cqw;
+  align-items:center;justify-items:center;justify-content:start;
+  white-space:nowrap;line-height:1;
 }
-.build-pile .build-layer .playing-card:not(.mini) .card-corner b {
-  flex:0 0 1.35em;min-width:1.35em;display:block;text-align:left;
-  font-family:Georgia,'Times New Roman',serif;
-  font-size:24cqw;font-weight:400;line-height:1;
-  letter-spacing:-.045em;font-variant-numeric:tabular-nums;
+.playing-card:not(.mini) .card-corner:not(.bottom) b,
+.playing-card:not(.mini) .card-corner:not(.bottom) small {
+  display:block;margin:0;padding:0;min-width:0;text-align:center;
+  font-family:Georgia,'Times New Roman',serif;font-weight:400;line-height:1;
 }
-.build-pile .build-layer .playing-card:not(.mini) .card-corner small {
-  flex:0 0 auto;display:block;text-align:left;line-height:1;
-  font-family:Georgia,'Times New Roman',serif;font-size:19cqw;
+.playing-card:not(.mini) .card-corner:not(.bottom) b {
+  font-size:24cqw;letter-spacing:-.045em;font-variant-numeric:tabular-nums;
+}
+.playing-card:not(.mini) .card-corner:not(.bottom) small {
+  font-size:19cqw;
+}
+
+/* Selection is an external golden outline, not a different card face.
+   Preserve white paper, black/red ink and the same border during movement. */
+.hand-item.selected .playing-card:not(.mini),
+.table-item.selected .playing-card:not(.mini),
+.build-item.selected .build-layer .playing-card:not(.mini) {
+  outline:2px solid #ffe176;outline-offset:0;
+  box-shadow:0 2px 3px #00270064;
+}
+
+/* One physical back design for the stock, opponent's hand and moving cards.
+   The original blue SVG is retained; its tile and margins scale with the card,
+   rather than changing the number of motifs when a flight is resized. */
+.card-back {
+  position:relative;container-type:inline-size;box-sizing:border-box;
+  border:0;padding:0;background:#fff;display:block;
+}
+.back-pattern {
+  position:absolute;inset:8%;width:auto;height:auto;
+  border:2cqw solid #14237a;box-shadow:inset 0 0 0 3cqw #d2d7fa;
+  background-size:50% auto;background-position:0 0;
+}
+
+/* Flight elements are geometry-only wrappers: never restyle the card itself.
+   Retain exact measured dimensions and the card's own shadow, without an
+   additional flight-only filter or paint clipping. */
+.card-flight {
+  contain:layout;isolation:isolate;filter:none;overflow:visible;
+}
+.card-flight > .playing-card,
+.card-flight > .card-back {
+  display:block;width:100%!important;height:100%!important;
+  box-sizing:border-box;margin:0!important;
 }
 
 /* Exceptional errors, not a second turn banner. */
@@ -1506,7 +1532,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.14';
+  const APP_VERSION = '0.5.15';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -1906,7 +1932,7 @@ html,body,#app{background:#005d0b;color:#fff}
       if(!snapshot.byComputer) return;
       const ghost=ghosts[0].ghost;
       const face=ghost.innerHTML;
-      ghost.innerHTML='<span class="card-back" style="margin:0;width:100%;height:100%"><span class="back-pattern"></span></span>';
+      ghost.innerHTML=renderBack();
       await animate(ghost,[{transform:'rotateY(0deg)'},{transform:'rotateY(90deg)'}],{duration:165,easing:'ease-in'});
       if(generation!==motionGeneration)return;
       ghost.innerHTML=face;
