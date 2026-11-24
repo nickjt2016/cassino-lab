@@ -12,7 +12,7 @@
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.7';
+  const APP_VERSION = '0.5.8';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -619,12 +619,10 @@
     </span>`;
   }
   function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern"></span></span>'; }
-  // Match the reference's build panel: a concise value/rank, separate from
-  // the identities of the constituent cards visible above the black panel.
+  // Builds are numerical targets, even when a Royal rank (A/J/Q/K) supplies
+  // that value. Leave the physical card's corner index unchanged, but show
+  // the actual build total (1, 11, 12, 13, 14, etc.) on the black panel.
   function buildPanelValue(value) {
-    if (game.rules.royal && value >= 11 && value <= 13)
-      return ({11:'J',12:'Q',13:'K'})[value];
-    if (game.rules.royalAces && value === 14) return 'A';
     return String(value);
   }
   function elCards(element) { return E.cardsInElement(element); }
@@ -674,7 +672,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.7 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.8 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -814,10 +812,7 @@
             <div class="opponent-hand" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
           </div>
           <div class="table-area">
-            <div class="table-stage"><div class="draw-stock ${game.stock.length===0?'empty':''}" aria-label="Draw pile: ${game.stock.length} cards remaining" role="img">
-              <span class="stock-stack" aria-hidden="true"><span class="stock-back stock-bottom">${renderBack()}</span><span class="stock-back stock-middle">${renderBack()}</span><span class="stock-back stock-top">${renderBack()}</span></span>
-              <span class="draw-stock-count">${game.stock.length}</span>
-            </div><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
+            <div class="table-stage"><div class="table-cards ${game.table.length ? '' : 'empty-table'}" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
             <div class="turn-banner" aria-live="polite">${phaseText}</div>
           </div>
@@ -834,9 +829,15 @@
             <div class="your-score-tag">You · ${me().score} pts</div>
           </div>
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
-          <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
+          <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span>
+            <span class="deck-stat"><span class="deck-stat-label">Cards in Deck</span><span class="deck-stat-content">
+              <span class="draw-stock ${game.stock.length===0?'empty':''}" role="img" aria-label="Draw pile: ${game.stock.length} cards remaining">
+                <span class="stock-stack" aria-hidden="true"><span class="stock-back stock-bottom">${renderBack()}</span><span class="stock-back stock-middle">${renderBack()}</span><span class="stock-back stock-top">${renderBack()}</span></span>
+              </span><b class="draw-stock-count">${game.stock.length}</b>
+            </span></span>
+          </div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.7</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.8</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
