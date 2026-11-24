@@ -258,7 +258,10 @@
   function buildActionLabel(card, value, build, rules) {
     const title = build.operation === 'raise' ? 'Raise to'
       : build.kind === 'multiple' ? 'Multiple Build' : 'Build';
-    const playedRoyal = (card.rank >= 11 && rules.royal) || (card.rank === 1 && rules.royalAces);
+    // For raises, label the resulting build value, never the card used to raise it.
+    // Playing A (1) on a 9-build while retaining a 10 is "Raise to 10".
+    const playedRoyal = build.operation !== 'raise' &&
+      ((card.rank >= 11 && rules.royal) || (card.rank === 1 && rules.royalAces));
     const rank = playedRoyal ? ({1:'A',11:'J',12:'Q',13:'K'})[card.rank]
       : ({11:'J',12:'Q',13:'K'})[value] && rules.royal ? ({11:'J',12:'Q',13:'K'})[value]
       : value === 14 && rules.royalAces ? 'A'
