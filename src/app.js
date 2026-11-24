@@ -12,6 +12,41 @@
   let buildOptions = [], buildMenuOpen = false, lastMotion = '';
   let moveAnnouncement = ''; let announcementTimer = null;
   let screen = 'home';
+  const APP_VERSION = '0.5.2';
+  let availableUpdate = null;
+  let updateReloading = false;
+  // Apply new releases on launch or at the main menu, never during play.
+  function applyPendingUpdate() {
+    if (!availableUpdate || updateReloading || screen !== 'home' || modal || busy || dealing) return;
+    const key = 'cassino-lab-auto-update-' + APP_VERSION + '-to-' + availableUpdate;
+    try {
+      // Do not retry endlessly if a CDN briefly serves stale HTML after reload.
+      const previous = Number(sessionStorage.getItem(key) || 0);
+      if (Date.now() - previous < 60000) return;
+      sessionStorage.setItem(key, String(Date.now()));
+    } catch (_) { /* Private browsing may restrict session storage. */ }
+    updateReloading = true;
+    location.reload();
+  }
+  async function checkForAppUpdate() {
+    if (updateReloading || !/^https?:/.test(location.protocol)) return;
+    try {
+      const response = await fetch('./version.json', { cache: 'no-store' });
+      if (!response.ok) return;
+      const info = await response.json();
+      if (typeof info.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(info.version)) return;
+      const current = APP_VERSION.split('.').map(Number);
+      const latest = info.version.split('.').map(Number);
+      const newer = latest.some((value, i) => {
+        const earlier = latest.slice(0,i).every((v,j)=>v===current[j]);
+        return earlier && value>current[i];
+      });
+      if (newer) {
+        availableUpdate = info.version;
+        applyPendingUpdate();
+      }
+    } catch (_) { /* Offline: continue with the installed version. */ }
+  }
   let hasSavedMatch = false;
   let setup = { difficulty: 'thoughtful', preset: 'classic' };
   let settingsOrigin = 'home';
@@ -628,7 +663,7 @@
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.1 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.2 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -718,7 +753,7 @@
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.1</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.2</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
@@ -1016,9 +1051,7 @@
       cancelMotion();
       if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot=null; }
       busy=false; modal=''; screen='home'; persist(); resetSelection(); sound('tap');
-      // Apply a waiting release at the main menu, never mid-hand.
-      if (document.getElementById('update-notice')) { location.reload(); return; }
-      render(); return;
+      render(); applyPendingUpdate(); return;
     }
     if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); render(); if(game.turn===1 && game.phase==='playing') botTurn(); else if(game.phase!=='playing'){modal='round';render();} return; }
     if (action === 'setup-new-game') { setup = {difficulty:game.rules.difficulty||'thoughtful',preset:'classic'}; modal='newgame'; sound('tap'); render(); return; }
@@ -1050,7 +1083,7 @@
       buildMenuOpen = !buildMenuOpen; sound('tap'); render(); return;
     }
     if (action === 'hide-builds') { buildMenuOpen = false; render(); return; }
-    if (action === 'close') { modal = modal === 'settings' && settingsOrigin === 'newgame' ? 'newgame' : ''; render(); return; }
+    if (action === 'close') { modal = modal === 'settings' && settingsOrigin === 'newgame' ? 'newgame' : ''; render(); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
     if (action === 'undo') return undo();
@@ -1093,36 +1126,26 @@
     else if (ev.key.toLowerCase() === 'u' && !modal && checkpoint) undo();
   });
   render(); // The main menu is the entry point; the computer does not move until Resume/Start.
-  if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
-    // A new release applies automatically on the main menu.
-    // While playing, offer a safe manual update so no move is interrupted.
-    const hadController = !!navigator.serviceWorker.controller;
-    if (hadController) {
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (screen === 'home' && !modal) {
-          // A fresh app launch or a return to the menu is a safe update point.
-          location.reload();
-          return;
-        }
-        if (document.getElementById('update-notice')) return;
-        const bar = document.createElement('div');
-        bar.id = 'update-notice';
-        bar.className = 'update-notice';
-        bar.innerHTML = '<span>A new Cassino Lab version is ready.</span><button type="button">Update now</button>';
-        bar.querySelector('button').addEventListener('click', () => {
-          persist();
-          location.reload();
-        });
-        document.body.appendChild(bar);
-      });
+  if (/^https?:/.test(location.protocol)) {
+    // A version file is checked at launch, even if the browser has cached the app.
+    // The player never has to approve an update, and an active game is never reloaded.
+    checkForAppUpdate();
+    window.addEventListener('online', checkForAppUpdate);
+    window.addEventListener('pageshow', event => {
+      if (event.persisted) checkForAppUpdate();
+    });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', checkForAppUpdate);
+      navigator.serviceWorker.register('./service-worker.js')
+        .then(registration => {
+          registration.update().catch(() => {});
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+              registration.update().catch(() => {});
+              checkForAppUpdate();
+            }
+          });
+        }).catch(() => {});
     }
-    navigator.serviceWorker.register('./service-worker.js')
-      .then(registration => {
-        // Check for releases each time the app starts or comes to the foreground.
-        registration.update().catch(() => {});
-        document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') registration.update().catch(() => {});
-        });
-      }).catch(() => {});
   }
 })();
