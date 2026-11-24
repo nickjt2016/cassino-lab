@@ -647,7 +647,7 @@ html,body,#app{background:#005d0b;color:#fff}
   .build-pile.large-build{--stack-step:11px}
 }
 
-/* v0.5.0: straight, unsplayed build stacks. */
+/* v0.5.1: straight, unsplayed build stacks. */
 .build-pile{--stack-splay:0px!important;width:var(--stack-card-width)!important;}
 .build-layer{left:0!important;transform:translateY(calc(var(--layer)*var(--stack-step)))!important;}
 @media(orientation:landscape) and (max-height:450px){.build-layer{transform:translateY(calc(var(--layer)*var(--stack-step)))!important;}}
@@ -912,7 +912,10 @@ html,body,#app{background:#005d0b;color:#fff}
   function buildActionLabel(card, value, build, rules) {
     const title = build.operation === 'raise' ? 'Raise to'
       : build.kind === 'multiple' ? 'Multiple Build' : 'Build';
-    const playedRoyal = (card.rank >= 11 && rules.royal) || (card.rank === 1 && rules.royalAces);
+    // For raises, label the resulting build value, never the card used to raise it.
+    // Playing A (1) on a 9-build while retaining a 10 is "Raise to 10".
+    const playedRoyal = build.operation !== 'raise' &&
+      ((card.rank >= 11 && rules.royal) || (card.rank === 1 && rules.royalAces));
     const rank = playedRoyal ? ({1:'A',11:'J',12:'Q',13:'K'})[card.rank]
       : ({11:'J',12:'Q',13:'K'})[value] && rules.royal ? ({11:'J',12:'Q',13:'K'})[value]
       : value === 14 && rules.royalAces ? 'A'
@@ -1793,7 +1796,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v0.5.0 · Offline-ready</p>
+        <p class="launch-foot">Single-player prototype · v0.5.1 · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -1883,7 +1886,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <div class="table-footer" aria-live="off"><span class="last-move">${escapeHtml(game.lastAction)}</span></div>
           <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span><span>Cards in Deck <b>${game.stock.length}</b></span></div>
         </main>
-        <footer class="footer"><span>Single-player · Saves on this device · v0.5.0</span></footer>
+        <footer class="footer"><span>Single-player · Saves on this device · v0.5.1</span></footer>
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
