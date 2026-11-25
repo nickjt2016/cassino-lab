@@ -6,7 +6,7 @@ const app=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8');
 const css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
 test('All movement keyframes use transforms/opacity rather than layout properties',()=>{
   const start=app.indexOf('    function moveBuildCard(');
-  const end=app.indexOf('    async function flipComputerCard',start);
+  const end=app.indexOf('    const flipDuration=',start);
   const flights=app.slice(start,end);
   assert.match(flights,/animate\(entry\.ghost,\[\{transform:start\},\{transform:landed\}\]/);
   assert.match(flights,/delay:options\.delay\|\|0,fill:'both'/);
@@ -15,7 +15,7 @@ test('All movement keyframes use transforms/opacity rather than layout propertie
 test('Staggered movements use native delays, batch rectangle reads, and wait for completion',()=>{
   assert.match(app,/const slotRects=layers\.map\(node=>node\.getBoundingClientRect\(\)\)/);
   assert.match(app,/moveBuildCard\(piece,slotRect,snapshot\.byComputer\?365:310,delay\)/);
-  assert.match(app,/move\(entry,frontPositions\[i\],snapshot\.byComputer\?390:340,\{scale,delay:i\*stagger\}\)/);
+  assert.match(app,/captureTrack\(entry,frontPositions\[i\],scale,i,stagger,gatherDuration,collectAt\)/);
   assert.match(app,/from,scale:from\?\.scale\?\?1,scaleY:from\?\.scaleY\?\?1,delay:i\*gap/);
   assert.match(app,/const measured=items\.map\(item=>\(\{\.\.\.item,rect:item\.node\.getBoundingClientRect\(\)\}\)\)/);
   assert.match(app,/duration:440,delay:index\*94/);

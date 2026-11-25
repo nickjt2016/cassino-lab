@@ -63,11 +63,13 @@ test('Stock, opponent and flying card backs share a proportional pattern',()=>{
   assert.doesNotMatch(stock,/padding:|border:/);
 });
 
-test('Both CPU flips and dealing use the same card-back renderer; only flips replace the artwork',()=>{
-  const flip=app.slice(app.indexOf('    async function flipComputerCard'),app.indexOf('    async function gatherEndOfHand'));
-  assert.match(flip,/ghost\.innerHTML=renderBack\(\)/);
-  assert.ok(flip.indexOf("rotateY(90deg)")<flip.indexOf("ghost.innerHTML=face"));
-  assert.ok(flip.indexOf("ghost.innerHTML=face")<flip.indexOf("rotateY(-90deg)"));
+test('Opponent flips keep both painted sides mounted; dealing still uses the same back renderer',()=>{
+  const flip=app.slice(app.indexOf('    function flipComputerCard'),app.indexOf('    function captureTrack'));
+  assert.match(flip,/ghost\.insertAdjacentHTML\('beforeend',renderBack\(\)\)/);
+  assert.match(flip,/animate\(back,\[\{transform:'rotateY\(0deg\)'\},\{transform:'rotateY\(180deg\)'\}\]/);
+  assert.match(flip,/animate\(face,\[\{transform:'rotateY\(-180deg\)'\},\{transform:'rotateY\(0deg\)'\}\]/);
+  assert.doesNotMatch(flip,/innerHTML\s*=|getBoundingClientRect|\.cancel\(/);
+  assert.match(css,/\.card-flight\.two-sided-flight > \.card-back \{[\s\S]*?backface-visibility:hidden/);
   const deal=app.slice(app.indexOf('  function animateNewDeal'),app.indexOf('  function animateTurnMessage'));
   assert.match(deal,/ghost\.innerHTML=renderBack\(\)/);
   assert.ok(deal.indexOf('if(faceUp)')<deal.indexOf('ghost.replaceChildren(face)'));

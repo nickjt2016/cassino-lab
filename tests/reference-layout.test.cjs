@@ -31,7 +31,7 @@ test('Reference-style build animation shows real card layers and final owner/val
 
 test('Legal moves remain contextual; capture cards gather before moving as a stack',()=>{
   assert.match(app,/active && pickedCard && visibleActionCount/);
-  assert.match(app,/await move\(entry,frontPositions\[i\]/);
+  assert.match(app,/captureTrack\(entry,frontPositions\[i\]/);
   assert.match(app,/const stack=ghosts\.map/);
   assert.match(app,/await flipComputerCard\(\)/);
   assert.match(app,/if\(capture\)/);

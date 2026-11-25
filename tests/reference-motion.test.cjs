@@ -22,10 +22,10 @@ test('Black build owner/value panel appears only after cards settle',()=>{
   assert.match(app.slice(label,label+2000),/await Promise\.all\(panelFades\)/);
   assert.match(css,/\.build-layer:last-child \.build-value/);
 });
-test('Computer card still flips before trail and capture; capture cards gather before return',()=>{
-  const play=app.indexOf('await flipComputerCard();');
-  const capture=app.indexOf('if(capture){',play);
-  const direct=app.indexOf('await move(entry,frontPositions[i]',capture);
-  const collect=app.indexOf('move(entry,end,280',direct);
-  assert.ok(play>=0&&capture>play&&direct>capture&&collect>direct);
+test('Computer flip and motion share the native clock; capture gathers before return',()=>{
+  const track=app.slice(app.indexOf('    function captureTrack'),app.indexOf('    async function gatherEndOfHand'));
+  assert.match(track,/const beginAt=flipDuration\+index\*stagger/);
+  assert.match(track,/offset:collectAt\/duration,easing/);
+  assert.match(track,/easing:'linear',fill:'both',sync:true/);
+  assert.match(app,/await Promise\.all\(\[\.\.\.flights,flipComputerCard\(\)\]\)/);
 });

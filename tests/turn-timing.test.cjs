@@ -81,7 +81,7 @@ test('Captured build panel is snapshotted and fades at the beginning of the capt
   assert.match(app,/label:label \? \{rect:rect\(label\),html:label\.outerHTML/);
   assert.match(app,/const fadingLabels = capture \|\| individualBuild \? snapshot\.groups\.filter\(group=>group\.label&&\(capture\|\|group!==existingBuild\)\)/);
   const fade=app.indexOf('const labelsFaded=Promise.all');
-  const flip=app.indexOf('await flipComputerCard();',fade);
+  const flip=app.indexOf('const flip=flipComputerCard();',fade);
   assert.ok(fade>=0&&flip>fade);
   assert.match(app.slice(fade,flip),/\[\{opacity:1\},\{opacity:0\}\],\{duration:130/);
   assert.match(css,/\.capture-label-flight > \.build-value \{\s*height:100%!important/);

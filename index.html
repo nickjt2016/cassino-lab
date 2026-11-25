@@ -1075,6 +1075,16 @@ html,body,#app{background:#005d0b;color:#fff}
 /* Dialogs stay above every moving card, including the top capture card. */
 .overlay {z-index:1100;}
 
+/* Both sides of the opponent's moving card are painted before the flip.
+   Each has its own transform, independent of the outer flight geometry. */
+.card-flight.two-sided-flight > .playing-card,
+.card-flight.two-sided-flight > .card-back {
+  position:absolute;inset:0;backface-visibility:hidden;
+  transform-origin:center;will-change:transform;
+}
+.card-flight.two-sided-flight > .playing-card {transform:rotateY(-180deg);}
+.card-flight.two-sided-flight > .card-back {transform:rotateY(0deg);}
+
 </style></head><body><div id="app"></div>
 <script>/* Cassino Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -2116,7 +2126,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.32';
+  const APP_VERSION = '0.5.33';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -2452,14 +2462,20 @@ html,body,#app{background:#005d0b;color:#fff}
       ? app.querySelector('.opponent-hand .card-back:last-child')
       : app.querySelector(`.hand-item[data-id="${move.cardId}"] .playing-card`);
     if (!from || !from.getBoundingClientRect) return null;
+    const measured=new WeakMap();
     const rect = node => {
-      const r = node.getBoundingClientRect();
-      return {left:r.left,top:r.top,width:r.width,height:r.height};
+      if(measured.has(node))return measured.get(node);
+      const r=node.getBoundingClientRect();
+      const result={left:r.left,top:r.top,width:r.width,height:r.height};
+      measured.set(node,result);
+      return result;
     };
     const playerCard = game.players[byComputer ? 1 : 0].hand.find(c => c.id === move.cardId);
     if (!playerCard) return null;
+    const tableNodes=[...app.querySelectorAll('[data-action="table"][data-id]')];
+    const tableById=new Map(tableNodes.map(node=>[node.dataset.id,node]));
     const groupRects = (move.targetIds || []).map(id => {
-      const node = Array.from(app.querySelectorAll('[data-action="table"]')).find(el => el.dataset.id === id);
+      const node=tableById.get(id);
       const label = node?.querySelector('.build-value');
       return node ? {
         label:label ? {rect:rect(label),html:label.outerHTML,selected:node.classList.contains('selected')} : null,
@@ -2471,13 +2487,14 @@ html,body,#app{background:#005d0b;color:#fff}
       } : null;
     }).filter(Boolean);
     const selected = new Set(move.targetIds || []);
-    const remainingCards = [...app.querySelectorAll('[data-action="table"][data-id]')]
+    const lastCard=!game.stock.length&&game.players.every((p,i)=>p.hand.length===(i===game.turn?1:0));
+    const remainingCards = (lastCard?tableNodes:[])
       .filter(node => move.kind !== 'capture' || !selected.has(node.dataset.id))
       .flatMap(node => [...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
         id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
       })));
-    const tableRects = [...app.querySelectorAll('.table-stage .playing-card')].map(rect);
-    const looseCardRects = [...app.querySelectorAll('.table-cards .playing-card')].map(rect);
+    const tableRects = move.kind==='capture'?[...app.querySelectorAll('.table-stage .playing-card')].map(rect):[];
+    const looseCardRects = move.kind==='capture'?[...app.querySelectorAll('.table-cards .playing-card')].map(rect):[];
     return {kind:move.kind,byComputer,tableRects,looseCardRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML},groups:groupRects,remainingCards};
   }
   function playMotion(snapshot, after) {
@@ -2567,12 +2584,15 @@ html,body,#app{background:#005d0b;color:#fff}
         document.body.appendChild(ghost);
         return {ghost,rect:piece.rect};
       }) : [];
+    let motionStart=document.timeline?.currentTime;
     const animate=(node,frames,opts) => new Promise(resolve=>{
       if (!node.animate) {resolve();return;}
-      const anim=node.animate(frames,{fill:'forwards',easing:'cubic-bezier(.23,.68,.28,1)',...opts});
+      const {sync,...timing}=opts;
+      const anim=node.animate(frames,{fill:'forwards',easing:'cubic-bezier(.23,.68,.28,1)',...timing});
       let done=false;
       const finish=()=>{if(done)return;done=true;resolve();};
       anim.onfinish=finish;anim.oncancel=finish;
+      if(sync&&Number.isFinite(motionStart))anim.startTime=motionStart;
     });
     // The source face stays intact. Only its selection tint fades away.
     function releaseCardTint(entry,delay=0) {
@@ -2604,7 +2624,7 @@ html,body,#app{background:#005d0b;color:#fff}
       Object.assign(entry.ghost.style,finish,{transform:start,opacity:'1'});
       releaseCardTint(entry,delay);
       return animate(entry.ghost,[{transform:start},{transform:landed}],
-        {duration,delay,fill:'both',easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
+        {duration,delay,fill:'both',sync:snapshot.byComputer&&snapshot.kind==='trail',easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
         if(generation!==motionGeneration)return;
         entry.ghost.style.transform='none';
         entry.rect={left:slotRect.left,top:slotRect.top,width:slotRect.width,height:slotRect.height};
@@ -2640,20 +2660,49 @@ html,body,#app{background:#005d0b;color:#fff}
         entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
       });
     };
-    async function flipComputerCard(){
-      if(!snapshot.byComputer) return;
+    const flipDuration=snapshot.byComputer?335:0;
+    // Keep both faces mounted. Rotating two independently painted sides
+    // avoids the innerHTML swap and repaint at the narrow midpoint.
+    function flipComputerCard(){
+      if(!snapshot.byComputer)return Promise.resolve();
       const ghost=ghosts[0].ghost;
-      const face=ghost.innerHTML;
-      ghost.innerHTML=renderBack();
-      await animate(ghost,[{transform:'rotateY(0deg)'},{transform:'rotateY(90deg)'}],{duration:165,easing:'ease-in'});
-      if(generation!==motionGeneration)return;
-      ghost.innerHTML=face;
-      const card=ghost.querySelector(':scope > .playing-card');
-      if(card)Object.assign(card.style,{width:'100%',height:'100%',margin:'0'});
-      // Reset the preceding animation before turning the face-up card out.
-      ghost.getAnimations().forEach(a=>a.cancel());
-      await animate(ghost,[{transform:'rotateY(-90deg)'},{transform:'rotateY(0deg)'}],{duration:170,easing:'ease-out'});
-      ghost.getAnimations().forEach(a=>a.cancel());
+      const face=ghost.querySelector(':scope > .playing-card');
+      if(!face||!ghost.insertAdjacentHTML)return Promise.resolve();
+      ghost.classList.add('two-sided-flight');
+      ghost.insertAdjacentHTML('beforeend',renderBack());
+      const back=ghost.querySelector(':scope > .card-back');
+      if(!back)return Promise.resolve();
+      const opts={duration:flipDuration,fill:'both',sync:true,easing:'cubic-bezier(.42,0,.58,1)'};
+      return Promise.all([
+        animate(back,[{transform:'rotateY(0deg)'},{transform:'rotateY(180deg)'}],opts),
+        animate(face,[{transform:'rotateY(-180deg)'},{transform:'rotateY(0deg)'}],opts)
+      ]);
+    }
+    // Gather, hold and collect in a single native transform track per card.
+    // No JS callback, new layer, layout read or animation restart at the
+    // landing point. All cards share the same collection start time.
+    function captureTrack(entry,front,scale,index,stagger,gatherDuration,collectAt){
+      const c=center(entry.rect);
+      const transform=(x,y,s)=>`translate(${x-c.x}px,${y-c.y}px) scale(${s}, ${s})`;
+      const start=transform(c.x,c.y,1),landing=transform(front.x,front.y,scale);
+      const finish=transform(end.x,end.y,scale*.32);
+      const beginAt=flipDuration+index*stagger;
+      const duration=collectAt+280;
+      const easing='cubic-bezier(.2,.72,.25,1)';
+      const frames=[{transform:start,opacity:1,offset:0}];
+      if(beginAt>0)frames.push({transform:start,opacity:1,offset:beginAt/duration});
+      frames[frames.length-1].easing=easing;
+      frames.push({transform:landing,opacity:1,offset:(beginAt+gatherDuration)/duration});
+      frames.push({transform:landing,opacity:1,offset:collectAt/duration,easing});
+      frames.push({transform:finish,opacity:.06,offset:1});
+      releaseCardTint(entry,beginAt);
+      entry.ghost.style.transform=start;
+      entry.ghost.style.opacity='1';
+      return animate(entry.ghost,frames,{duration,easing:'linear',fill:'both',sync:true}).then(()=>{
+        if(generation!==motionGeneration)return;
+        entry.ghost.style.transform=finish;
+        entry.ghost.style.opacity='.06';
+      });
     }
     async function gatherEndOfHand() {
       if(!snapshot.finalHand || snapshot.residueOwner === null) return;
@@ -2692,8 +2741,8 @@ html,body,#app{background:#005d0b;color:#fff}
         // Begin the panel fade with the move, even before a CPU card flips.
         const labelsFaded=Promise.all(fadingLabels.map(ghost=>animate(ghost,
           [{opacity:1},{opacity:0}],{duration:130,easing:'ease-out'}).then(()=>ghost.remove())));
-        await flipComputerCard();
-        if(generation!==motionGeneration)return;
+        // Compute all landing geometry and start native tracks together.
+        // Only the build branch needs to wait for a flip to complete.
         if(capture){
           // All cards fly directly to the stack in front of the capturer.
           // No intermediate stop over the table or selected build.
@@ -2743,21 +2792,23 @@ html,body,#app{background:#005d0b;color:#fff}
             y:captureFront.y+Math.min(i,7)*spreadStep
           }));
           const stagger=Math.min(35,150/Math.max(stack.length-1,1));
-          await Promise.all(stack.map(async({entry,scale},i)=>{
-            if(generation!==motionGeneration)return;
-            await move(entry,frontPositions[i],snapshot.byComputer?390:340,{scale,delay:i*stagger});
-          }));
-          if(generation!==motionGeneration)return;
-          sound('tap');
-          await new Promise(resolve=>setTimeout(resolve,125));
-          if(generation!==motionGeneration)return;
-          // Collect the complete stack as a unit, keeping the played card on top.
-          await Promise.all(stack.map(({entry,scale},i)=>move(entry,end,280,{
-            from:{x:frontPositions[i].x-center(entry.rect).x,
-              y:frontPositions[i].y-center(entry.rect).y,scale},
-            scale:scale*.32,fade:true
-          })));
+          const gatherDuration=snapshot.byComputer?390:340;
+          const gatherAt=flipDuration+gatherDuration+(stack.length-1)*stagger;
+          const collectAt=gatherAt+125;
+          motionStart=document.timeline?.currentTime;
+          const flights=stack.map(({entry,scale},i)=>
+            captureTrack(entry,frontPositions[i],scale,i,stagger,gatherDuration,collectAt));
+          const flip=flipComputerCard();
+          // Sound is incidental, not a prerequisite for movement.
+          const landedSound=setTimeout(()=>{
+            if(generation===motionGeneration)sound('tap');
+          },gatherAt);
+          try{await Promise.all([...flights,flip]);}
+          finally{if(typeof clearTimeout==='function')clearTimeout(landedSound);}
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
+          motionStart=document.timeline?.currentTime;
+          await flipComputerCard();
+          if(generation!==motionGeneration)return;
           const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
           const order=new Map(layers.map((node,i)=>[node.dataset.cardId,i]));
           const slotRects=layers.map(node=>node.getBoundingClientRect());
@@ -2827,11 +2878,15 @@ html,body,#app{background:#005d0b;color:#fff}
             landingRect=probe.getBoundingClientRect();probe.remove();
           }
           const landingCenter=destination.matches('[data-action="table"]')?center(landingRect):end;
-          await Promise.all(ghosts.map((g,i)=>moveBuildCard(g,{
+          motionStart=document.timeline?.currentTime;
+          const flights=ghosts.map((g,i)=>moveBuildCard(g,{
             left:landingCenter.x+i*3-landingRect.width/2,
             top:landingCenter.y+i*2-landingRect.height/2,
             width:landingRect.width,height:landingRect.height
-          },snapshot.byComputer?610:490)));
+          },snapshot.byComputer?610:490,flipDuration));
+          // The face is already laid out at its landing size before its
+          // flip begins. Translation starts on the same native clock.
+          await Promise.all([...flights,flipComputerCard()]);
         }
         await labelsFaded;
         await gatherEndOfHand();

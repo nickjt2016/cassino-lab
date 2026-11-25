@@ -12,7 +12,8 @@ test('Trails use destination-sized faces and composited transforms', () => {
   assert.match(app,/await flipComputerCard\(\)/);
   assert.match(trail,/const landingCard=destination\.querySelector\('\.playing-card'\)/);
   assert.match(trail,/const probe=document\.createElement\('span'\)/);
-  assert.match(trail,/await Promise\.all\(ghosts\.map\(\(g,i\)=>moveBuildCard\(g,/);
+  assert.match(trail,/const flights=ghosts\.map\(\(g,i\)=>moveBuildCard\(g,/);
+  assert.match(trail,/await Promise\.all\(\[\.\.\.flights,flipComputerCard\(\)\]\)/);
   assert.doesNotMatch(trail,/scaleY:|scale:|=>move\(/);
   assert.match(css,/\.playing-card:not\(\.mini\)\s*\{\s*box-sizing:border-box/);
 });
@@ -54,7 +55,8 @@ for(const byComputer of [true,false])for(const rank of [1,6,10,13]){
     assert.equal(node.style.transform,'none');
     assert.equal(node.innerHTML,face);
     assert.equal(target.style.visibility,'visible');
-    assert.equal(node.frames.length,byComputer?3:1);
+    assert.equal(node.frames.length,1);
+    assert.equal(flights[0].opts.delay,byComputer?335:0);
   });
 }
 test('Final trail commits real landing size before remaining-card collection',()=>{

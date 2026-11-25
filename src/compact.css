@@ -1067,3 +1067,13 @@ html,body,#app{background:#005d0b;color:#fff}
 
 /* Dialogs stay above every moving card, including the top capture card. */
 .overlay {z-index:1100;}
+
+/* Both sides of the opponent's moving card are painted before the flip.
+   Each has its own transform, independent of the outer flight geometry. */
+.card-flight.two-sided-flight > .playing-card,
+.card-flight.two-sided-flight > .card-back {
+  position:absolute;inset:0;backface-visibility:hidden;
+  transform-origin:center;will-change:transform;
+}
+.card-flight.two-sided-flight > .playing-card {transform:rotateY(-180deg);}
+.card-flight.two-sided-flight > .card-back {transform:rotateY(0deg);}
