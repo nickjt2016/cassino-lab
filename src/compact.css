@@ -534,8 +534,8 @@ html,body,#app{background:#005d0b;color:#fff}
   z-index:var(--layer);transform:translate(calc(min(var(--layer),8)*4px),calc(min(var(--layer),8)*2px));}
 .build-layer .playing-card:not(.mini){width:100%;height:100%!important;display:block;border-radius:2px}
 .build-value{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:center;justify-content:center;
-  min-height:20%;background:#17140cea;color:#fff4c6;border:1px solid #e0c980;
-  border-top-width:2px;font:bold clamp(11px,3vw,16px)/1.1 Arial,sans-serif;letter-spacing:.02em}
+  min-height:20%;background:#17140cea;color:#fff;border:1px solid #c8c8c8;
+  font:bold clamp(11px,3vw,16px)/1.1 Arial,sans-serif;letter-spacing:.02em}
 /* Each royalty rank uses its own optical cap height, never touching the bottom border. */
 .playing-card:not(.mini) .card-big{font-size:82cqw;top:59%;line-height:.9;font-family:Georgia,'Times New Roman',serif}
 .playing-card.rank-j:not(.mini) .card-big{font-size:76cqw;top:56%}
@@ -669,7 +669,7 @@ html,body,#app{background:#005d0b;color:#fff}
   box-sizing:border-box;height:65%!important;min-height:65%!important;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:1px;padding:2px 2px 1px;
-  border:0;border-top:1px solid #b29a64;
+  border:1px solid var(--build-outline,#c8c8c8);
   border-radius:0 0 2px 2px;background:#16140f;
   color:var(--build-ink,#fff);
   text-align:center;z-index:10;pointer-events:none;
@@ -774,7 +774,6 @@ html,body,#app{background:#005d0b;color:#fff}
   min-height:77%!important;
   background:#12110e;
   border:1px solid var(--build-outline,#c8c8c8);
-  border-top-color:var(--build-outline,#c2ab69);
 }
 .build-pile .build-layer:last-child .playing-card .card-corner {
   z-index:11;
@@ -944,7 +943,7 @@ html,body,#app{background:#005d0b;color:#fff}
    The value panel always stays black; only its white ink and border
    turn yellow/gold. Reuse the actual borders, never nested outlines. */
 .playing-card.card-selected {
-  background-color:#fff59b;border-color:#d6a526;
+  --divider-paper:#fff59b;--divider-edge:#d6a526;
 }
 .build-value.card-selected {
   --build-ink:#fff59b;--build-outline:#d6a526;
@@ -1041,14 +1040,25 @@ html,body,#app{background:#005d0b;color:#fff}
   flex:0 0 100%;margin:0 0 12px;color:#5d584b;font-size:12px;line-height:1.5;
 }
 
-/* Multiple-build divider: recolor only the existing 1px straight top edge.
-   The horizontal fade ends 4px from each side, before the 2px corner radius.
-   Transparent ends expose the actual grey or selected gold border beneath.
-   No added border thickness, corner overlay, or vertical gradient. */
-.build-layer.build-group-start::after,
-.card-flight.build-group-start::after {
-  content:'';position:absolute;top:0;left:4px;right:4px;height:1px;
-  pointer-events:none;z-index:12;
-  background:linear-gradient(to right,
-    transparent 0px,#605a51 5px,#605a51 calc(100% - 5px),transparent 100%);
+/* Paint every full-size card's border using the same rounded border box.
+   The face covers the padding box. The dark color occupies only the actual
+   1px border; a 2px taper ends at the start of the 2px corner radius.
+   Identical paint geometry avoids fractional-pixel thickness discrepancies. */
+@property --divider-paper {syntax:"<color>";inherits:false;initial-value:#fff;}
+@property --divider-edge {syntax:"<color>";inherits:false;initial-value:#c8c8c8;}
+.playing-card:not(.mini) {
+  border-color:transparent;
+  background-image:linear-gradient(var(--divider-paper,#fff),var(--divider-paper,#fff)),
+    linear-gradient(to right,var(--divider-edge,#c8c8c8) 2px,
+      var(--divider-dark,var(--divider-edge,#c8c8c8)) 4px,
+      var(--divider-dark,var(--divider-edge,#c8c8c8)) calc(100% - 4px),
+      var(--divider-edge,#c8c8c8) calc(100% - 2px)),
+    linear-gradient(var(--divider-edge,#c8c8c8),var(--divider-edge,#c8c8c8));
+  background-origin:padding-box,border-box,border-box;
+  background-clip:padding-box,border-box,border-box;
+  background-position:center,top center,center;
+  background-size:100% 100%,100% 3px,100% 100%;
+  background-repeat:no-repeat;
 }
+.build-layer.build-group-start > .playing-card,
+.card-flight.build-group-start > .playing-card {--divider-dark:#605a51;}

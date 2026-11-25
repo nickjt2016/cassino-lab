@@ -18,13 +18,16 @@ test('Divider marks the first card of each subsequent group, not every card',()=
   const starts=[...render(element).matchAll(/class="build-layer build-group-start" style="--layer:(\d+)"/g)].map(m=>Number(m[1]));
   assert.deepEqual(starts,[3,4]);
   assert.doesNotMatch(render({...element,groups:[groups[0]]}),/build-group-start/);
-  assert.match(css,/\.build-layer\.build-group-start::after,\s*\.card-flight\.build-group-start::after/);
-  const rule=css.match(/\.card-flight\.build-group-start::after\s*\{([^}]+)\}/)[1];
-  assert.match(rule,/top:0;left:4px;right:4px;height:1px/);
-  assert.match(rule,/linear-gradient\(to right,\s*transparent 0px,#605a51 5px,#605a51 calc\(100% - 5px\),transparent 100%\)/);
-  assert.doesNotMatch(rule,/border:|border-radius:|mask|linear-gradient\(to bottom/);
+  assert.match(css,/\.build-layer\.build-group-start > \.playing-card,\s*\.card-flight\.build-group-start > \.playing-card \{--divider-dark:#605a51;\}/);
+  assert.doesNotMatch(css,/\.build-group-start::after/);
+  const paint=css.slice(css.indexOf('/* Paint every full-size'));
+  assert.match(paint,/border-color:transparent/);
+  assert.match(paint,/background-origin:padding-box,border-box,border-box/);
+  assert.match(paint,/background-clip:padding-box,border-box,border-box/);
+  assert.match(paint,/var\(--divider-edge,#c8c8c8\) 2px,\s*var\(--divider-dark,var\(--divider-edge,#c8c8c8\)\) 4px/);
+  assert.match(paint,/calc\(100% - 4px\),\s*var\(--divider-edge,#c8c8c8\) calc\(100% - 2px\)/);
   assert.match(css,/\.playing-card:not\(\.mini\)\s*\{[^}]*border-radius:2px;[^}]*border:1px solid #c8c8c8/);
-  assert.match(css,/\.playing-card\.card-selected\s*\{[^}]*border-color:#d6a526/);
+  assert.match(css,/\.playing-card\.card-selected\s*\{[^}]*--divider-edge:#d6a526/);
 });
 test('Toolbar puts score in freed center space between the two control clusters',()=>{
   const start=app.indexOf('  function renderToolbar('),end=app.indexOf('  function renderHome(',start);

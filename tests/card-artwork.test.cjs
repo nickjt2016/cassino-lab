@@ -13,7 +13,7 @@ test('Moving cards use exact source dimensions and no extra flight-only texture 
 });
 
 test('Selected cards have yellow paper and a gold border; build panel retains black paper',()=>{
-  assert.match(css,/\.playing-card\.card-selected\s*\{\s*background-color:#fff59b;border-color:#d6a526/);
+  assert.match(css,/\.playing-card\.card-selected\s*\{\s*--divider-paper:#fff59b;--divider-edge:#d6a526/);
   assert.match(css,/\.build-value\.card-selected\s*\{\s*--build-ink:#fff59b;--build-outline:#d6a526/);
   assert.match(css,/\.retained-build-value\s*\{[^}]*background:#12110e;\s*border:1px solid var\(--build-outline,#c8c8c8\)/);
   assert.match(css,/\.retained-build-value\s*\{[^}]*color:var\(--build-ink,#fff\)/);
@@ -35,8 +35,9 @@ test('Selected moving cards keep their artwork and fade their tint and border to
   const start=app.indexOf('    function releaseCardTint(');
   const fade=app.slice(start,app.indexOf('\n    }',start));
   assert.match(fade,/face\.classList\.remove\('card-selected'\)/);
-  assert.match(fade,/\{backgroundColor:color,borderColor:edge\}/);
-  assert.match(fade,/backgroundColor:after\?\.backgroundColor \|\| '#fff',borderColor:after\?\.borderColor \|\| '#c8c8c8'/);
+  assert.match(fade,/\{'--divider-paper':paper,'--divider-edge':edge\}/);
+  assert.match(fade,/'--divider-paper':after\?\.getPropertyValue\('--divider-paper'\)/);
+  assert.match(fade,/'--divider-edge':after\?\.getPropertyValue\('--divider-edge'\)/);
   assert.doesNotMatch(fade,/innerHTML|fontSize|opacity:/);
 });
 
@@ -79,4 +80,10 @@ test('Retained build panel transitions only ink and border, keeping black paper 
   assert.match(transition,/return \{color:style.color,borderColor:style.borderColor\}/);
   assert.match(transition,/retainedPanel.classList.remove\('card-selected'\)/);
   assert.doesNotMatch(transition,/backgroundColor|background:/);
+});
+
+test('Black build panel uses a neutral border except when selected',()=>{
+  const panel=css.slice(css.indexOf('/* v0.5.8'),css.indexOf('.game-stats .deck-stat {',css.indexOf('/* v0.5.8')));
+  assert.match(panel,/border:1px solid var\(--build-outline,#c8c8c8\)/);
+  assert.doesNotMatch(panel,/border-top-color:|#c2ab69|#b29a64/);
 });

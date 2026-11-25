@@ -15,9 +15,9 @@ test('turn banner only uses the two requested phrases', () => {
 
 test('capture landing is player-front and mirrored CPU-front, not the score badge', () => {
   assert.match(app, /const captureFront = capture && feltRectForCapture/);
-  assert.match(app, /const tableTop=overlapping\.length/);
-  assert.match(app, /const laneBottom=tableTop-clearance-spread/);
-  assert.match(app, /captureFront\.y=Math\.min/);
+  assert.match(app, /const rowRects=\[\.\.\.looseRefs,\.\.\.liveRects\.filter\(overlaps\)\]/);
+  assert.match(app, /laneBottom=tableTop-clearance/);
+  assert.match(app, /captureFront\.y=snapshot\.byComputer/);
   assert.match(app, /const frontPositions=stack\.map/);
   const branch = app.slice(app.indexOf('if(capture){'), app.indexOf("} else if(snapshot.kind === 'build' && !snapshot.finalHand)"));
   const land = branch.indexOf('move(entry,frontPositions[i]');
@@ -37,7 +37,7 @@ test('capturing card is topmost; every build card is collected individually', ()
 test('whole stack remains card-sized until it is moved in front of the player', () => {
   assert.match(app, /scale:frontScale\*tableWidth\/Math\.max\(entry\.rect\.width,1\)/);
   assert.match(app, /setTimeout\(resolve,125\)/);
-  assert.match(app, /scale:\.32,fade:true/);
+  assert.match(app, /scale:scale\*\.32,fade:true/);
 });
 
 test('All cards share centered rank and suit columns and a small fixed gap', () => {
@@ -65,7 +65,7 @@ for (const byComputer of [false,true]) {
     const host={querySelector(selector){return {getBoundingClientRect:()=>selector==='.table-area'?field:badge};}};
     const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout','renderBack',
       app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},cb=>cb(),()=>'<span class="card-back"><span class="back-pattern"></span></span>');
-    await new Promise(resolve=>motion({kind:'capture',byComputer,played,tableRects:cards.map(c=>c.rect),groups:[
+    await new Promise(resolve=>motion({kind:'capture',byComputer,played,tableRects:cards.map(c=>c.rect),looseCardRects:cards.map(c=>c.rect),groups:[
       {rect:cards[0].rect,cards:cards.slice(0,2)},{rect:cards[2].rect,cards:[cards[2]]}
     ],finalHand:false},resolve));
     assert.equal(nodes.length,4);
@@ -85,6 +85,42 @@ for (const byComputer of [false,true]) {
       assert.equal(flights[1][0].transform,landing);
       assert.equal(flights[0][2].opacity,1);
       assert.equal(flights[1][2].opacity,.06);
+    }
+  });
+}
+
+for (const byComputer of [false,true]) {
+  test((byComputer?'CPU':'Human')+' tall multiple build keeps the same size as an ordinary capture',async()=>{
+    const begin=app.indexOf('  function playMotion('),end=app.indexOf('  const escapeHtml',begin);
+    const rect=(left,top,width=58,height=81)=>({left,top,width,height});
+    const field=rect(0,100,400,440),badge=rect(180,byComputer?10:570,40,20);
+    const piece=(id,left,top,width=58,height=81)=>({id,html:'<span class="playing-card"></span>',rect:rect(left,top,width,height)});
+    const row=piece('loose',150,285);
+    const played=piece('played',170,byComputer?40:550,byComputer?35:70,byComputer?49:98);
+    const layers=Array.from({length:8},(_,i)=>piece('build'+i,300,byComputer?102+i*25:250+i*25,52,72.8));
+    const run=async(cards,isBuild)=>{
+      const nodes=[];
+      const document={body:{appendChild(node){nodes.push(node);}},createElement(){return{
+        style:{},frames:[],querySelector(){return null;},getAnimations(){return [];},remove(){},
+        animate(frames){this.frames.push(frames);const anim={};Promise.resolve().then(()=>anim.onfinish?.());return anim;}
+      };}};
+      const host={querySelector(selector){return {getBoundingClientRect:()=>selector==='.table-area'?field:selector==='.human-hand'?rect(40,540,320,100):badge};},
+        querySelectorAll(){return [];}};
+      const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout','renderBack',
+        app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},fn=>fn(),()=>'<span class="card-back"></span>');
+      await new Promise(resolve=>motion({kind:'capture',byComputer,played,
+        tableRects:[row.rect,...layers.map(p=>p.rect)],looseCardRects:[row.rect],
+        groups:isBuild?[{rect:layers[0].rect,cards}]:[{rect:row.rect,cards:[row]}],finalHand:false},resolve));
+      return nodes.map((node,i)=>{
+        const r=[played,...cards][i].rect;
+        const flights=node.frames.filter(frames=>frames[0].transform.startsWith('translate'));
+        const scale=frame=>Number(frame.transform.match(/scale\(([^,]+),/)[1]);
+        return {land:r.width*scale(flights[0][2]),collect:r.width*scale(flights[1][2])};
+      });
+    };
+    for(const card of [...await run([row],false),...await run(layers,true)]){
+      assert.ok(Math.abs(card.land-58)<1e-8,'full table width');
+      assert.ok(Math.abs(card.collect-58*.32)<1e-8,'uniform collection scale');
     }
   });
 }

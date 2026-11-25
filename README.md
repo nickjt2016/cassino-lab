@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.27**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.28**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -170,3 +170,6 @@ Human and computer trails use the same actual-dimension animation as build cards
 
 ### v0.5.27 — thinner multiple-build dividers
 The dark divider recolors only the normal 1 CSS-pixel straight top border. It fades horizontally to the underlying grey or gold outline before either rounded corner, with no thicker border or shading down the sides. The identical rule applies to settled and moving group boundaries.
+
+### v0.5.28 — exact border and capture size
+Every full-size card uses identical clipped border geometry. Multiple-build dividers darken only the existing border, tapering over 2px before the 2px corner. The black panel seam is grey unless selected. Capture sizing excludes departing build layers and compresses overlap before card size; collection scales the assembled pile uniformly.

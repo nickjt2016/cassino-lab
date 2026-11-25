@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.27';
+  const APP_VERSION = '0.5.28';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -341,7 +341,8 @@
         id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
       })));
     const tableRects = [...app.querySelectorAll('.table-stage .playing-card')].map(rect);
-    return {kind:move.kind,byComputer,tableRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML},groups:groupRects,remainingCards};
+    const looseCardRects = [...app.querySelectorAll('.table-cards .playing-card')].map(rect);
+    return {kind:move.kind,byComputer,tableRects,looseCardRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML},groups:groupRects,remainingCards};
   }
   function playMotion(snapshot, after) {
     if (!snapshot || !motionAllowed() || !document.body || !app.querySelector) { after(); return; }
@@ -440,13 +441,14 @@
       const face=entry.ghost.querySelector('.playing-card.card-selected');
       if (!face) return;
       const before=globalThis.getComputedStyle?.(face);
-      const color=before?.backgroundColor || '#fff59b';
-      const edge=before?.borderColor || '#d6a526';
+      const paper=before?.getPropertyValue('--divider-paper').trim() || '#fff59b';
+      const edge=before?.getPropertyValue('--divider-edge').trim() || '#d6a526';
       face.classList.remove('card-selected');
       const after=globalThis.getComputedStyle?.(face);
       if (face.animate) face.animate([
-        {backgroundColor:color,borderColor:edge},
-        {backgroundColor:after?.backgroundColor || '#fff',borderColor:after?.borderColor || '#c8c8c8'}
+        {'--divider-paper':paper,'--divider-edge':edge},
+        {'--divider-paper':after?.getPropertyValue('--divider-paper').trim() || '#fff',
+         '--divider-edge':after?.getPropertyValue('--divider-edge').trim() || '#c8c8c8'}
       ],{duration:130,easing:'ease-out'});
     }
     // Build and trail flights share the actual-dimension animation. The
@@ -556,61 +558,50 @@
         if(capture){
           // All cards fly directly to the stack in front of the capturer.
           // No intermediate stop over the table or selected build.
-          const tableWidth=capturedCards[0]?.rect.width || snapshot.groups[0]?.rect.width || ghosts[0].rect.width;
-          // Measure the tallest card after matching the stack's width. Keep a
-          // visible gap above the row, including the exposed edges of a stack.
+          // Use normal table-card dimensions, independent of build group
+          // count. A departing build is no longer a landing obstacle.
+          const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card')||[],node=>node.getBoundingClientRect());
+          const liveLooseRects=Array.from(app.querySelectorAll?.('.table-cards .playing-card')||[],node=>node.getBoundingClientRect());
+          const looseRefs=[...(snapshot.looseCardRects??snapshot.tableRects??[]),...liveLooseRects];
+          const sizeRefs=looseRefs.length?looseRefs:capturedCards.map(piece=>piece.rect);
+          const tableWidth=sizeRefs.length?Math.max(...sizeRefs.map(r=>r.width)):ghosts[0].rect.width;
           const tableHeight=Math.max(...ghosts.map(entry=>entry.rect.height*tableWidth/Math.max(entry.rect.width,1)));
-          let frontScale=1;
-          if(snapshot.byComputer && feltRectForCapture){
-            const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card') || [],node=>node.getBoundingClientRect());
-            const sourceRects=snapshot.tableRects || capturedCards.map(piece=>piece.rect);
-            const overlapping=[...sourceRects,...liveRects].filter(r=>
-              r.left<captureFront.x+tableWidth/2+12 && r.left+r.width>captureFront.x-tableWidth/2-4);
-            const tableTop=overlapping.length ? Math.min(...overlapping.map(r=>r.top))
-              : feltRectForCapture.top+feltRectForCapture.height*.53-tableHeight/2;
-            const clearance=Math.max(14,Math.min(26,tableHeight*.30));
-            const spread=Math.min(ghosts.length-1,7)*1.5;
-            const laneTop=feltRectForCapture.top+8;
-            const laneBottom=tableTop-clearance-spread;
-            const available=laneBottom-laneTop;
-            // A full-sized stack is preferred. On very short viewports, scale
-            // the whole stack uniformly only if needed to avoid the table row.
-            frontScale=Math.min(1,Math.max(.55,available/tableHeight));
-            const half=tableHeight*frontScale/2;
-            captureFront.y=Math.min(laneTop+Math.max(half,available/2),laneBottom-half);
-          }
-          if(!snapshot.byComputer && feltRectForCapture){
-            // Leave an actual gap under the lowest table card, including
-            // captured cards still in flight and the remaining row's layout.
-            const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card')||[],node=>node.getBoundingClientRect());
-            const sourceRects=snapshot.tableRects||capturedCards.map(piece=>piece.rect);
-            const allRects=[...sourceRects,...liveRects];
-            const clearance=Math.max(12,Math.min(22,tableHeight*.24));
-            const spread=Math.min(ghosts.length-1,7)*1.5;
-            const fieldBottom=feltRectForCapture.top+feltRectForCapture.height;
-            const handTop=app.querySelector('.human-hand')?.getBoundingClientRect().top??fieldBottom;
-            const laneBottom=Math.min(fieldBottom,handTop)-8-spread;
-            const bottomOf=rects=>rects.length ? Math.max(...rects.map(r=>r.top+r.height)) :
-              feltRectForCapture.top+feltRectForCapture.height*.53+tableHeight/2;
-            let laneTop=bottomOf(allRects)+clearance;
-            // A very tall build at the side need not force the stack into
-            // the hand if the central capture lane itself is clear.
-            if(laneBottom-laneTop<tableHeight*.55){
-              const overlapping=allRects.filter(r=>r.left<captureFront.x+tableWidth/2+12&&r.left+r.width>captureFront.x-tableWidth/2-4);
-              if(overlapping.length)laneTop=Math.min(laneTop,bottomOf(overlapping)+clearance);
+          let frontScale=1,spreadStep=1.5;
+          if(feltRectForCapture){
+            const overlaps=r=>r.left<captureFront.x+tableWidth/2+12&&r.left+r.width>captureFront.x-tableWidth/2-4;
+            const rowRects=[...looseRefs,...liveRects.filter(overlaps)];
+            const mid=feltRectForCapture.top+feltRectForCapture.height*.53;
+            const clearance=snapshot.byComputer?Math.max(14,Math.min(26,tableHeight*.30)):
+              Math.max(12,Math.min(22,tableHeight*.24));
+            let laneTop,laneBottom;
+            if(snapshot.byComputer){
+              const tableTop=rowRects.length?Math.min(...rowRects.map(r=>r.top)):mid-tableHeight/2;
+              laneTop=feltRectForCapture.top+8;
+              laneBottom=tableTop-clearance;
+            }else{
+              const tableBottom=rowRects.length?Math.max(...rowRects.map(r=>r.top+r.height)):mid+tableHeight/2;
+              const fieldBottom=feltRectForCapture.top+feltRectForCapture.height;
+              const handTop=app.querySelector('.human-hand')?.getBoundingClientRect().top??fieldBottom;
+              laneTop=tableBottom+clearance;
+              laneBottom=Math.min(fieldBottom,handTop)-8;
             }
             const available=laneBottom-laneTop;
+            // Compress overlap offsets before shrinking the physical cards.
             frontScale=Math.min(1,Math.max(.35,available/tableHeight));
-            // The top edge of the capture stack is below the table, not its
-            // center. Prefer a normal card size whenever the lane allows it.
-            captureFront.y=laneTop+tableHeight*frontScale/2;
+            const levels=Math.min(ghosts.length-1,7);
+            spreadStep=levels?Math.min(1.5,Math.max(0,available-tableHeight*frontScale)/levels):0;
+            const spread=levels*spreadStep;
+            const half=tableHeight*frontScale/2;
+            captureFront.y=snapshot.byComputer
+              ? Math.min(laneTop+Math.max(half,(available-spread)/2),laneBottom-spread-half)
+              : laneTop+half;
           }
           const stack=ghosts.map(entry=>({
             entry, scale:frontScale*tableWidth/Math.max(entry.rect.width,1)
           }));
           const frontPositions=stack.map((_,i)=>({
             x:captureFront.x+Math.min(i,7)*1.2,
-            y:captureFront.y+Math.min(i,7)*1.5
+            y:captureFront.y+Math.min(i,7)*spreadStep
           }));
           const stagger=Math.min(35,150/Math.max(stack.length-1,1));
           await Promise.all(stack.map(async({entry,scale},i)=>{
@@ -626,7 +617,7 @@
           await Promise.all(stack.map(({entry,scale},i)=>move(entry,end,280,{
             from:{x:frontPositions[i].x-center(entry.rect).x,
               y:frontPositions[i].y-center(entry.rect).y,scale},
-            scale:.32,fade:true
+            scale:scale*.32,fade:true
           })));
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
           const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
