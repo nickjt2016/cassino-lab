@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.33';
+  const APP_VERSION = '0.5.34';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1034,8 +1034,8 @@
       restoreVariationsScroll();
       return;
     }
-    const oldLayout=motionAllowed()?layoutPositions():null;
-    const previousBanner=app.querySelector?.('.turn-banner[data-turn-visible="true"]');
+    const oldLayout=mode!=='selection'&&motionAllowed()?layoutPositions():null;
+    const previousBanner=mode==='selection'?null:app.querySelector?.('.turn-banner[data-turn-visible="true"]');
     const previousTurn=previousBanner ? {text:previousBanner.textContent,
       opacity:Number(globalThis.getComputedStyle?.(previousBanner).opacity ?? 1)} : null;
     if (game.phase !== 'playing') resetSelection();
@@ -1053,10 +1053,10 @@
       (canTrail?actionButton('trail','Trail'):'')+(canCapture?actionButton('capture','Capture cards'):'');
     const controlsMarkup=active && pickedCard && visibleActionCount
       ? `<section class="controls contextual-controls" aria-label="Legal moves"><div class="main-actions">${actionsMarkup}</div></section>`:'';
-    if(mode==='selection'&&syncSelection(controlsMarkup,actionsMarkup)){
-      animateLayout(oldLayout);
-      return;
-    }
+    // Selection lift is a CSS-only transform, not a change in layout.
+    // Do not layer a second FLIP animation on top or measure a transient
+    // hover/selection position as if it were a new table slot.
+    if(mode==='selection'&&syncSelection(controlsMarkup,actionsMarkup))return;
     renderedActionMarkup=actionsMarkup;
     const phaseText = turnBannerText();
     const motion = lastMotion;

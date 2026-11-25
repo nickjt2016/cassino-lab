@@ -112,3 +112,17 @@ test('The failed-subproblem cache is explicitly bounded',()=>{
   const engine=fs.readFileSync(path.join(__dirname,'../src/engine.js'),'utf8');
   assert.match(engine,/if\(!result&&failed\.size<4096\)failed\.add\(key\)/);
 });
+
+test('Only selection, not a sticky touch hover, controls card elevation',()=>{
+  const base=fs.readFileSync(path.join(__dirname,'../src/styles.css'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
+  for(const styles of [base,css]){
+    assert.doesNotMatch(styles,/(?:\.hand-item|\.table-item|\.build-item):hover[^{}]*\{[^}]*transform:/);
+  }
+  assert.match(css,/\.shell \.hand-item:not\(\.selected\),\s*\.shell \.table-item:not\(\.selected\),\s*\.shell \.build-item:not\(\.selected\)\s*\{transform:translateY\(0\);/);
+  assert.match(css,/\.shell \.hand-item\.selected,\.shell \.table-item\.selected\s*\{transform:translateY\(-2px\);/);
+  assert.match(css,/\.shell \.build-item\.selected\s*\{transform:translateY\(-3px\);/);
+  const render=section('  function render(mode','  const SETTING_INFO');
+  assert.match(render,/const oldLayout=mode!=='selection'&&motionAllowed\(\)\?layoutPositions\(\):null/);
+  assert.match(render,/if\(mode==='selection'&&syncSelection\(controlsMarkup,actionsMarkup\)\)return;/);
+});

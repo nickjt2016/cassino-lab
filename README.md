@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.33**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.34**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -192,3 +192,6 @@ Build Obligation replaces the inverse Build To Anything label; saved flags retai
 Prepaint both sides of the opponent's card; native two-sided rotations replace the old midpoint HTML swap. Trails are prepared at landing size before flipping and use a common animation clock. Each capture runs a single compositor track including staggered gather, the 125 ms hold and simultaneous collection, with no JavaScript-triggered movement handoff. Snapshot geometry is measured once and end-of-hand residue markup is copied only when needed. The final collection fade now begins with the collection movement rather than late in it. Game rules, AI, card artwork and destinations are unchanged.
 
 The CPU trail and capture tracks use a gentler zero-velocity start/end easing and a shared 16 ms paint lead; native refresh-rate timing remains uncapped.
+
+### v0.5.34 — touch selection and difficulty layout
+Removed legacy hover lifts from hand cards, loose cards and builds. Only the selected class controls elevation; deselection returns to the normal position with a short transform transition. Selection updates no longer run a second FLIP movement or measure the board unnecessarily. The four difficulty choices appear in one horizontal row. CPU animation paths and gameplay rules are unchanged.

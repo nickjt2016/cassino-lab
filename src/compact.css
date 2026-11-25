@@ -200,7 +200,7 @@ html,body,#app{background:#005d0b;color:#fff}
 .menu-row{background:#eee5cd;border-color:#d3c293;color:#183d2a}.menu-row span,.menu-row em{color:#956f26}.menu-row.danger-row{background:#f7e6d4;border-color:#d8bbae}
 .pill-row{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:#ede5cf;border-radius:17px;padding:5px;gap:5px}
 .pill-choice{border:0;border-radius:12px;background:transparent;color:#302b22;min-height:44px;font-size:16px;font-weight:700}.pill-choice.selected{background:#15583c;color:#fff8e6;box-shadow:0 3px 8px #0003}.pill-choice:disabled{opacity:.37}.pill-choice small{display:block;font-size:8px}
-.diff-row{grid-template-columns:repeat(2,1fr);grid-auto-flow:row;grid-auto-columns:auto}
+.diff-row{grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-flow:row;grid-auto-columns:auto}
 @media(max-height:690px){.launch-scroll{padding-top:12px;gap:11px}.launch-fan{transform:scale(.78);height:116px;margin-bottom:-5px}.launch-brand h1{font-size:56px;margin-top:0}.launch-actions{gap:7px;margin-top:0}.launch-actions button{min-height:46px;padding:8px}.launch-tiles{margin:0}.launch-tile{min-height:54px}.game-stats{min-height:32px}.game-stats b{font-size:13px}.opponent-area{min-height:46px}.opponent-hand{min-height:43px}.card-back{height:37px;width:26px}.match-bar{padding:2px 8px}}
 @media(max-width:360px){.launch-scroll{padding-inline:12px}.shell{padding-inline:5px}.table-cards{gap:5px}.captured-display{width:61px;flex-basis:61px}.captured-stack,.captured-display strong,.captured-display>b{width:48px}.game-heading{font-size:18px}.playing-card{width:clamp(43px,14vw,65px)}}
 @media(prefers-reduced-motion:reduce){.playing-card,.hand-item,.table-item{transition:none!important}}
@@ -1077,3 +1077,30 @@ html,body,#app{background:#005d0b;color:#fff}
 }
 .card-flight.two-sided-flight > .playing-card {transform:rotateY(-180deg);}
 .card-flight.two-sided-flight > .card-back {transform:rotateY(0deg);}
+
+/* A tap must not leave a card raised through touch-emulated :hover.
+   Only the selection class moves a card. The separate WAAPI translate
+   remains available for actual changes to table or hand positions. */
+.shell .hand-item:not(.selected),
+.shell .table-item:not(.selected),
+.shell .build-item:not(.selected) {transform:translateY(0);}
+.shell .hand-item.selected,.shell .table-item.selected {transform:translateY(-2px);}
+.shell .build-item.selected {transform:translateY(-3px);}
+.animations-on .hand-item,.animations-on .table-item,.animations-on .build-item {
+  transition:transform 140ms ease-out;
+}
+.animations-off .hand-item,.animations-off .table-item,.animations-off .build-item {
+  transition:none!important;
+}
+@media(prefers-reduced-motion:reduce){
+  .animations-on .hand-item,.animations-on .table-item,.animations-on .build-item {transition:none!important;}
+}
+/* Four choices stay in one row, even on narrow phones. */
+.unified-setup .diff-row .pill-choice {
+  min-width:0;padding:6px 2px;white-space:nowrap;
+  font-size:clamp(11px,3.6vw,16px);
+}
+@media(max-width:350px){
+  .unified-setup .diff-row {gap:3px;padding:4px;}
+  .unified-setup .diff-row .pill-choice {font-size:clamp(9px,3.3vw,12px);padding-inline:1px;}
+}

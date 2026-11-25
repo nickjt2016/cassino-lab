@@ -123,3 +123,9 @@ test('All four difficulty levels are enabled and preserved on preset changes',()
   }
   assert.doesNotMatch(h.html(),/Insane|Hard <small>soon/);
 });
+
+test('Difficulty choices occupy one row of four equal columns',()=>{
+  assert.match(css,/\.diff-row\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(css,/\.unified-setup \.diff-row \.pill-choice\s*\{[^}]*min-width:0;[^}]*white-space:nowrap/);
+  assert.doesNotMatch(css,/\.diff-row\s*\{[^}]*grid-template-columns:repeat\(2,/);
+});
