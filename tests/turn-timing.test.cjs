@@ -87,10 +87,12 @@ test('Captured build panel is snapshotted and fades at the beginning of the capt
   assert.match(css,/\.capture-label-flight > \.build-value \{\s*height:100%!important/);
 });
 
-test('Horizontal toolbar keeps Exit left and three optional controls right',()=>{
+test('Horizontal toolbar groups Exit and Menu left, Hint and optional Undo right',()=>{
   const toolbar=app.slice(app.indexOf('  function renderToolbar('),app.indexOf('  function renderHome('));
   assert.match(toolbar,/class="header game-toolbar"/);
-  assert.ok(toolbar.indexOf('data-action="home"')<toolbar.indexOf('class="header-actions"'));
+  assert.ok(toolbar.indexOf('data-action="home"')<toolbar.indexOf('data-action="menu"'));
+  assert.ok(toolbar.indexOf('data-action="menu"')<toolbar.indexOf('class="header-actions"'));
+  assert.ok(toolbar.indexOf('class="opponent-tag"')<toolbar.indexOf('class="header-actions"'));
   assert.match(toolbar,/data-action="hint"/);
   assert.match(toolbar,/data-action="undo"/);
   assert.match(toolbar,/data-action="menu"/);

@@ -650,7 +650,7 @@ html,body,#app{background:#005d0b;color:#fff}
   .table-builds:not(:empty){top:2%;max-height:96%}
 }
 .build-layer:last-child .build-value {
-  bottom:0!important;height:36%;min-height:36%;background:#13110d!important;
+  bottom:0!important;height:36%;min-height:36%;
   color:#f5e6aa!important;z-index:5;border-radius:0 0 2px 2px
 }
 
@@ -663,13 +663,14 @@ html,body,#app{background:#005d0b;color:#fff}
   transform:translateY(calc(var(--layer)*var(--stack-step)))!important;
 }
 .build-pile .build-layer:last-child .build-value,
-.capture-label-flight > .build-value {
+.capture-label-flight > .build-value,
+.retained-build-value {
   position:absolute;bottom:0!important;left:0;right:0;
   box-sizing:border-box;height:65%!important;min-height:65%!important;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:1px;padding:2px 2px 1px;
   border:0;border-top:1px solid #b29a64;
-  border-radius:0 0 2px 2px;background:#16140f!important;
+  border-radius:0 0 2px 2px;background:#16140f;
   color:#fff6d9!important;
   text-align:center;z-index:10;pointer-events:none;
   box-shadow:none;
@@ -684,7 +685,7 @@ html,body,#app{background:#005d0b;color:#fff}
   color:#fff3c5;min-width:0;
 }
 @media(orientation:landscape) and (max-height:450px){
-  .build-pile .build-layer:last-child .build-value,.capture-label-flight > .build-value{gap:0;padding:1px}
+  .build-pile .build-layer:last-child .build-value,.capture-label-flight > .build-value,.retained-build-value{gap:0;padding:1px}
   .build-value-owner{font-size:7px}
   .build-value-number{font-size:clamp(15px,3vw,20px)}
 }
@@ -765,12 +766,13 @@ html,body,#app{background:#005d0b;color:#fff}
 /* v0.5.8 — keep visible card corner indices, show only numeric build totals,
    and use the full felt by relocating the actual stock to the deck-stat HUD. */
 .build-pile .build-layer:last-child .build-value,
-.capture-label-flight > .build-value {
+.capture-label-flight > .build-value,
+.retained-build-value {
   bottom:0!important;
   top:auto!important;
   height:77%!important;
   min-height:77%!important;
-  background:var(--build-panel-paper,#12110e)!important;
+  background:var(--build-panel-paper,#12110e);
   border-top:1px solid var(--build-panel-rule,#c2ab69);
 }
 .build-pile .build-layer:last-child .playing-card .card-corner {
@@ -972,7 +974,7 @@ html,body,#app{background:#005d0b;color:#fff}
 /* Exceptional errors, not a second turn banner. */
 .game-error{margin:2px 8px;padding:5px 8px;border-radius:6px;background:#451b20;color:#fff1e8;font-size:12px;text-align:center;}
 
-/* v0.5.18 — horizontal toolbar: Exit left; Hint, Undo and Menu right. */
+/* v0.5.18 — horizontal toolbar; v0.5.21 puts Menu beside Exit and computer score in the center. */
 .shell {position:relative;}
 .shell .game-toolbar {
   position:relative;z-index:20;display:flex;flex-direction:row;
@@ -981,14 +983,24 @@ html,body,#app{background:#005d0b;color:#fff}
   flex:0 0 auto;margin:0;padding:0;
 }
 .game-toolbar .header-actions {
-  display:flex;flex-direction:row;align-items:center;gap:clamp(4px,2vw,12px);margin-left:auto;
+  display:flex;flex-direction:row;align-items:center;gap:clamp(3px,1vw,8px);
+  flex:1 1 0;min-width:0;height:100%;margin:0;justify-content:flex-end;
+}
+.game-toolbar .toolbar-left {
+  display:flex;flex-direction:row;align-items:center;gap:clamp(3px,1vw,8px);
+  flex:1 1 0;min-width:0;height:100%;justify-content:flex-start;
+}
+.game-toolbar .opponent-tag {
+  flex:0 0 auto;max-width:calc(100% - 155px);
+  overflow:hidden;text-overflow:ellipsis;
+  font-size:clamp(10px,3vw,14px);padding:4px clamp(6px,2vw,12px);
 }
 .game-toolbar .game-back,.game-toolbar .game-help {
   display:grid;place-items:center;width:clamp(34px,10vw,44px);
   height:100%;min-width:0;min-height:0;padding:0;
   font-size:clamp(19px,5.8vw,24px);touch-action:manipulation;
 }
-.game-toolbar .game-help:last-child {font-size:21px;}
+.game-toolbar .game-help[data-action="menu"] {font-size:21px;}
 .game-toolbar .game-help:disabled {opacity:.35;cursor:default;}
 /* Keep the opponent's clear capture lane. */
 @media(orientation:portrait){
@@ -1032,4 +1044,18 @@ html,body,#app{background:#005d0b;color:#fff}
 .unified-setup .variation-row>span {min-width:0;}
 .unified-setup .inline-setting-info {
   flex:0 0 100%;margin:0 0 12px;color:#5d584b;font-size:12px;line-height:1.5;
+}
+
+/* Only the boundary between distinct equal-valued groups is darkened.
+   The dark top border blends into the regular outline at the corners.
+   Mask out the interior so the card's artwork and selection stay unchanged. */
+.build-layer.build-group-start::after,
+.card-flight.build-group-start::after {
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:12;
+  box-sizing:border-box;border:1.5px solid transparent;border-radius:2px;
+  background:linear-gradient(to bottom,#605a51 0px,#605a51 1.5px,#c8c8c8 7px,transparent 10px) border-box;
+  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0) border-box;
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0) border-box;
+  mask-composite:exclude;
 }

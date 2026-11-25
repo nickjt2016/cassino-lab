@@ -27,3 +27,29 @@ test('A new build remains on the right and does not force the table to recenter'
   const lastRule=css.slice(css.indexOf('/* v0.5.10'));
   assert.doesNotMatch(lastRule,/justify-content:center/);
 });
+
+test('Capture gap filling waits at the original slot, including the CPU flip',()=>{
+  const start=app.indexOf('  function animateLayout('),end=app.indexOf('  // Dealt cards',start);
+  const create=(motion,byComputer)=>{
+    const calls=[];
+    const node=(action,cls,id)=>({
+      dataset:{action,id},classList:{contains:k=>k===cls},
+      getBoundingClientRect:()=>({left:100,top:100,width:50,height:70}),
+      animate(frames,opts){calls.push({id,frames,opts});}
+    });
+    const nodes=[node('table','table-item','t1'),node('table','build-item','b1'),node('hand','hand-item','h1')];
+    const host={querySelectorAll:selector=>selector.includes('data-action')?nodes:[]};
+    const prev=new Map([['table:t1',{x:200,y:135}],['table:b1',{x:200,y:135}],['hand:h1',{x:200,y:135}]]);
+    new Function('app','motionAllowed',app.slice(start,end)+';return animateLayout;')(host,()=>true)(prev,motion,byComputer);
+    return calls;
+  };
+  for(const [cpu,delay] of [[false,160],[true,495]]){
+    const calls=create('capture',cpu);
+    assert.equal(calls[0].opts.delay,delay);
+    assert.equal(calls[0].opts.fill,'backwards');
+    assert.equal(calls[0].frames[0].translate,'75px 0px');
+    assert.equal(calls[1].opts.delay,0);
+    assert.equal(calls[2].opts.delay,0);
+  }
+  assert.equal(create('build',false)[0].opts.delay,0);
+});

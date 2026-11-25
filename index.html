@@ -657,7 +657,7 @@ html,body,#app{background:#005d0b;color:#fff}
   .table-builds:not(:empty){top:2%;max-height:96%}
 }
 .build-layer:last-child .build-value {
-  bottom:0!important;height:36%;min-height:36%;background:#13110d!important;
+  bottom:0!important;height:36%;min-height:36%;
   color:#f5e6aa!important;z-index:5;border-radius:0 0 2px 2px
 }
 
@@ -670,13 +670,14 @@ html,body,#app{background:#005d0b;color:#fff}
   transform:translateY(calc(var(--layer)*var(--stack-step)))!important;
 }
 .build-pile .build-layer:last-child .build-value,
-.capture-label-flight > .build-value {
+.capture-label-flight > .build-value,
+.retained-build-value {
   position:absolute;bottom:0!important;left:0;right:0;
   box-sizing:border-box;height:65%!important;min-height:65%!important;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:1px;padding:2px 2px 1px;
   border:0;border-top:1px solid #b29a64;
-  border-radius:0 0 2px 2px;background:#16140f!important;
+  border-radius:0 0 2px 2px;background:#16140f;
   color:#fff6d9!important;
   text-align:center;z-index:10;pointer-events:none;
   box-shadow:none;
@@ -691,7 +692,7 @@ html,body,#app{background:#005d0b;color:#fff}
   color:#fff3c5;min-width:0;
 }
 @media(orientation:landscape) and (max-height:450px){
-  .build-pile .build-layer:last-child .build-value,.capture-label-flight > .build-value{gap:0;padding:1px}
+  .build-pile .build-layer:last-child .build-value,.capture-label-flight > .build-value,.retained-build-value{gap:0;padding:1px}
   .build-value-owner{font-size:7px}
   .build-value-number{font-size:clamp(15px,3vw,20px)}
 }
@@ -772,12 +773,13 @@ html,body,#app{background:#005d0b;color:#fff}
 /* v0.5.8 — keep visible card corner indices, show only numeric build totals,
    and use the full felt by relocating the actual stock to the deck-stat HUD. */
 .build-pile .build-layer:last-child .build-value,
-.capture-label-flight > .build-value {
+.capture-label-flight > .build-value,
+.retained-build-value {
   bottom:0!important;
   top:auto!important;
   height:77%!important;
   min-height:77%!important;
-  background:var(--build-panel-paper,#12110e)!important;
+  background:var(--build-panel-paper,#12110e);
   border-top:1px solid var(--build-panel-rule,#c2ab69);
 }
 .build-pile .build-layer:last-child .playing-card .card-corner {
@@ -979,7 +981,7 @@ html,body,#app{background:#005d0b;color:#fff}
 /* Exceptional errors, not a second turn banner. */
 .game-error{margin:2px 8px;padding:5px 8px;border-radius:6px;background:#451b20;color:#fff1e8;font-size:12px;text-align:center;}
 
-/* v0.5.18 — horizontal toolbar: Exit left; Hint, Undo and Menu right. */
+/* v0.5.18 — horizontal toolbar; v0.5.21 puts Menu beside Exit and computer score in the center. */
 .shell {position:relative;}
 .shell .game-toolbar {
   position:relative;z-index:20;display:flex;flex-direction:row;
@@ -988,14 +990,24 @@ html,body,#app{background:#005d0b;color:#fff}
   flex:0 0 auto;margin:0;padding:0;
 }
 .game-toolbar .header-actions {
-  display:flex;flex-direction:row;align-items:center;gap:clamp(4px,2vw,12px);margin-left:auto;
+  display:flex;flex-direction:row;align-items:center;gap:clamp(3px,1vw,8px);
+  flex:1 1 0;min-width:0;height:100%;margin:0;justify-content:flex-end;
+}
+.game-toolbar .toolbar-left {
+  display:flex;flex-direction:row;align-items:center;gap:clamp(3px,1vw,8px);
+  flex:1 1 0;min-width:0;height:100%;justify-content:flex-start;
+}
+.game-toolbar .opponent-tag {
+  flex:0 0 auto;max-width:calc(100% - 155px);
+  overflow:hidden;text-overflow:ellipsis;
+  font-size:clamp(10px,3vw,14px);padding:4px clamp(6px,2vw,12px);
 }
 .game-toolbar .game-back,.game-toolbar .game-help {
   display:grid;place-items:center;width:clamp(34px,10vw,44px);
   height:100%;min-width:0;min-height:0;padding:0;
   font-size:clamp(19px,5.8vw,24px);touch-action:manipulation;
 }
-.game-toolbar .game-help:last-child {font-size:21px;}
+.game-toolbar .game-help[data-action="menu"] {font-size:21px;}
 .game-toolbar .game-help:disabled {opacity:.35;cursor:default;}
 /* Keep the opponent's clear capture lane. */
 @media(orientation:portrait){
@@ -1039,6 +1051,20 @@ html,body,#app{background:#005d0b;color:#fff}
 .unified-setup .variation-row>span {min-width:0;}
 .unified-setup .inline-setting-info {
   flex:0 0 100%;margin:0 0 12px;color:#5d584b;font-size:12px;line-height:1.5;
+}
+
+/* Only the boundary between distinct equal-valued groups is darkened.
+   The dark top border blends into the regular outline at the corners.
+   Mask out the interior so the card's artwork and selection stay unchanged. */
+.build-layer.build-group-start::after,
+.card-flight.build-group-start::after {
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:12;
+  box-sizing:border-box;border:1.5px solid transparent;border-radius:2px;
+  background:linear-gradient(to bottom,#605a51 0px,#605a51 1.5px,#c8c8c8 7px,transparent 10px) border-box;
+  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0) border-box;
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0) border-box;
+  mask-composite:exclude;
 }
 
 </style></head><body><div id="app"></div>
@@ -1581,7 +1607,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', suggestedMove = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.20';
+  const APP_VERSION = '0.5.21';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -1720,7 +1746,7 @@ html,body,#app{background:#005d0b;color:#fff}
     });
     return positions;
   }
-  function animateLayout(previous) {
+  function animateLayout(previous, motion = '', byComputer = false) {
     if (!previous || !motionAllowed() || !app.querySelectorAll) return;
     const nodes = [...app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]'),
       ...app.querySelectorAll('.opponent-hand .card-back')];
@@ -1736,8 +1762,12 @@ html,body,#app{background:#005d0b;color:#fff}
       // Preserve each card's identity; only the remaining cards glide into
       // the vacated slots, never recentering the whole row.
       const isTableCard = node.dataset.action === 'table';
+      // Wait until the captured cards are visibly leaving before closing
+      // the gaps. The CPU first spends 335 ms turning its card face-up.
+      const delay=motion==='capture' && isTableCard && node.classList.contains('table-item')
+        ? (byComputer?495:160) : 0;
       node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
-        {duration:isTableCard ? 355 : 420,
+        {duration:isTableCard ? 355 : 420,delay,fill:'backwards',
          easing:isTableCard ? 'cubic-bezier(.22,.72,.24,1)' : 'cubic-bezier(.2,.8,.2,1)'});
     });
   }
@@ -1895,7 +1925,8 @@ html,body,#app{background:#005d0b;color:#fff}
         label:label ? {rect:rect(label),html:label.outerHTML,selected:node.classList.contains('selected')} : null,
         rect:rect(node),html:node.querySelector('.build-pile')?.outerHTML || node.querySelector('.playing-card')?.outerHTML || node.outerHTML,
         cards:[...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
-          id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
+          id:card.dataset.cardId,rect:rect(card),html:card.outerHTML,
+          groupStart:!!card.parentElement?.classList.contains('build-group-start')
         }))
       } : null;
     }).filter(Boolean);
@@ -1935,12 +1966,15 @@ html,body,#app{background:#005d0b;color:#fff}
     const capturedCards = capture ? snapshot.groups.flatMap(group =>
       group.cards && group.cards.length ? group.cards : [group]) : [];
     const individualBuild=snapshot.kind==='build'&&!snapshot.finalHand;
+    const existingBuild=individualBuild ? snapshot.groups.find(group=>group.label&&group.cards?.length) : null;
+    const existingIds=new Set((existingBuild?.cards||[]).map(card=>card.id));
+    const retainedAnchorId=existingBuild?.cards.at(-1)?.id;
     const pieces = capture ? [snapshot.played, ...capturedCards] : individualBuild
       ? [snapshot.played,...snapshot.groups.flatMap(group=>group.cards||[])]
       : [snapshot.played, ...snapshot.groups];
     const ghosts=pieces.map((piece,i) => {
       const ghost=document.createElement('div');
-      ghost.className='card-flight';
+      ghost.className='card-flight'+(individualBuild&&piece.groupStart?' build-group-start':'');
       ghost.innerHTML=piece.html;
       const r=piece.rect;
       Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',
@@ -1953,6 +1987,17 @@ html,body,#app{background:#005d0b;color:#fff}
       document.body.appendChild(ghost);
       return {ghost,rect:r,id:piece.id};
     });
+    // Retain the old panel on its original front card. Later card layers
+    // have higher stacking order and physically cover it as they arrive.
+    let retainedPanel=null;
+    if(existingBuild){
+      const anchor=ghosts.find(piece=>piece.id===retainedAnchorId);
+      if(anchor){
+        anchor.ghost.insertAdjacentHTML('beforeend',existingBuild.label.html);
+        retainedPanel=anchor.ghost.querySelector('.build-value');
+        retainedPanel?.classList.add('retained-build-value');
+      }
+    }
     // The build's black owner/value panel is separate from the physical cards.
     // Retain a copy at its original position while it quickly fades away.
     const fadingLabels = capture ? snapshot.groups.filter(group=>group.label).map(({label})=>{
@@ -2146,42 +2191,57 @@ html,body,#app{background:#005d0b;color:#fff}
             scale:.32,fade:true
           })));
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
-          // Solitaire-style build: each real card slides into its exact layer in
-          // the finished stack, with no disappearing into a build icon.
-          // Only after the last card settles does the flush value bar appear.
           const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
           const order=new Map(layers.map((node,i)=>[node.dataset.cardId,i]));
-          // Reuse source ghosts, including the CPU card that already flipped.
           const buildGhosts=ghosts.filter(piece=>order.has(piece.id)).sort((a,b)=>order.get(a.id)-order.get(b.id));
           buildGhosts.forEach(piece=>{piece.ghost.style.zIndex=String(105+order.get(piece.id));});
-          try {
-            // The reference video deals the cards into the build almost
-            // together: a rapid, slightly staggered convergence, not a series
-            // of slow independent flights. The bottom strips stay visible.
-            await Promise.all(buildGhosts.map(async(piece,i)=>{
-              await new Promise(resolve=>setTimeout(resolve,i*48));
-              if(generation!==motionGeneration)return;
-              const slot=layers[order.get(piece.id)];
-              if(!slot)return;
-              const slotRect=slot.getBoundingClientRect();
-              await moveBuildCard(piece,slotRect,snapshot.byComputer?365:310);
-              if(generation===motionGeneration)sound('tap');
-            }));
-            if(generation!==motionGeneration)return;
-            // A brief beat before the flush value label appears, matching the
-            // finished stack settling in the video.
-            await new Promise(resolve=>setTimeout(resolve,65));
-          } finally {
-            if(generation===motionGeneration && destination.isConnected){
-              destination.style.visibility='visible';
-              const label=destination.querySelector('.build-value');
-              if(label && label.animate)label.animate([
-                {opacity:0,transform:'translateY(8px)'},
-                {opacity:1,transform:'translateY(0)'}
-              ],{duration:140,easing:'ease-out'});
-            }
-            buildGhosts.forEach(piece=>piece.ghost.remove());
+          const oldCount=buildGhosts.filter(piece=>existingIds.has(piece.id)).length;
+          if(retainedPanel?.classList.contains('card-selected')){
+            // Smoothly remove only the old panel's yellow selection tint.
+            const tintNodes=[retainedPanel,...retainedPanel.querySelectorAll('.build-value-owner,.build-value-number')];
+            const before=tintNodes.map(node=>({backgroundColor:getComputedStyle(node).backgroundColor,color:getComputedStyle(node).color}));
+            retainedPanel.classList.remove('card-selected');
+            tintNodes.forEach((node,i)=>node.animate?.([before[i],
+              {backgroundColor:getComputedStyle(node).backgroundColor,color:getComputedStyle(node).color}],
+              {duration:130,easing:'ease-out'}));
           }
+          await Promise.all(buildGhosts.map(async(piece,i)=>{
+            // The existing stack travels as a unit. New cards arrive on top.
+            const delay=existingIds.has(piece.id)?0:Math.max(0,i-oldCount)*48;
+            await new Promise(resolve=>setTimeout(resolve,delay));
+            if(generation!==motionGeneration)return;
+            const slot=layers[order.get(piece.id)];
+            if(!slot)return;
+            const slotRect=slot.getBoundingClientRect();
+            await moveBuildCard(piece,slotRect,snapshot.byComputer?365:310);
+            if(generation!==motionGeneration)return;
+            piece.ghost.classList.toggle('build-group-start',slot.parentElement.classList.contains('build-group-start'));
+            sound('tap');
+          }));
+          if(generation!==motionGeneration)return;
+          await new Promise(resolve=>setTimeout(resolve,65));
+          if(generation!==motionGeneration || !destination.isConnected)return;
+          const label=destination.querySelector('.build-value');
+          // Set opacity before revealing the stack; never expose an opaque
+          // new box for even a single frame.
+          if(label)label.style.opacity='0';
+          if(retainedPanel){
+            const oldLayer=layers[order.get(retainedAnchorId)]?.parentElement;
+            if(oldLayer)oldLayer.appendChild(retainedPanel);
+            else {retainedPanel.remove();retainedPanel=null;}
+          }
+          destination.style.visibility='visible';
+          buildGhosts.forEach(piece=>piece.ghost.remove());
+          const panelFades=[];
+          if(retainedPanel)panelFades.push(animate(retainedPanel,[{opacity:1},{opacity:0}],
+            {duration:110,easing:'ease-out'}).then(()=>retainedPanel?.remove()));
+          if(label)panelFades.push(animate(label,[{opacity:0},{opacity:1}],
+            {duration:140,easing:'ease-out'}).then(()=>{
+              label.style.opacity='1';
+              label.getAnimations?.().forEach(animation=>animation.cancel());
+            }));
+          // Do not let the next turn's render destroy an unfinished fade.
+          await Promise.all(panelFades);
         } else {
           // Computer trails: flip face-up before movement and match destination size.
           const landingCard=destination.querySelector('.playing-card') ||
@@ -2212,6 +2272,7 @@ html,body,#app{background:#005d0b;color:#fff}
         ghosts.forEach(({ghost})=>ghost.remove());
         leftoverGhosts.forEach(({ghost})=>ghost.remove());
         fadingLabels.forEach(ghost=>ghost.remove());
+        retainedPanel?.remove();
         if(generation!==motionGeneration)return;
         after();
       }
@@ -2264,9 +2325,16 @@ html,body,#app{background:#005d0b;color:#fff}
       return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table">${renderCard(element.card,false,selected)}</button>`;
     }
     const cards=element.groups.flat();
+    // Mark only the beginning of each subsequent equal-valued group.
+    const groupStarts=new Set();
+    let groupOffset=0;
+    for(const group of element.groups){
+      if(groupOffset>0)groupStarts.add(groupOffset);
+      groupOffset+=group.length;
+    }
     const ownerName = element.owner === 0 ? 'You' : 'Computer';
     const panelValue = buildPanelValue(element.value);
-    const layers=cards.map((card,i)=>`<span class="build-layer" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
+    const layers=cards.map((card,i)=>`<span class="build-layer${groupStarts.has(i)?' build-group-start':''}" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
     return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.value} build owned by ${element.owner === 0 ? 'you' : 'computer'}">
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
@@ -2303,13 +2371,16 @@ html,body,#app{background:#005d0b;color:#fff}
     } catch (error) { resetSelection(); toast=error.message; }
     render();
   }
-  function renderToolbar(active) {
+  function renderToolbar(active, computerScore = 0) {
     return `<header class="header game-toolbar" aria-label="Game controls">
-      <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
+      <div class="toolbar-left">
+        <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
+        <button class="game-help" data-action="menu" aria-label="Open game menu">☰</button>
+      </div>
+      <div class="opponent-tag" aria-label="Computer has ${computerScore} points">Computer · ${computerScore} pts</div>
       <div class="header-actions">
         <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
         ${prefs.undo?`<button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo" ${checkpoint?'':'disabled'}>↶</button>`:''}
-        <button class="game-help" data-action="menu" aria-label="Open game menu">☰</button>
       </div>
     </header>`;
   }
@@ -2401,11 +2472,10 @@ html,body,#app{background:#005d0b;color:#fff}
     lastMotion = '';
     app.innerHTML = `
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
-        ${renderToolbar(active)}
+        ${renderToolbar(active,opponent().score)}
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
           <div class="opponent-area">
-            <div class="opponent-tag" aria-label="Computer has ${opponent().score} points">Computer · ${opponent().score} pts</div>
             <div class="opponent-hand" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
           </div>
           <div class="table-area">
@@ -2439,7 +2509,7 @@ html,body,#app{background:#005d0b;color:#fff}
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
     hidePendingDealCards();
-    animateLayout(oldLayout);
+    animateLayout(oldLayout,motion,motion==='capture'&&game.turn===0);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
     animateTurnMessage(previousTurn);
   }

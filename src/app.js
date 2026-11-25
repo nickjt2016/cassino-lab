@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', suggestedMove = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.20';
+  const APP_VERSION = '0.5.21';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -150,7 +150,7 @@
     });
     return positions;
   }
-  function animateLayout(previous) {
+  function animateLayout(previous, motion = '', byComputer = false) {
     if (!previous || !motionAllowed() || !app.querySelectorAll) return;
     const nodes = [...app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]'),
       ...app.querySelectorAll('.opponent-hand .card-back')];
@@ -166,8 +166,12 @@
       // Preserve each card's identity; only the remaining cards glide into
       // the vacated slots, never recentering the whole row.
       const isTableCard = node.dataset.action === 'table';
+      // Wait until the captured cards are visibly leaving before closing
+      // the gaps. The CPU first spends 335 ms turning its card face-up.
+      const delay=motion==='capture' && isTableCard && node.classList.contains('table-item')
+        ? (byComputer?495:160) : 0;
       node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
-        {duration:isTableCard ? 355 : 420,
+        {duration:isTableCard ? 355 : 420,delay,fill:'backwards',
          easing:isTableCard ? 'cubic-bezier(.22,.72,.24,1)' : 'cubic-bezier(.2,.8,.2,1)'});
     });
   }
@@ -325,7 +329,8 @@
         label:label ? {rect:rect(label),html:label.outerHTML,selected:node.classList.contains('selected')} : null,
         rect:rect(node),html:node.querySelector('.build-pile')?.outerHTML || node.querySelector('.playing-card')?.outerHTML || node.outerHTML,
         cards:[...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
-          id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
+          id:card.dataset.cardId,rect:rect(card),html:card.outerHTML,
+          groupStart:!!card.parentElement?.classList.contains('build-group-start')
         }))
       } : null;
     }).filter(Boolean);
@@ -365,12 +370,15 @@
     const capturedCards = capture ? snapshot.groups.flatMap(group =>
       group.cards && group.cards.length ? group.cards : [group]) : [];
     const individualBuild=snapshot.kind==='build'&&!snapshot.finalHand;
+    const existingBuild=individualBuild ? snapshot.groups.find(group=>group.label&&group.cards?.length) : null;
+    const existingIds=new Set((existingBuild?.cards||[]).map(card=>card.id));
+    const retainedAnchorId=existingBuild?.cards.at(-1)?.id;
     const pieces = capture ? [snapshot.played, ...capturedCards] : individualBuild
       ? [snapshot.played,...snapshot.groups.flatMap(group=>group.cards||[])]
       : [snapshot.played, ...snapshot.groups];
     const ghosts=pieces.map((piece,i) => {
       const ghost=document.createElement('div');
-      ghost.className='card-flight';
+      ghost.className='card-flight'+(individualBuild&&piece.groupStart?' build-group-start':'');
       ghost.innerHTML=piece.html;
       const r=piece.rect;
       Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',
@@ -383,6 +391,17 @@
       document.body.appendChild(ghost);
       return {ghost,rect:r,id:piece.id};
     });
+    // Retain the old panel on its original front card. Later card layers
+    // have higher stacking order and physically cover it as they arrive.
+    let retainedPanel=null;
+    if(existingBuild){
+      const anchor=ghosts.find(piece=>piece.id===retainedAnchorId);
+      if(anchor){
+        anchor.ghost.insertAdjacentHTML('beforeend',existingBuild.label.html);
+        retainedPanel=anchor.ghost.querySelector('.build-value');
+        retainedPanel?.classList.add('retained-build-value');
+      }
+    }
     // The build's black owner/value panel is separate from the physical cards.
     // Retain a copy at its original position while it quickly fades away.
     const fadingLabels = capture ? snapshot.groups.filter(group=>group.label).map(({label})=>{
@@ -576,42 +595,57 @@
             scale:.32,fade:true
           })));
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
-          // Solitaire-style build: each real card slides into its exact layer in
-          // the finished stack, with no disappearing into a build icon.
-          // Only after the last card settles does the flush value bar appear.
           const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
           const order=new Map(layers.map((node,i)=>[node.dataset.cardId,i]));
-          // Reuse source ghosts, including the CPU card that already flipped.
           const buildGhosts=ghosts.filter(piece=>order.has(piece.id)).sort((a,b)=>order.get(a.id)-order.get(b.id));
           buildGhosts.forEach(piece=>{piece.ghost.style.zIndex=String(105+order.get(piece.id));});
-          try {
-            // The reference video deals the cards into the build almost
-            // together: a rapid, slightly staggered convergence, not a series
-            // of slow independent flights. The bottom strips stay visible.
-            await Promise.all(buildGhosts.map(async(piece,i)=>{
-              await new Promise(resolve=>setTimeout(resolve,i*48));
-              if(generation!==motionGeneration)return;
-              const slot=layers[order.get(piece.id)];
-              if(!slot)return;
-              const slotRect=slot.getBoundingClientRect();
-              await moveBuildCard(piece,slotRect,snapshot.byComputer?365:310);
-              if(generation===motionGeneration)sound('tap');
-            }));
-            if(generation!==motionGeneration)return;
-            // A brief beat before the flush value label appears, matching the
-            // finished stack settling in the video.
-            await new Promise(resolve=>setTimeout(resolve,65));
-          } finally {
-            if(generation===motionGeneration && destination.isConnected){
-              destination.style.visibility='visible';
-              const label=destination.querySelector('.build-value');
-              if(label && label.animate)label.animate([
-                {opacity:0,transform:'translateY(8px)'},
-                {opacity:1,transform:'translateY(0)'}
-              ],{duration:140,easing:'ease-out'});
-            }
-            buildGhosts.forEach(piece=>piece.ghost.remove());
+          const oldCount=buildGhosts.filter(piece=>existingIds.has(piece.id)).length;
+          if(retainedPanel?.classList.contains('card-selected')){
+            // Smoothly remove only the old panel's yellow selection tint.
+            const tintNodes=[retainedPanel,...retainedPanel.querySelectorAll('.build-value-owner,.build-value-number')];
+            const before=tintNodes.map(node=>({backgroundColor:getComputedStyle(node).backgroundColor,color:getComputedStyle(node).color}));
+            retainedPanel.classList.remove('card-selected');
+            tintNodes.forEach((node,i)=>node.animate?.([before[i],
+              {backgroundColor:getComputedStyle(node).backgroundColor,color:getComputedStyle(node).color}],
+              {duration:130,easing:'ease-out'}));
           }
+          await Promise.all(buildGhosts.map(async(piece,i)=>{
+            // The existing stack travels as a unit. New cards arrive on top.
+            const delay=existingIds.has(piece.id)?0:Math.max(0,i-oldCount)*48;
+            await new Promise(resolve=>setTimeout(resolve,delay));
+            if(generation!==motionGeneration)return;
+            const slot=layers[order.get(piece.id)];
+            if(!slot)return;
+            const slotRect=slot.getBoundingClientRect();
+            await moveBuildCard(piece,slotRect,snapshot.byComputer?365:310);
+            if(generation!==motionGeneration)return;
+            piece.ghost.classList.toggle('build-group-start',slot.parentElement.classList.contains('build-group-start'));
+            sound('tap');
+          }));
+          if(generation!==motionGeneration)return;
+          await new Promise(resolve=>setTimeout(resolve,65));
+          if(generation!==motionGeneration || !destination.isConnected)return;
+          const label=destination.querySelector('.build-value');
+          // Set opacity before revealing the stack; never expose an opaque
+          // new box for even a single frame.
+          if(label)label.style.opacity='0';
+          if(retainedPanel){
+            const oldLayer=layers[order.get(retainedAnchorId)]?.parentElement;
+            if(oldLayer)oldLayer.appendChild(retainedPanel);
+            else {retainedPanel.remove();retainedPanel=null;}
+          }
+          destination.style.visibility='visible';
+          buildGhosts.forEach(piece=>piece.ghost.remove());
+          const panelFades=[];
+          if(retainedPanel)panelFades.push(animate(retainedPanel,[{opacity:1},{opacity:0}],
+            {duration:110,easing:'ease-out'}).then(()=>retainedPanel?.remove()));
+          if(label)panelFades.push(animate(label,[{opacity:0},{opacity:1}],
+            {duration:140,easing:'ease-out'}).then(()=>{
+              label.style.opacity='1';
+              label.getAnimations?.().forEach(animation=>animation.cancel());
+            }));
+          // Do not let the next turn's render destroy an unfinished fade.
+          await Promise.all(panelFades);
         } else {
           // Computer trails: flip face-up before movement and match destination size.
           const landingCard=destination.querySelector('.playing-card') ||
@@ -642,6 +676,7 @@
         ghosts.forEach(({ghost})=>ghost.remove());
         leftoverGhosts.forEach(({ghost})=>ghost.remove());
         fadingLabels.forEach(ghost=>ghost.remove());
+        retainedPanel?.remove();
         if(generation!==motionGeneration)return;
         after();
       }
@@ -694,9 +729,16 @@
       return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table">${renderCard(element.card,false,selected)}</button>`;
     }
     const cards=element.groups.flat();
+    // Mark only the beginning of each subsequent equal-valued group.
+    const groupStarts=new Set();
+    let groupOffset=0;
+    for(const group of element.groups){
+      if(groupOffset>0)groupStarts.add(groupOffset);
+      groupOffset+=group.length;
+    }
     const ownerName = element.owner === 0 ? 'You' : 'Computer';
     const panelValue = buildPanelValue(element.value);
-    const layers=cards.map((card,i)=>`<span class="build-layer" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
+    const layers=cards.map((card,i)=>`<span class="build-layer${groupStarts.has(i)?' build-group-start':''}" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
     return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.value} build owned by ${element.owner === 0 ? 'you' : 'computer'}">
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
@@ -733,13 +775,16 @@
     } catch (error) { resetSelection(); toast=error.message; }
     render();
   }
-  function renderToolbar(active) {
+  function renderToolbar(active, computerScore = 0) {
     return `<header class="header game-toolbar" aria-label="Game controls">
-      <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
+      <div class="toolbar-left">
+        <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
+        <button class="game-help" data-action="menu" aria-label="Open game menu">☰</button>
+      </div>
+      <div class="opponent-tag" aria-label="Computer has ${computerScore} points">Computer · ${computerScore} pts</div>
       <div class="header-actions">
         <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
         ${prefs.undo?`<button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo" ${checkpoint?'':'disabled'}>↶</button>`:''}
-        <button class="game-help" data-action="menu" aria-label="Open game menu">☰</button>
       </div>
     </header>`;
   }
@@ -831,11 +876,10 @@
     lastMotion = '';
     app.innerHTML = `
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
-        ${renderToolbar(active)}
+        ${renderToolbar(active,opponent().score)}
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
           <div class="opponent-area">
-            <div class="opponent-tag" aria-label="Computer has ${opponent().score} points">Computer · ${opponent().score} pts</div>
             <div class="opponent-hand" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
           </div>
           <div class="table-area">
@@ -869,7 +913,7 @@
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
     hidePendingDealCards();
-    animateLayout(oldLayout);
+    animateLayout(oldLayout,motion,motion==='capture'&&game.turn===0);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
     animateTurnMessage(previousTurn);
   }
