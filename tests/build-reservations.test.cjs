@@ -81,3 +81,44 @@ test('Pirate Builds and Build To Anything retain their explicit meanings',()=>{
   const anything=fixture(['S7','H13','D3','S4'],screenshotTable(),{buildAnything:true});
   assert.ok(E.validateAction(anything,new13).ok);
 });
+
+const mergeFixture=(twoKings=false,overrides={})=>fixture(['C1','H13',twoKings?'C13':'S4','D5'],[
+  build('own',0,13,['D1','D11','H1'],['S7','D6'],['C6','C7']),
+  build('other',1,12,['C9','D3'])
+],overrides);
+test('Screenshot: one King requires a raise-and-merge, not a second 13',()=>{
+  const state=mergeFixture();
+  const options=E.contextualBuildOptions(state,'C1',['other']);
+  assert.deepEqual(options.map(m=>m.label),['Multiple Build 13']);
+  const move=options[0];
+  assert.deepEqual(move.targetIds,['own','other']);
+  assert.ok(E.validateAction(state,move).ok);
+  assert.ok([...E.hintSelections(state)].some(m=>m.kind==='build'&&m.mode==='merge'&&m.cardId==='C1'));
+  assert.ok(E.allComputerMoves(state).some(m=>m.kind==='build'&&m.mode==='merge'&&m.cardId==='C1'));
+  assert.ok(E.applyAction(state,move).ok);
+  assert.equal(state.table.length,1);
+  assert.deepEqual(state.table[0].groups.map(g=>g.map(c=>c.id)),[
+    ['D1','D11','H1'],['S7','D6'],['C6','C7'],['C9','D3','C1']
+  ]);
+  assert.equal(state.table[0].owner,0);
+  assert.equal(state.table[0].value,13);
+});
+test('Two Kings permit independent raise as well as a merge when pirate builds are enabled',()=>{
+  const state=mergeFixture(true);
+  assert.deepEqual(E.contextualBuildOptions(state,'C1',['other']).map(m=>m.label),['Raise to 13','Multiple Build 13']);
+  state.rules.pirateBuilds=false;
+  assert.deepEqual(E.contextualBuildOptions(state,'C1',['other']).map(m=>m.label),['Multiple Build 13']);
+});
+test('Merge never changes another build value or breaks existing multiple groups',()=>{
+  const state=mergeFixture();
+  const move={kind:'build',cardId:'C1',targetIds:['own','other'],mode:'merge',value:13};
+  assert.ok(E.validateAction(state,move).ok);
+  state.table[1].groups.push([card('H12')]);
+  assert.equal(E.validateAction(state,move).ok,false);
+  state.table[1].groups.pop();
+  state.rules.multipleBuilds=false;
+  assert.equal(E.validateAction(state,move).ok,false);
+  state.rules.multipleBuilds=true;
+  assert.equal(E.validateAction(state,{...move,value:12}).ok,false);
+  assert.equal(E.validateAction(state,{...move,cardId:'S4'}).ok,false);
+});

@@ -401,7 +401,9 @@
     const capturedCards = capture ? snapshot.groups.flatMap(group =>
       group.cards && group.cards.length ? group.cards : [group]) : [];
     const individualBuild=snapshot.kind==='build'&&!snapshot.finalHand;
-    const existingBuild=individualBuild ? snapshot.groups.find(group=>group.label&&group.cards?.length) : null;
+    const firstLayerId=individualBuild?destination.querySelector('.build-layer .playing-card[data-card-id]')?.dataset.cardId:null;
+    const existingBuild=individualBuild ? (snapshot.groups.find(group=>group.label&&group.cards?.some(c=>c.id===firstLayerId))
+      ||snapshot.groups.find(group=>group.label&&group.cards?.length)) : null;
     const existingIds=new Set((existingBuild?.cards||[]).map(card=>card.id));
     const retainedAnchorId=existingBuild?.cards.at(-1)?.id;
     const pieces = capture ? [snapshot.played, ...capturedCards] : individualBuild
@@ -435,7 +437,7 @@
     }
     // The build's black owner/value panel is separate from the physical cards.
     // Retain a copy at its original position while it quickly fades away.
-    const fadingLabels = capture ? snapshot.groups.filter(group=>group.label).map(({label})=>{
+    const fadingLabels = capture || individualBuild ? snapshot.groups.filter(group=>group.label&&(capture||group!==existingBuild)).map(({label})=>{
       const ghost=document.createElement('div');
       ghost.className='card-flight capture-label-flight'+(label.selected?' selected':'');
       ghost.innerHTML=label.html;
@@ -987,7 +989,7 @@
     // Never run a validator for an action the current selection cannot show.
     const capture = pickedTable.size ? actionReady('capture') : null;
     const trail = pickedTable.size ? null : actionReady('trail');
-    buildOptions = active && pickedCard && pickedTable.size ? E.legalBuildOptions(game,pickedCard,currentSelection()) : [];
+    buildOptions = active && pickedCard && pickedTable.size ? E.contextualBuildOptions(game,pickedCard,currentSelection()) : [];
     const canTrail = !!(trail && trail.ok && !pickedTable.size);
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
@@ -1046,9 +1048,9 @@
     royalAces: ['Aces', 'Royal Aces may count as either 1 or 14 in captures and builds. The game chooses a legal value for the move.'],
     royalBigLittle: ['2 and 10', 'Little Cassino (2♠) can count as 2 or 15; Big Cassino (10♦) can count as 10 or 16 in captures and builds.'],
     pirateCaptures: ['Captures', 'When enabled, you may capture loose cards and other builds while you still own a build. When off, you must first capture your own build.'],
-    pirateBuilds: ['Builds', 'When enabled, you may start another independent build while you own one. Each separate build requires its own matching capture card in your hand, unless Build To Anything is enabled. A multiple build counts as one stack. Otherwise, resolve your current build first.'],
-    allowTrailWithOwnBuild: ['Trails', 'Allows trailing a card onto the table while owning builds, as long as you retain a distinct matching capture card for each independent build (unless Build To Anything is enabled).'],
-    buildAnything: ['Build To Anything', 'When enabled, build to any legal card value without holding a matching capture card. A player without a matching card can still make other legal moves. This experimental rule can leave a build vulnerable.'],
+    pirateBuilds: ['Builds', 'When enabled, you may start another independent build while you own one. Each separate build requires its own matching capture card in your hand, unless Build Obligation is off. A multiple build counts as one stack. Otherwise, resolve your current build first.'],
+    allowTrailWithOwnBuild: ['Trails', 'Allows trailing a card onto the table while owning builds, as long as you retain a distinct matching capture card for each independent build (unless Build Obligation is off).'],
+    buildObligation: ['Build Obligation', 'When on, keep a distinct matching capture card for each independent build. One card covers one multiple build. When off, you may build without holding the capture card. The Pirate switches separately control other moves while owning builds.'],
     drawMode: ['Draw', 'After every turn, the player who played draws a replacement card until the stock is exhausted, rather than waiting for all players to run out of cards.'],
     sweepCancel: ['Sweep', 'When a capture clears the table, award a sweep. At hand scoring, each side scores only the number of sweeps beyond the opponent’s sweep count.'],
     spadeScoring: ['Spade Scoring', 'Every spade captured earns one point, plus a bonus point for the Jack of spades, replacing the ordinary most-spades award.'],
@@ -1060,7 +1062,7 @@
     return `<div class="variation-row">
       <button type="button" class="var-info" data-action="info-setting" data-key="${key}" aria-label="Explain ${title}" aria-expanded="${expanded}">ⓘ</button>
       <span>${title}</span>
-      <label class="var-toggle"><input type="checkbox" data-setting="${key}" ${draft[key]?'checked':''} aria-label="${title}"><i></i></label>
+      <label class="var-toggle"><input type="checkbox" data-setting="${key}" ${(key==='buildObligation'?!draft.buildAnything:draft[key])?'checked':''} aria-label="${title}"><i></i></label>
       ${expanded?`<p class="inline-setting-info">${escapeHtml(SETTING_INFO[key][1])}</p>`:''}
     </div>`;
   }
@@ -1081,7 +1083,6 @@
           ${variationRow('pirateCaptures','Captures')}
           ${variationRow('pirateBuilds','Builds')}
           ${variationRow('allowTrailWithOwnBuild','Trails')}
-          ${variationRow('buildAnything','Build To Anything')}
         </div>
         <h3>OTHER OPTIONS</h3><div class="variation-card">
           ${variationRow('drawMode','Draw')}
@@ -1090,6 +1091,7 @@
         <h3>CLASSIC SETTINGS</h3><div class="variation-card">
           ${variationRow('builds','Allow Building')}
           ${variationRow('multipleBuilds','Multiple Builds')}
+          ${variationRow('buildObligation','Build Obligation')}
           ${variationRow('spadeScoring','Spade Scoring')}
         </div>
         <h3>MATCH SETTINGS</h3><label class="setting-select"><b>Winning score</b><select data-setting="winningScore">${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
@@ -1351,6 +1353,8 @@
     render('overlay');
   }
   function updateDraftSetting(prop, value) {
+    // Keep the saved inverse flag for backwards compatibility, with one clear UI switch.
+    if(prop==='buildObligation'){prop='buildAnything';value=!value;}
     if (!draft || !Object.hasOwn(E.DEFAULT_RULES,prop) ||
         prop === 'name' || prop === 'difficulty' || draft[prop] === value) return;
     const dependents = ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything'];

@@ -79,7 +79,7 @@ test('Outgoing turn fades immediately and incoming turn fades in without sliding
 
 test('Captured build panel is snapshotted and fades at the beginning of the capture',()=>{
   assert.match(app,/label:label \? \{rect:rect\(label\),html:label\.outerHTML/);
-  assert.match(app,/const fadingLabels = capture \? snapshot\.groups\.filter\(group=>group\.label\)/);
+  assert.match(app,/const fadingLabels = capture \|\| individualBuild \? snapshot\.groups\.filter\(group=>group\.label&&\(capture\|\|group!==existingBuild\)\)/);
   const fade=app.indexOf('const labelsFaded=Promise.all');
   const flip=app.indexOf('await flipComputerCard();',fade);
   assert.ok(fade>=0&&flip>fade);

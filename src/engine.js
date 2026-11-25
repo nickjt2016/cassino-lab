@@ -228,14 +228,29 @@
       return {ok:false, reason:'Choose a valid build value.'};
     }
     if (!rules.buildAnything && !hasValue(remainingHand, requestedValue, rules)) {
-      return {ok:false,reason:`Keep a ${requestedValue} in hand to capture your build (or enable Build To Anything).`};
+      return {ok:false,reason:`Keep a ${requestedValue} in hand to capture your build (or turn Build Obligation off).`};
     }
     const builds = selection.filter(e => e.type === 'build');
     const loose = selection.filter(e => e.type === 'loose').map(e => ({card:e.card}));
-    if (builds.length > 1) return {ok:false,reason:'Separate existing builds cannot be combined.'};
     if (loose.some(x => !cardValues(x.card, rules).length)) {
       return {ok:false,reason:'Face cards need numerical Royal values to form builds.'};
     }
+    if (builds.length > 1) {
+      // One contributed hand card must raise exactly one single build.
+      // Other selected builds may join only at their unchanged value.
+      if(requestedMode!=='merge'||!rules.multipleBuilds)
+        return {ok:false,reason:'A raise-and-merge requires Multiple Builds.'};
+      const lower=builds.filter(b=>b.value!==requestedValue);
+      const matching=builds.filter(b=>b.value===requestedValue);
+      if(lower.length!==1||!matching.length||lower[0].groups.length!==1||
+        !playedValues.some(v=>lower[0].value+v===requestedValue))
+        return {ok:false,reason:'Raise one single build and merge only matching-value builds.'};
+      const extra=loose.length?findValuePartition(loose,requestedValue,'any',rules):[];
+      if(!extra)return {ok:false,reason:'Loose cards must form complete matching groups.'};
+      const groups=[...matching.flatMap(b=>b.groups),lower[0].groups[0].concat(card),...extra];
+      return {ok:true,build:{value:requestedValue,groups,kind:'multiple',operation:'merge'}};
+    }
+    if(requestedMode==='merge')return {ok:false,reason:'Select a single build to raise and a matching build to merge.'};
     if (!builds.length) {
       if (!loose.length) return {ok:false,reason:'Select at least one table card to build.'};
       const groups = findValuePartition([{card}, ...loose], requestedValue,
@@ -318,10 +333,10 @@
     const hand = state.players[state.turn].hand;
     const values = state.rules.buildAnything ? Array.from({length:maxBuildValue(state.rules)},(_,i)=>i+1) : [...new Set(hand.filter(c => c.id !== cardId).flatMap(c => cardValues(c, state.rules)))];
     const selection = (targetIds || []).map(id => state.table.find(e => e.id === id));
-    const hasBuild = selection.some(e => e && e.type === 'build');
+    const buildCount=selection.filter(e=>e&&e.type==='build').length;
     const possibilities = [];
     for (const value of values) {
-      for (const mode of hasBuild ? ['extend', 'raise'] : ['single', 'multiple']) {
+      for (const mode of buildCount>1 ? ['merge'] : buildCount ? ['extend', 'raise'] : ['single', 'multiple']) {
         const action = { kind: 'build', cardId, targetIds: targetIds || [], value, mode };
         const check = validateAction(state, action);
         if (check.ok) {
@@ -331,6 +346,25 @@
       }
     }
     return possibilities;
+  }
+  // The contextual menu may offer a merge with the player's existing
+  // equal-valued build even when only the smaller build is selected.
+  // The actual action always includes every consumed stack explicitly.
+  function contextualBuildOptions(state,cardId,targetIds){
+    const options=legalBuildOptions(state,cardId,targetIds);
+    if(!state.rules.builds||!state.rules.multipleBuilds)return options;
+    const ids=targetIds||[];
+    const selected=state.table.filter(b=>b.type==='build'&&ids.includes(b.id));
+    if(selected.length!==1||selected[0].groups.length!==1)return options;
+    const card=state.players[state.turn].hand.find(c=>c.id===cardId);
+    if(!card)return options;
+    for(const value of cardValues(card,state.rules).map(v=>v+selected[0].value)){
+      const matching=state.table.filter(b=>b.type==='build'&&b.owner===state.turn&&b.value===value&&!ids.includes(b.id));
+      // Prefer the existing matching stack as the visual base.
+      if(matching.length)options.push(...legalBuildOptions(state,cardId,[...matching.map(b=>b.id),...ids])
+        .filter(move=>move.mode==='merge'&&move.value===value));
+    }
+    return options;
   }
   function applyAction(state, action) {
     const checked = validateAction(state, action);
@@ -355,7 +389,7 @@
     } else {
       state.table = checked.remainingTable;
       state.table.push({ id: `t${state.nextId++}`, type: 'build', value: checked.build.value, groups: checked.build.groups, owner: playerIndex });
-      const op = { create: 'built', raise: 'raised a build to', extend: 'extended a build of' }[checked.build.operation];
+      const op = { create: 'built', raise: 'raised a build to', extend: 'extended a build of', merge: 'merged builds of' }[checked.build.operation];
       description = `${player.name} ${op} ${checked.build.value} (${checked.build.kind}).`;
     }
     state.moveNumber++;
@@ -499,6 +533,11 @@
     for (const b of builds) {
       targetSets.push([b.id]);
       for (const l of relevant) targetSets.push([b.id, l.id]);
+      if(b.groups.length===1&&state.rules.multipleBuilds)for(const other of builds){
+        if(other===b||!cardValues(card,state.rules).some(v=>b.value+v===other.value))continue;
+        targetSets.push([other.id,b.id]);
+        for(const l of relevant)targetSets.push([other.id,b.id,l.id]);
+      }
     }
     const moves = [];
     const keys = new Set();
@@ -561,7 +600,7 @@
   // Yield candidate subsets whose possible numerical sum is a multiple of
   // the target. The suffix residue masks prune impossible branches, without
   // limiting the number of cards or the number of legal results.
-  function* hintSubsets(entries, target, initialValues, allowEmpty = false) {
+  function* hintSubsets(entries, target, initialValues, allowEmpty = false, stop=()=>false) {
     const suffix=Array(entries.length+1);
     suffix[entries.length]=new Set([0]);
     for(let i=entries.length-1;i>=0;i--){
@@ -571,8 +610,9 @@
         suffix[i].add((value+residue)%target);
     }
     function* walk(start, residues, ids){
+      if(stop())return;
       if((ids.length||allowEmpty)&&residues.has(0)) yield ids;
-      for(let i=start;i<entries.length;i++){
+      for(let i=start;i<entries.length&&!stop();i++){
         const next=new Set();
         for(const residue of residues) for(const value of entries[i].values)
           next.add((residue+value)%target);
@@ -583,30 +623,31 @@
     yield* walk(0,new Set(initialValues.map(v=>v%target)),[]);
   }
 
-  // One hint per visible hand/table selection. A selection can expose several
-  // distinct actions; the unchanged normal buttons show all of those actions.
-  // Capture and build selections precede every legal trail. Iteration is lazy
-  // so a very large table does not require storing every possible move up front.
-  function* hintSelections(state) {
+  // Exhaustive legal action generation shares the same validator as manual
+  // play. Optional interruption bounds search in pathological positions.
+  // Hints collapse identical visible selections, AI keeps distinct actions.
+  function* legalActions(state,stop=()=>false,visibleOnly=false) {
     if(!state||state.phase!=='playing')return;
     const hand=state.players[state.turn].hand;
     const rules=state.rules;
     const loose=state.table.filter(x=>x.type==='loose');
     const builds=state.table.filter(x=>x.type==='build');
     const seen=new Set();
-    const selectionKey=(cardId,ids)=>JSON.stringify([cardId,[...ids].sort()]);
+    const key=(cardId,ids)=>JSON.stringify([cardId,[...ids].sort()]);
     function unique(move){
-      const key=selectionKey(move.cardId,move.targetIds||[]);
-      if(seen.has(key))return false;
-      seen.add(key);return true;
+      const selection=key(move.cardId,move.targetIds||[]);
+      const k=visibleOnly?selection:JSON.stringify([selection,move.kind,move.value,move.mode]);
+      if(seen.has(k))return false;
+      seen.add(k);return true;
     }
     const numericEntries=target=>loose.map(x=>({id:x.id,
       values:cardValues(x.card,rules).filter(v=>v<=target)})).filter(x=>x.values.length);
-    // Enumerate each possible capture at each of the card's legal values.
     for(const card of hand){
+      if(stop())return;
       const values=cardValues(card,rules);
       if(!values.length){
         for(const item of loose){
+          if(stop())return;
           if(item.card.rank!==card.rank)continue;
           const move={kind:'capture',cardId:card.id,targetIds:[item.id]};
           if(validateAction(state,move).ok&&unique(move))yield move;
@@ -616,49 +657,59 @@
       for(const target of values){
         const entries=[...builds.filter(b=>b.value===target).map(b=>({id:b.id,values:[target]})),
           ...numericEntries(target)];
-        for(const ids of hintSubsets(entries,target,[0])){
+        for(const ids of hintSubsets(entries,target,[0],false,stop)){
           const move={kind:'capture',cardId:card.id,targetIds:ids};
           if(validateAction(state,move).ok&&unique(move))yield move;
         }
       }
     }
-    // Build creation, extension and raising. At most one existing build can
-    // participate, but any number of loose cards may form the required groups.
     if(rules.builds)for(const card of hand){
+      if(stop())return;
       const played=cardValues(card,rules);
       if(!played.length)continue;
       const targets=rules.buildAnything
         ? Array.from({length:maxBuildValue(rules)},(_,i)=>i+1)
         : [...new Set(hand.filter(c=>c.id!==card.id).flatMap(c=>cardValues(c,rules)))];
+      function* options(ids,target){
+        if(stop()||(visibleOnly&&seen.has(key(card.id,ids))))return;
+        for(const move of legalBuildOptions(state,card.id,ids)){
+          if(move.value===target&&unique(move))yield move;
+        }
+      }
       for(const target of targets){
+        if(stop())return;
         const entries=numericEntries(target);
         const values=played.filter(v=>v<=target);
         if(!values.length)continue;
-        for(const ids of hintSubsets(entries,target,values)){
-          const key=selectionKey(card.id,ids);
-          if(seen.has(key))continue;
-          const move=legalBuildOptions(state,card.id,ids).find(option=>option.value===target);
-          if(move&&unique(move))yield move;
-        }
+        for(const ids of hintSubsets(entries,target,values,false,stop))yield* options(ids,target);
         for(const build of builds){
+          if(stop())return;
           const extend=rules.multipleBuilds&&build.value===target;
           const raise=build.groups.length===1&&values.some(v=>build.value+v===target);
           if(!extend&&!raise)continue;
           const initial=extend?values:values.filter(v=>build.value+v===target);
-          for(const extra of hintSubsets(entries,target,initial.map(v=>v+build.value),true)){
-            const ids=[build.id,...extra];
-            if(seen.has(selectionKey(card.id,ids)))continue;
-            const move=legalBuildOptions(state,card.id,ids).find(option=>option.value===target);
-            if(move&&unique(move))yield move;
+          // When raising, matching existing builds can be included as
+          // intact groups. They never contribute to the increase in value.
+          const matching=raise&&rules.multipleBuilds?builds.filter(b=>b!==build&&b.value===target)
+            .map(b=>({id:b.id,values:[target]})):[];
+          for(const extra of hintSubsets(entries,target,initial.map(v=>v+build.value),true,stop))
+            yield* options([build.id,...extra],target);
+          if(matching.length){
+            for(const extra of hintSubsets([...matching,...entries],target,[0],false,stop)){
+              if(!matching.some(b=>extra.includes(b.id)))continue;
+              yield* options([...extra.filter(id=>matching.some(b=>b.id===id)),build.id,...extra.filter(id=>!matching.some(b=>b.id===id))],target);
+            }
           }
         }
       }
     }
     for(const card of hand){
+      if(stop())return;
       const move={kind:'trail',cardId:card.id,targetIds:[]};
       if(validateAction(state,move).ok&&unique(move))yield move;
     }
   }
+  function* hintSelections(state){yield* legalActions(state,()=>false,true);}
   function explainMove(state, move) {
     if (move.kind === 'trail') return `Trail ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))} onto the table.`;
     if (move.kind === 'capture') return `Capture ${move.targetIds.length} table group${move.targetIds.length === 1 ? '' : 's'} with ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))}.`;
@@ -666,7 +717,7 @@
   }
   return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
-    legalBuildOptions, applyAction, scoreHand, finishHand, nextHand,
+    legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
     explainMove, moveScore, buildActionLabel };
 });

@@ -39,9 +39,10 @@ test('All preset switches reflect the engine and can be edited directly',()=>{
     const html=h.html(),rules=E.rulesFor(key,{difficulty:'casual'});
     assert.deepEqual(h.rules(),rules);
     for(const prop of Object.keys(rules).filter(p=>typeof rules[p]==='boolean')){
-      assert.ok(input(html,prop),prop);
-      assert.equal(checked(html,prop),rules[prop],prop);
-      assert.equal(disabled(html,prop),false,prop);
+      const key=prop==='buildAnything'?'buildObligation':prop;
+      assert.ok(input(html,key),key);
+      assert.equal(checked(html,key),prop==='buildAnything'?!rules[prop]:rules[prop],key);
+      assert.equal(disabled(html,key),false,key);
     }
     assert.doesNotMatch(html,/<select data-setting="winningScore" disabled>/);
     assert.match(html,new RegExp('value="'+rules.winningScore+'" selected'));
@@ -76,7 +77,7 @@ test('Dependent build switches stay editable; enabling one enables building',()=
   h.set('builds',false);
   for(const key of ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything']){
     assert.equal(h.rules()[key],false);
-    assert.equal(disabled(h.html(),key),false);
+    assert.equal(disabled(h.html(),key==='buildAnything'?'buildObligation':key),false);
     h.set(key,true);assert.equal(h.rules()[key],true);
     assert.equal(h.rules().builds,true);
     h.set('builds',false);
@@ -99,4 +100,17 @@ test('No explanatory paragraph appears beneath any variation selector',()=>{
     assert.doesNotMatch(h.html(),/setup-rule-note|Choose Custom to edit|Customize the rules below|Your choices are saved/);
   }
   assert.doesNotMatch(css,/\.setup-rule-note/);
+});
+
+test('Build Obligation is a visible inverse of the legacy saved Build To Anything flag',()=>{
+  const h=harness();h.open('newgame');
+  assert.equal(checked(h.html(),'buildObligation'),true);
+  assert.equal(input(h.html(),'buildAnything'),'');
+  h.set('buildObligation',false);assert.equal(h.rules().buildAnything,true);
+  assert.equal(checked(h.html(),'buildObligation'),false);
+  h.set('buildObligation',true);assert.equal(h.rules().buildAnything,false);
+  assert.equal(checked(h.html(),'buildObligation'),true);
+  const saved=harness(E.rulesFor('royal',{buildAnything:true}));
+  saved.open('newgame');saved.choose('custom');
+  assert.equal(checked(saved.html(),'buildObligation'),false);
 });
