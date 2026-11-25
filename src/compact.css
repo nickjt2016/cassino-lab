@@ -588,10 +588,10 @@ html,body,#app{background:#005d0b;color:#fff}
 .dialog .result-table th{color:#253d2c;background:#e9e1ce;font-weight:800;letter-spacing:0}
 .dialog .result-table th,.dialog .result-table td{border-bottom:1px solid #cdc4ac;padding:9px 8px}
 .dialog .result-table tr:nth-child(even):not(.totals-row){background:#f4eddc}
-.dialog .result-table .round-leading{color:#0e532a;background:#dcebd9;font-weight:900}
+.dialog .result-table .round-leading{font-weight:900}
 .dialog .result-table .round-leading strong{font-weight:900}
 .dialog .result-table .totals-row{background:#e8ce84;color:#252011;font-weight:900}
-.dialog .result-table .totals-row .round-leading{background:#c8e0ab;color:#0d4424}
+.dialog .result-table .totals-row td:not(:first-child):not(.round-leading){font-weight:400}
 .dialog .smallnote{color:#4a4635}
 
 /* v0.4.7 — readable solitaire builds.  Keep the earlier compact pile, but

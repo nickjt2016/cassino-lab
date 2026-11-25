@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.24';
+  const APP_VERSION = '0.5.25';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -490,6 +490,7 @@
         if(generation!==motionGeneration)return;
         entry.ghost.style.transform=finish;
         entry.ghost.style.opacity=String(finalOpacity);
+        entry.motion={x:dx,y:dy,scale,scaleY};
         entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
       });
     };
@@ -524,22 +525,21 @@
       await Promise.all(all.map(async(entry,i)=>{
         await new Promise(resolve=>setTimeout(resolve,i*gap));
         if(generation!==motionGeneration)return;
-        // On the final trail/build the played card has already reached the table;
-        // its travel to the collection pile is still physically shown.
-        const alreadyMoved=!capture && ghosts.includes(entry);
-        const index=alreadyMoved ? ghosts.indexOf(entry) : 0;
+        // Continue from the actual landing transform of a final played card.
+        // Remaining table cards keep their original size throughout collection.
+        const from=entry.motion;
         await move(entry,{x:together.x+Math.min(i,8)*2,y:together.y+Math.min(i,8)*2},330,{
-          from:alreadyMoved ? {x:end.x+index*3-center(entry.rect).x,
-            y:end.y+index*2-center(entry.rect).y,scale:.96} : undefined
+          from,scale:from?.scale??1,scaleY:from?.scaleY??1
         });
       }));
       if(generation!==motionGeneration)return;
       await new Promise(resolve=>setTimeout(resolve,240));
       if(generation!==motionGeneration)return;
       const finish=center(pile.getBoundingClientRect());
-      await Promise.all(all.map((entry,i)=>move(entry,finish,560,{
-        from:{x:together.x+Math.min(i,8)*2-center(entry.rect).x,
-          y:together.y+Math.min(i,8)*2-center(entry.rect).y,scale:1},scale:.28,fade:true
+      // Move the full-size stack to its recipient and fade it out in place
+      // without scaling down, including when the last move was a trail.
+      await Promise.all(all.map(entry=>move(entry,finish,560,{
+        from:entry.motion,scale:entry.motion?.scale??1,scaleY:entry.motion?.scaleY??1,fade:true
       })));
     }
     (async()=>{
