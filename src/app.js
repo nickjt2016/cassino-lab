@@ -164,6 +164,14 @@
     if (!previous || !motionAllowed() || !app.querySelectorAll) return;
     const nodes = [...app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]'),
       ...app.querySelectorAll('.opponent-hand .card-back')];
+    // A retained card can still be sliding when the next tap occurs. The
+    // caller has already measured its displayed position. Cancel the old
+    // translation before measuring its new untransformed destination.
+    const active=animateLayout.active||(animateLayout.active=new WeakMap());
+    for(const node of nodes){
+      active.get(node)?.cancel();
+      active.delete(node);
+    }
     let cpu=0;
     const shifts=[];
     nodes.forEach(node => {
@@ -184,9 +192,10 @@
       shifts.push({node,dx,dy,isTableCard,delay});
     });
     for(const {node,dx,dy,isTableCard,delay} of shifts){
-      node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
+      const animation=node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
         {duration:isTableCard ? 355 : 420,delay,fill:'backwards',
          easing:isTableCard ? 'cubic-bezier(.22,.72,.24,1)' : 'cubic-bezier(.2,.8,.2,1)'});
+      if(animation)active.set(node,animation);
     }
   }
   // Dealt cards never materialize in the hand. Until the deck animation
@@ -327,6 +336,7 @@
       node.getAnimations?.({subtree:true}).forEach(animation=>animation.cancel());
       node.remove();
     });
+    document.getElementById?.('app')?.getAnimations?.({subtree:true}).forEach(animation=>animation.cancel());
     pendingDeal=null;
     pendingStockOrigin=null;
     dealAnimation=Promise.resolve();

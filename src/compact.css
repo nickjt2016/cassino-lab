@@ -1064,3 +1064,6 @@ html,body,#app{background:#005d0b;color:#fff}
   position:absolute;inset:0;z-index:4;pointer-events:none;
   will-change:opacity;box-shadow:none;
 }
+
+/* Dialogs stay above every moving card, including the top capture card. */
+.overlay {z-index:1100;}

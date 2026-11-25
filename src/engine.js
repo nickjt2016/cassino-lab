@@ -162,7 +162,7 @@
         return null;
       };
       const result=choose(0, target - first.v, [], []);
-      if(!result)failed.add(key);
+      if(!result&&failed.size<4096)failed.add(key);
       return result;
     };
     const partition = walk(cards.map((card, i) => ({ ...card, v: values[i] })), []);

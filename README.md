@@ -182,3 +182,5 @@ Build/trail faces are laid out once at exact destination dimensions and moved wi
 
 ### v0.5.31 — polish and maintenance
 Selection and hint changes update only card classes and legal-action controls; menu operations leave the live board and animation destinations mounted. Unnecessary validation, duplicate persistent saves, concurrent version checks, and uncancelled flight animations are eliminated. The offline cache has four canonical asset entries rather than accumulating query variants. The engine rejects impossible partition sums early, memoizes failed subproblems, prunes alternate-value combinations, and finds the same AI maximum without sorting. No legal move, scoring, hint ordering or AI strategy changes are intended; the prior proposal to merge raised independent builds is not included pending rule confirmation.
+
+Retained table elements cancel superseded translations before starting a new one, preventing rapid-selection animation buildup. Dialogs are layered above in-flight cards. The partition failure cache is capped at 4,096 entries per search.

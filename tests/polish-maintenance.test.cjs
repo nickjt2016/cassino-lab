@@ -81,3 +81,34 @@ test('Partition fast paths preserve exact original ordering and reject only impo
   assert.equal(E.findPartition(cards,6,'any'),null);
   assert.equal(E.findPartition(cards,10,'multiple'),null);
 });
+
+test('Rapid selection restarts movement from the displayed position, not an old translation',()=>{
+  let offset=0,cancels=0,reads=0;
+  const flights=[];
+  const node={dataset:{action:'table',id:'t1'},classList:{contains:k=>k==='table-item'},
+    getBoundingClientRect(){reads++;return {left:100+offset,top:100,width:50,height:70};},
+    animate(frames,options){
+      flights.push({frames,options});
+      offset=Number(frames[0].translate.split('px')[0]);
+      return {cancel(){cancels++;offset=0;}};
+    }};
+  const host={querySelectorAll:s=>s.includes('data-action')?[node]:[]};
+  const helper=section('  function animateLayout(','  // Dealt cards');
+  const slide=new Function('app','motionAllowed',helper+';return animateLayout;')(host,()=>true);
+  slide(new Map([['table:t1',{x:200,y:135}]]));
+  assert.equal(flights[0].frames[0].translate,'75px 0px');
+  offset=30;
+  slide(new Map([['table:t1',{x:155,y:135}]]));
+  assert.equal(cancels,1);
+  assert.equal(flights[1].frames[0].translate,'30px 0px');
+  assert.equal(reads,2);
+});
+test('Modal layer stays above the highest moving capture card',()=>{
+  const css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
+  assert.match(css,/\.overlay\s*\{z-index:1100;\}/);
+  assert.match(app,/i===0 \? 1000 : 105\+i/);
+});
+test('The failed-subproblem cache is explicitly bounded',()=>{
+  const engine=fs.readFileSync(path.join(__dirname,'../src/engine.js'),'utf8');
+  assert.match(engine,/if\(!result&&failed\.size<4096\)failed\.add\(key\)/);
+});
