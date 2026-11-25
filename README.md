@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.23**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.24**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -158,3 +158,6 @@ The build value and owner use pure white ink on a permanently black panel. Selec
 
 ### v0.5.23 — cycling hints and capture clearance
 Hint taps cycle through distinct legal hand/table selections, captures first, builds next, and trails last, then wrap around. Every action for a selection appears in the ordinary contextual controls; no special hint marker or outline. The lazy exact-selection search is independent of AI difficulty and its move-count limits. Human captures land beneath the lowest table cards with a measured gap, using the full card size where space allows. Existing CPU capture spacing and delayed table reflow are retained.
+
+### v0.5.24 — clean empty table
+Removed the dashed empty-table placeholder and its unused sizing rule. The felt is uninterrupted when no table cards remain.

@@ -53,3 +53,12 @@ test('Capture gap filling waits at the original slot, including the CPU flip',()
   }
   assert.equal(create('build',false)[0].opts.delay,0);
 });
+
+
+test('An empty table has no placeholder outline or minimum width',()=>{
+  const base=fs.readFileSync(path.join(root,'src/styles.css'),'utf8');
+  assert.doesNotMatch(base,/\.empty-table/);
+  assert.doesNotMatch(css,/\.empty-table/);
+  assert.doesNotMatch(app,/empty-table/);
+  assert.match(app,/class="table-cards" aria-label="Loose table cards"/);
+});
