@@ -6,7 +6,7 @@ const app=fs.readFileSync(path.resolve(__dirname,'../src/app.js'),'utf8');
 const css=fs.readFileSync(path.resolve(__dirname,'../src/compact.css'),'utf8');
 test('Stack displays original cards, visible corner indices, then owner and large build value',()=>{
   assert.match(app,/cards\.map\(\(card,i\)=>/);
-  assert.match(app,/\$\{renderCard\(card\)\}/);
+  assert.match(app,/\$\{renderCard\(card,false,selected\)\}/);
   assert.match(app,/class="build-value-owner"/);
   assert.match(app,/class="build-value-number"/);
   assert.match(app,/element\.owner === 0 \? 'You' : 'Computer'/);

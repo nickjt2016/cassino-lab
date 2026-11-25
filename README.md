@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.19**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.20**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -146,3 +146,6 @@ Restored a horizontal toolbar with Exit on the left and Hint, optional Undo, and
 
 ### v0.5.19 — cleaner setup
 Removed the explanatory paragraph below the variation selector for all presets and Custom. Rule switch behavior and individual rule explanations are unchanged.
+
+### v0.5.20 — editable presets and consistent filled highlights
+Every variation's options and winning score are editable immediately. Editing a preset switches to Custom while retaining its other rules. Enabling a build-dependent rule also enables building if needed. Selection fills the entire card or build with pale yellow, including its value panel; redundant outlines and extra shadows are removed. Individual build cards retain their source artwork, fade only the selection tint on movement, and move to their final dimensions without recreating or raster-scaling the face.

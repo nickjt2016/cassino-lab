@@ -254,7 +254,7 @@ html,body,#app{background:#005d0b;color:#fff}
 .build-group>.playing-card:not(:first-child){margin:0}
 .group-plus{font-size:11px}.build-group .playing-card.mini{width:clamp(45px,13vw,63px);height:clamp(15px,5vw,21px)!important;min-height:15px;aspect-ratio:auto;overflow:hidden;border-radius:0}
 .build-group .playing-card.mini .card-big{display:none}.build-group .playing-card.mini .card-corner{top:7%;left:4%;display:flex;gap:2px}.build-group .playing-card.mini .card-corner b{font-size:32cqw}.build-group .playing-card.mini .card-corner small{font-size:27cqw}
-.build-item.selected{transform:translateY(-4px);box-shadow:0 0 0 3px #f8d969;}
+.build-item.selected{transform:translateY(-3px);}
 .turn-banner{position:absolute;top:66%;left:50%;transform:translate(-50%,-50%);text-align:center;width:100%;font-size:clamp(13px,2.5vw,17px);font-weight:700;color:#fffdf2;text-shadow:0 1px 2px #004f0b;pointer-events:none}
 .human-area{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 0 1px}
 .human-hand{justify-content:center;align-items:center;gap:clamp(9px,3.5vw,20px);width:100%;padding:0 2px;min-height:0}
@@ -455,12 +455,6 @@ html,body,#app{background:#005d0b;color:#fff}
  #273c9b;color:#e7d9a8;font-size:13px}
 .back-pattern:before{content:'';position:absolute;inset:13% 22%;border:1px solid #e9dba8;border-radius:3px;transform:rotate(45deg);box-shadow:0 0 0 2px #233b95}
 .back-pattern:after{content:'◆';font-size:clamp(9px,2.8vw,15px);position:relative;color:#f0d894;text-shadow:0 1px 2px #132d79}
-/* A selected build highlights the cards as well as its outer container. */
-.build-item.selected {background:#174f21;outline:3px solid #ffe76b;outline-offset:1px;box-shadow:0 0 0 5px #f8dc4d4d,0 4px 12px #0006;}
-.build-item.selected .playing-card.mini{background:#fff99b!important;border-color:#ffe54f;}
-.build-item.selected .playing-card.mini.red{color:#ce201a!important}
-.build-item.selected .playing-card.mini.black{color:#161800!important}
-.build-item.selected .build-top{background:#695a17;color:#fff5be}
 /* Cards and labels stay opaque except when they are actually being captured. */
 @keyframes cards-deal {from{transform:translateY(-12px) scale(.96)}to{transform:translateY(0) scale(1)}}
 @media(max-height:700px){
@@ -542,8 +536,6 @@ html,body,#app{background:#005d0b;color:#fff}
 .build-value{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:center;justify-content:center;
   min-height:20%;background:#17140cea;color:#fff4c6;border:1px solid #e0c980;
   border-top-width:2px;font:bold clamp(11px,3vw,16px)/1.1 Arial,sans-serif;letter-spacing:.02em}
-.build-item.selected .build-pile{outline:2px solid #ffde4f;outline-offset:3px;border-radius:3px}
-.build-item.selected .build-value{background:#65520c;color:#fff5be}
 /* Each royalty rank uses its own optical cap height, never touching the bottom border. */
 .playing-card:not(.mini) .card-big{font-size:82cqw;top:59%;line-height:.9;font-family:Georgia,'Times New Roman',serif}
 .playing-card.rank-j:not(.mini) .card-big{font-size:76cqw;top:56%}
@@ -617,7 +609,6 @@ html,body,#app{background:#005d0b;color:#fff}
 .build-pile.many-cards{--stack-step:clamp(19px,4.8vw,24px)}
 .build-pile.large-build{--stack-step:clamp(17px,4.5vw,21px)}
 .table-builds:not(:empty){max-height:none;overflow:visible;align-items:flex-end}
-.build-layer .playing-card:not(.mini){outline:1px solid #ebe5d7}
 .build-value{box-shadow:0 -2px 3px #0b210a29}
 @media(max-height:700px){
   .build-pile{--stack-step:clamp(20px,5.7vw,24px)}
@@ -691,11 +682,6 @@ html,body,#app{background:#005d0b;color:#fff}
 .build-value-number {
   display:block;font:700 clamp(19px,6vw,29px)/1.08 Georgia,'Times New Roman',serif;
   color:#fff3c5;min-width:0;
-}
-.build-item.selected .build-pile .build-layer:last-child .build-value,
-.capture-label-flight.selected > .build-value {
-  background:#574916!important;
-  border-top-color:#ffe17e;
 }
 @media(orientation:landscape) and (max-height:450px){
   .build-pile .build-layer:last-child .build-value,.capture-label-flight > .build-value{gap:0;padding:1px}
@@ -784,8 +770,8 @@ html,body,#app{background:#005d0b;color:#fff}
   top:auto!important;
   height:77%!important;
   min-height:77%!important;
-  background:#12110e!important;
-  border-top:1px solid #c2ab69;
+  background:var(--build-panel-paper,#12110e)!important;
+  border-top:1px solid var(--build-panel-rule,#c2ab69);
 }
 .build-pile .build-layer:last-child .playing-card .card-corner {
   z-index:11;
@@ -951,15 +937,13 @@ html,body,#app{background:#005d0b;color:#fff}
   font-size:19cqw;
 }
 
-/* Selection is an external golden outline, not a different card face.
-   Preserve white paper, black/red ink and the same border during movement. */
-.hand-item.selected .playing-card:not(.mini),
-.table-item.selected .playing-card:not(.mini),
-.build-item.selected .build-layer .playing-card:not(.mini) {
-  outline:2px solid #ffe176;outline-offset:0;
-  box-shadow:0 2px 3px #00270064;
+/* One full-face yellow selection wash, with no stacked outlines. */
+.playing-card.card-selected {background-color:#fff59b;}
+.build-value.card-selected {
+  --build-panel-paper:#fff59b;--build-panel-rule:#c7ad55;
 }
-
+.build-value.card-selected .build-value-owner,
+.build-value.card-selected .build-value-number {color:#332b14;}
 /* One physical back design for the stock, opponent's hand and moving cards.
    The original blue SVG is retained; its tile and margins scale with the card,
    rather than changing the number of motifs when a flight is resized. */
@@ -1046,17 +1030,6 @@ html,body,#app{background:#005d0b;color:#fff}
 .unified-setup .preset-grid .pill-choice {font-size:clamp(12px,3.7vw,16px);padding:6px 3px;}
 .unified-setup .variation-row {flex-wrap:wrap;gap:9px;}
 .unified-setup .variation-row>span {min-width:0;}
-.unified-setup .variation-row.locked>span {color:#8c897d;}
-.unified-setup .var-toggle input:disabled+i {
-  background:#e1ded3;border-color:#c9c5b7;
-}
-.unified-setup .var-toggle input:disabled+i:after {background:#aaa69b;}
-.unified-setup .var-toggle input:disabled:checked+i {
-  background:#9caaa0;border-color:#9caaa0;
-}
-.unified-setup .var-toggle input:disabled:checked+i:after {background:#f9f7ef;}
-.unified-setup .setting-select.locked {color:#8c897d;}
-.unified-setup .setting-select select:disabled {background:#e8e5d9;color:#79776c;opacity:1;cursor:default;}
 .unified-setup .inline-setting-info {
   flex:0 0 100%;margin:0 0 12px;color:#5d584b;font-size:12px;line-height:1.5;
 }

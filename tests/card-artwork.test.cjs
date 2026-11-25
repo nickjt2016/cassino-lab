@@ -12,11 +12,39 @@ test('Moving cards use exact source dimensions and no extra flight-only texture 
   assert.doesNotMatch(css,/\.build-layer\s*\{[^}]*filter:drop-shadow/);
 });
 
-test('Selections glow externally, without replacing the face texture',()=>{
-  const section=css.slice(css.indexOf('/* Selection is an external golden outline'));
-  assert.match(section,/outline:2px solid #ffe176/);
-  assert.doesNotMatch(css,/\.hand-item\.selected \.playing-card,\.table-item\.selected \.playing-card\s*\{[^}]*background:/);
-  assert.doesNotMatch(css,/\.build-item\.selected \.build-layer \.playing-card\s*\{[^}]*background:/);
+test('Selection fills the entire card and build panel with no overlapping outlines',()=>{
+  assert.match(css,/\.playing-card\.card-selected\s*\{background-color:#fff59b/);
+  assert.match(css,/\.build-value\.card-selected\s*\{\s*--build-panel-paper:#fff59b/);
+  assert.doesNotMatch(css,/\.build-item\.selected[^{}]*\{[^}]*outline:/);
+  assert.doesNotMatch(css,/\.build-layer \.playing-card:not\(\.mini\)\s*\{[^}]*outline:/);
+  assert.doesNotMatch(css,/\.build-item\.selected[^{}]*\{[^}]*box-shadow:/);
+  assert.match(app,/renderCard\(card,false,selected\)/);
+  assert.match(app,/renderCard\(element\.card,false,selected\)/);
+  assert.match(app,/renderCard\(card,false,pickedCard===card\.id\)/);
+  assert.match(app,/class="build-value \$\{selected\?'card-selected':''\}"/);
+});
+
+test('Selected moving cards keep their source face and fade only the tint',()=>{
+  assert.match(app,/html:byComputer\?renderCard\(playerCard\):from\.outerHTML/);
+  assert.match(app,/id:card\.dataset\.cardId,rect:rect\(card\),html:card\.outerHTML/);
+  const start=app.indexOf('    function releaseCardTint(');
+  const fade=app.slice(start,app.indexOf('\n    }',start));
+  assert.match(fade,/face\.classList\.remove\('card-selected'\)/);
+  assert.match(fade,/\{backgroundColor:color\},\{backgroundColor:'#fff'\}/);
+  assert.doesNotMatch(fade,/innerHTML|fontSize|border|opacity:/);
+});
+
+test('Build transfer reuses physical card ghosts and interpolates actual dimensions',()=>{
+  assert.match(app,/const individualBuild=snapshot\.kind==='build'&&!snapshot\.finalHand/);
+  const build=app.slice(app.indexOf("} else if(snapshot.kind === 'build' && !snapshot.finalHand)"),app.indexOf('          // Computer trails:'));
+  assert.match(build,/const buildGhosts=ghosts\.filter/);
+  assert.doesNotMatch(build,/document\.createElement|innerHTML=/);
+  const start=app.indexOf('    function moveBuildCard('),end=app.indexOf('    // A card\'s last position',start);
+  const move=app.slice(start,end);
+  assert.match(move,/width:entry\.rect\.width\+'px',height:entry\.rect\.height\+'px'/);
+  assert.match(move,/width:slotRect\.width\+'px',height:slotRect\.height\+'px'/);
+  assert.match(move,/Object\.assign\(entry\.ghost\.style,finish\)/);
+  assert.doesNotMatch(move,/scale\(/);
 });
 
 test('Stock, opponent and flying card backs share a proportional pattern',()=>{

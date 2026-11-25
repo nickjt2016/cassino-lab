@@ -32,7 +32,7 @@ test('One setup contains players, difficulty, all five variations, and one Start
   assert.equal((html.match(/data-action="apply-settings"/g)||[]).length,1);
   assert.doesNotMatch(app,/function renderNewGame|function renderSettingInfo|modal = 'newgame'/);
 });
-test('All preset switches reflect the engine and are locked, including winning score',()=>{
+test('All preset switches reflect the engine and can be edited directly',()=>{
   const h=harness();h.open('newgame');h.difficulty('casual');
   for(const key of Object.keys(E.PRESETS)){
     h.choose(key);
@@ -41,12 +41,14 @@ test('All preset switches reflect the engine and are locked, including winning s
     for(const prop of Object.keys(rules).filter(p=>typeof rules[p]==='boolean')){
       assert.ok(input(html,prop),prop);
       assert.equal(checked(html,prop),rules[prop],prop);
-      assert.equal(disabled(html,prop),true,prop);
+      assert.equal(disabled(html,prop),false,prop);
     }
-    assert.match(html,/<select data-setting="winningScore" disabled>/);
+    assert.doesNotMatch(html,/<select data-setting="winningScore" disabled>/);
     assert.match(html,new RegExp('value="'+rules.winningScore+'" selected'));
     h.set('royal',!rules.royal);
-    assert.equal(h.rules().royal,rules.royal);
+    assert.equal(h.preset(),'custom');
+    assert.equal(h.rules().royal,!rules.royal);
+    assert.equal(h.rules().winningScore,rules.winningScore);
   }
 });
 test('First Custom selection inherits the previewed preset and unlocks rules',()=>{
@@ -69,13 +71,15 @@ test('Previously saved custom rules are restored independently of preset and dif
   assert.equal(h.rules().winningScore,50);
   assert.equal(h.rules().difficulty,'casual');
 });
-test('Dependent build switches disable and reset when building is turned off',()=>{
+test('Dependent build switches stay editable; enabling one enables building',()=>{
   const h=harness();h.open('newgame');h.choose('custom');h.set('pirateBuilds',true);
   h.set('builds',false);
   for(const key of ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything']){
     assert.equal(h.rules()[key],false);
-    assert.equal(disabled(h.html(),key),true);
-    h.set(key,true);assert.equal(h.rules()[key],false);
+    assert.equal(disabled(h.html(),key),false);
+    h.set(key,true);assert.equal(h.rules()[key],true);
+    assert.equal(h.rules().builds,true);
+    h.set('builds',false);
   }
 });
 test('In-game setup recognizes the current preset and explanations stay inline',()=>{
@@ -83,7 +87,7 @@ test('In-game setup recognizes the current preset and explanations stay inline',
   assert.equal(h.preset(),'spade');
   h.info('royal');assert.match(h.html(),/inline-setting-info/);
   assert.match(h.html(),/Jacks, Queens and Kings have numerical values/);
-  assert.match(css,/\.unified-setup \.var-toggle input:disabled:checked\+i/);
+  assert.doesNotMatch(css,/\.unified-setup \.var-toggle input:disabled:checked\+i/);
   assert.match(app,/existingSettings\.innerHTML = renderSettings\(\)/);
   assert.match(app,/restoreVariationsScroll\(\)/);
 });

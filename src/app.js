@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', suggestedMove = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.19';
+  const APP_VERSION = '0.5.20';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -336,7 +336,7 @@
         id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
       })));
     const tableRects = [...app.querySelectorAll('.table-stage .playing-card')].map(rect);
-    return {kind:move.kind,byComputer,tableRects,played:{id:playerCard.id,rect:rect(from),html:renderCard(playerCard)},groups:groupRects,remainingCards};
+    return {kind:move.kind,byComputer,tableRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML},groups:groupRects,remainingCards};
   }
   function playMotion(snapshot, after) {
     if (!snapshot || !motionAllowed() || !document.body || !app.querySelector) { after(); return; }
@@ -364,7 +364,10 @@
     // single generic build icon during the animation.
     const capturedCards = capture ? snapshot.groups.flatMap(group =>
       group.cards && group.cards.length ? group.cards : [group]) : [];
-    const pieces = capture ? [snapshot.played, ...capturedCards] : [snapshot.played, ...snapshot.groups];
+    const individualBuild=snapshot.kind==='build'&&!snapshot.finalHand;
+    const pieces = capture ? [snapshot.played, ...capturedCards] : individualBuild
+      ? [snapshot.played,...snapshot.groups.flatMap(group=>group.cards||[])]
+      : [snapshot.played, ...snapshot.groups];
     const ghosts=pieces.map((piece,i) => {
       const ghost=document.createElement('div');
       ghost.className='card-flight';
@@ -378,7 +381,7 @@
       const card=ghost.querySelector(':scope > .playing-card');
       if(card) Object.assign(card.style,{width:'100%',height:'100%',margin:'0'});
       document.body.appendChild(ghost);
-      return {ghost,rect:r};
+      return {ghost,rect:r,id:piece.id};
     });
     // The build's black owner/value panel is separate from the physical cards.
     // Retain a copy at its original position while it quickly fades away.
@@ -414,6 +417,32 @@
       const finish=()=>{if(done)return;done=true;resolve();};
       anim.onfinish=finish;anim.oncancel=finish;
     });
+    // The source face stays intact. Only its selection tint fades away.
+    function releaseCardTint(entry) {
+      const face=entry.ghost.querySelector('.playing-card.card-selected');
+      if (!face) return;
+      const color=globalThis.getComputedStyle?.(face).backgroundColor || '#fff59b';
+      face.classList.remove('card-selected');
+      if (face.animate) face.animate([{backgroundColor:color},{backgroundColor:'#fff'}],
+        {duration:130,easing:'ease-out'});
+    }
+    // Interpolate actual layout dimensions instead of scaling a rasterized
+    // face. Container-relative lettering and border widths stay consistent
+    // with the final card when the moving overlay is replaced.
+    function moveBuildCard(entry, slotRect, duration) {
+      const start={left:entry.rect.left+'px',top:entry.rect.top+'px',
+        width:entry.rect.width+'px',height:entry.rect.height+'px'};
+      const finish={left:slotRect.left+'px',top:slotRect.top+'px',
+        width:slotRect.width+'px',height:slotRect.height+'px'};
+      entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
+      Object.assign(entry.ghost.style,start,{transform:'none',opacity:'1'});
+      releaseCardTint(entry);
+      return animate(entry.ghost,[start,finish],{duration,easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
+        if(generation!==motionGeneration)return;
+        Object.assign(entry.ghost.style,finish);
+        entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
+      });
+    }
     // A card's last position is committed to its element before cancelling the
     // finished keyframe animation. Without this, consecutive flight stages
     // briefly jump back to the original rect (a visible one-frame hard cut).
@@ -426,6 +455,7 @@
       const start=`translate(${from.x}px,${from.y}px) scale(${from.scale}, ${fromScaleY})`;
       const finish=`translate(${dx}px,${dy}px) scale(${scale}, ${scaleY})`;
       const finalOpacity=options.fade?0.06:1;
+      releaseCardTint(entry);
       entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
       entry.ghost.style.transform=start;
       entry.ghost.style.opacity='1';
@@ -549,23 +579,11 @@
           // Solitaire-style build: each real card slides into its exact layer in
           // the finished stack, with no disappearing into a build icon.
           // Only after the last card settles does the flush value bar appear.
-          const cardPieces=[snapshot.played,...snapshot.groups.flatMap(g=>g.cards||[])];
           const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
           const order=new Map(layers.map((node,i)=>[node.dataset.cardId,i]));
-          const ordered=cardPieces.filter(p=>order.has(p.id)).sort((a,b)=>order.get(a.id)-order.get(b.id));
-          const buildGhosts=[];
-          for(const piece of ordered){
-            const ghost=document.createElement('div');ghost.className='card-flight';ghost.innerHTML=piece.html;
-            Object.assign(ghost.style,{position:'fixed',pointerEvents:'none',zIndex:String(105+order.get(piece.id)),
-              left:piece.rect.left+'px',top:piece.rect.top+'px',width:piece.rect.width+'px',height:piece.rect.height+'px',
-              willChange:'transform',transformOrigin:'center'});
-            const face=ghost.querySelector('.playing-card');
-            if(face)Object.assign(face.style,{width:'100%',height:'100%',margin:'0'});
-            document.body.appendChild(ghost);
-            buildGhosts.push({ghost,rect:piece.rect,id:piece.id});
-          }
-          // The standard grouped overlays are unnecessary for an individual-card build.
-          ghosts.forEach(({ghost})=>ghost.remove());
+          // Reuse source ghosts, including the CPU card that already flipped.
+          const buildGhosts=ghosts.filter(piece=>order.has(piece.id)).sort((a,b)=>order.get(a.id)-order.get(b.id));
+          buildGhosts.forEach(piece=>{piece.ghost.style.zIndex=String(105+order.get(piece.id));});
           try {
             // The reference video deals the cards into the build almost
             // together: a rapid, slightly staggered convergence, not a series
@@ -576,8 +594,7 @@
               const slot=layers[order.get(piece.id)];
               if(!slot)return;
               const slotRect=slot.getBoundingClientRect();
-              await move(piece,center(slotRect),snapshot.byComputer?365:310,
-                {scale:slotRect.width/Math.max(piece.rect.width,1),scaleY:slotRect.height/Math.max(piece.rect.height,1)});
+              await moveBuildCard(piece,slotRect,snapshot.byComputer?365:310);
               if(generation===motionGeneration)sound('tap');
             }));
             if(generation!==motionGeneration)return;
@@ -658,8 +675,8 @@
   function prettySuit(card) { return { S: '♠', H: '♥', D: '♦', C: '♣' }[card.suit]; }
   function prettyRank(card) { return ({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[card.rank] || card.rank; }
   function suitClass(card) { return isRed(card) ? 'red' : 'black'; }
-  function renderCard(card, small = false) {
-    return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''} ${card.rank === 10 ? 'ten-card' : ''} rank-${String(prettyRank(card)).toLowerCase()}" data-card-id="${card.id}" aria-label="${escapeHtml(E.cardName(card))}">
+  function renderCard(card, small = false, selected = false) {
+    return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''} ${selected?'card-selected':''} ${card.rank === 10 ? 'ten-card' : ''} rank-${String(prettyRank(card)).toLowerCase()}" data-card-id="${card.id}" aria-label="${escapeHtml(E.cardName(card))}">
       <span class="card-corner"><b>${prettyRank(card)}</b><small>${prettySuit(card)}</small></span>
       <span class="card-big">${prettyRank(card)}</span>
     </span>`;
@@ -674,12 +691,12 @@
   function entryMarkup(element) {
     const selected = pickedTable.has(element.id);
     if (element.type === 'loose') {
-      return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table">${renderCard(element.card)}</button>`;
+      return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table">${renderCard(element.card,false,selected)}</button>`;
     }
     const cards=element.groups.flat();
     const ownerName = element.owner === 0 ? 'You' : 'Computer';
     const panelValue = buildPanelValue(element.value);
-    const layers=cards.map((card,i)=>`<span class="build-layer" style="--layer:${i}">${renderCard(card)}${i===cards.length-1?`<span class="build-value"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
+    const layers=cards.map((card,i)=>`<span class="build-layer" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
     return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.value} build owned by ${element.owner === 0 ? 'you' : 'computer'}">
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
@@ -835,7 +852,7 @@
           </section>` : ''}
           <div class="human-area">
             <div class="player-caption sr-only"><b>Your hand</b></div>
-            <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card)}</button>`).join('')}</div>
+            <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
             <div class="your-score-tag">You · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
@@ -870,19 +887,17 @@
     builds: ['Building', 'Allow single builds; with this switched off, players can only capture or trail.'],
     multipleBuilds: ['Multiple Builds', 'Allow two or more equal-valued combinations to be combined into a multiple build.'],
   };
-  function variationRow(key, title, unavailable = false) {
-    const locked = draftPreset !== 'custom' || unavailable;
+  function variationRow(key, title) {
     const expanded = detailSetting === key;
-    return `<div class="variation-row ${locked?'locked':''}">
+    return `<div class="variation-row">
       <button type="button" class="var-info" data-action="info-setting" data-key="${key}" aria-label="Explain ${title}" aria-expanded="${expanded}">ⓘ</button>
       <span>${title}</span>
-      <label class="var-toggle"><input type="checkbox" data-setting="${key}" ${draft[key]?'checked':''} ${locked?'disabled':''} aria-label="${title}"><i></i></label>
+      <label class="var-toggle"><input type="checkbox" data-setting="${key}" ${draft[key]?'checked':''} aria-label="${title}"><i></i></label>
       ${expanded?`<p class="inline-setting-info">${escapeHtml(SETTING_INFO[key][1])}</p>`:''}
     </div>`;
   }
   function renderSettings() {
     if (!draft) draft = { ...game.rules };
-    const locked = draftPreset !== 'custom';
     const menu = [['classic','Original'],['royal','Royal'],['spade','Spade'],['royalSpade','Royal Spade'],['custom','Custom']];
     return `<div class="dialog-head"><div><h2>${settingsOrigin==='newgame'?'New Game':'Game Setup'}</h2></div><button data-action="close" class="icon-close" aria-label="Close">×</button></div>
       <div class="dialog-content variations-content unified-setup">
@@ -896,9 +911,9 @@
         </div>
         <h3>PIRATE OPTIONS</h3><div class="variation-card">
           ${variationRow('pirateCaptures','Captures')}
-          ${variationRow('pirateBuilds','Builds',!draft.builds)}
-          ${variationRow('allowTrailWithOwnBuild','Trails',!draft.builds)}
-          ${variationRow('buildAnything','Build To Anything',!draft.builds)}
+          ${variationRow('pirateBuilds','Builds')}
+          ${variationRow('allowTrailWithOwnBuild','Trails')}
+          ${variationRow('buildAnything','Build To Anything')}
         </div>
         <h3>OTHER OPTIONS</h3><div class="variation-card">
           ${variationRow('drawMode','Draw')}
@@ -906,10 +921,10 @@
         </div>
         <h3>CLASSIC SETTINGS</h3><div class="variation-card">
           ${variationRow('builds','Allow Building')}
-          ${variationRow('multipleBuilds','Multiple Builds',!draft.builds)}
+          ${variationRow('multipleBuilds','Multiple Builds')}
           ${variationRow('spadeScoring','Spade Scoring')}
         </div>
-        <h3>MATCH SETTINGS</h3><label class="setting-select ${locked?'locked':''}"><b>Winning score</b><select data-setting="winningScore" ${locked?'disabled':''}>${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
+        <h3>MATCH SETTINGS</h3><label class="setting-select"><b>Winning score</b><select data-setting="winningScore">${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
         ${settingsOrigin==='game'?'<p class="setting-warning">Starting with these rules replaces the current match.</p>':''}
       </div><div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="apply-settings" class="action-btn primary">Start Game</button></div>`;
   }
@@ -1165,14 +1180,20 @@
     render();
   }
   function updateDraftSetting(prop, value) {
-    if (!draft || draftPreset !== 'custom' || !Object.hasOwn(E.DEFAULT_RULES,prop) ||
-        prop === 'name' || prop === 'difficulty') return;
-    if (!draft.builds && ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything'].includes(prop)) return;
+    if (!draft || !Object.hasOwn(E.DEFAULT_RULES,prop) ||
+        prop === 'name' || prop === 'difficulty' || draft[prop] === value) return;
+    const dependents = ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything'];
+    // Presets are starting points. Editing one creates a Custom draft.
+    // Enabling a dependent rule also enables its building prerequisite.
+    if (value && dependents.includes(prop)) draft.builds = true;
     draft[prop] = value;
     if (prop === 'sweepCancel') draft.sweepPoints = value ? 1 : 0;
     if (prop === 'builds' && !value) {
-      for (const dependent of ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything']) draft[dependent] = false;
+      for (const dependent of dependents) draft[dependent] = false;
     }
+    draftPreset = 'custom';
+    draft.name = 'Custom Cassino';
+    customDraft = {...draft};
     render();
   }
   app.addEventListener('change', ev => {
