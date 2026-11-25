@@ -71,7 +71,7 @@ for (const byComputer of [false,true]) {
     assert.equal(nodes.length,4);
     assert.ok(Number(nodes[0].style.zIndex)>Number(nodes[3].style.zIndex));
     const laneBottom=300-21-4.5;
-    const frontY=byComputer?(108+laneBottom)/2:100+400*.72;
+    const frontY=byComputer?(108+laneBottom)/2:388+Math.max(12,Math.min(22,70*.24))+35;
     for(let i=0;i<nodes.length;i++){
       const flights=nodes[i].frames.filter(frames=>frames[0].transform.startsWith('translate'));
       assert.equal(flights.length,2);
@@ -81,6 +81,7 @@ for (const byComputer of [false,true]) {
       const landing='translate('+dx+'px,'+dy+'px) scale(1, 1)';
       assert.equal(flights[0][2].transform,landing);
       if(byComputer)assert.ok(frontY+Math.min(i,7)*1.5+r.height/2<=300-21);
+      else assert.ok(frontY+Math.min(i,7)*1.5-r.height/2>=388+16.8-1e-8);
       assert.equal(flights[1][0].transform,landing);
       assert.equal(flights[0][2].opacity,1);
       assert.equal(flights[1][2].opacity,.06);

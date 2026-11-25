@@ -1022,14 +1022,6 @@ html,body,#app{background:#005d0b;color:#fff}
   .table-stage{top:57%!important;}
   .turn-banner{top:85%;}
 }
-/* Only the recommended action gets this additional cue. */
-.contextual-controls .action-btn.hint-recommended {
-  outline:2px solid #fff6d7;outline-offset:2px;
-  box-shadow:0 0 0 5px #e7c45580,0 4px 12px #002b0d77;
-}
-.contextual-controls .action-btn.hint-recommended::before {
-  content:'✧';margin-right:5px;color:#183d25;
-}
 .capture-label-flight > .build-value {
   height:100%!important;min-height:100%!important;width:100%;
   top:0!important;bottom:0!important;left:0;right:0;

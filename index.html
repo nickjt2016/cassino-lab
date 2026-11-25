@@ -1029,14 +1029,6 @@ html,body,#app{background:#005d0b;color:#fff}
   .table-stage{top:57%!important;}
   .turn-banner{top:85%;}
 }
-/* Only the recommended action gets this additional cue. */
-.contextual-controls .action-btn.hint-recommended {
-  outline:2px solid #fff6d7;outline-offset:2px;
-  box-shadow:0 0 0 5px #e7c45580,0 4px 12px #002b0d77;
-}
-.contextual-controls .action-btn.hint-recommended::before {
-  content:'✧';margin-right:5px;color:#183d25;
-}
 .capture-label-flight > .build-value {
   height:100%!important;min-height:100%!important;width:100%;
   top:0!important;bottom:0!important;left:0;right:0;
@@ -1576,18 +1568,106 @@ html,body,#app{background:#005d0b;color:#fff}
     scored.sort((a, b) => b.score - a.score);
     return scored[0].move;
   }
-  // Hints rank legal moves independently of the opponent's difficulty.
-  // Include every hand card and choose deterministically without playing.
-  function chooseHintMove(state) {
-    const moves = allComputerMoves(state, Infinity);
-    let best = null, bestScore = -Infinity;
-    for (const move of moves) {
-      if (!validateAction(state, move).ok) continue;
-      const score = moveScore(state, move);
-      if (score > bestScore) { best = move; bestScore = score; }
+  // Yield candidate subsets whose possible numerical sum is a multiple of
+  // the target. The suffix residue masks prune impossible branches, without
+  // limiting the number of cards or the number of legal results.
+  function* hintSubsets(entries, target, initialValues, allowEmpty = false) {
+    const suffix=Array(entries.length+1);
+    suffix[entries.length]=new Set([0]);
+    for(let i=entries.length-1;i>=0;i--){
+      const after=suffix[i+1];
+      suffix[i]=new Set(after);
+      for(const value of entries[i].values) for(const residue of after)
+        suffix[i].add((value+residue)%target);
     }
-    if (!best) throw new Error('No legal move found.');
-    return best;
+    function* walk(start, residues, ids){
+      if((ids.length||allowEmpty)&&residues.has(0)) yield ids;
+      for(let i=start;i<entries.length;i++){
+        const next=new Set();
+        for(const residue of residues) for(const value of entries[i].values)
+          next.add((residue+value)%target);
+        if(![...next].some(r=>suffix[i+1].has((target-r)%target)))continue;
+        yield* walk(i+1,next,[...ids,entries[i].id]);
+      }
+    }
+    yield* walk(0,new Set(initialValues.map(v=>v%target)),[]);
+  }
+
+  // One hint per visible hand/table selection. A selection can expose several
+  // distinct actions; the unchanged normal buttons show all of those actions.
+  // Capture and build selections precede every legal trail. Iteration is lazy
+  // so a very large table does not require storing every possible move up front.
+  function* hintSelections(state) {
+    if(!state||state.phase!=='playing')return;
+    const hand=state.players[state.turn].hand;
+    const rules=state.rules;
+    const loose=state.table.filter(x=>x.type==='loose');
+    const builds=state.table.filter(x=>x.type==='build');
+    const seen=new Set();
+    const selectionKey=(cardId,ids)=>JSON.stringify([cardId,[...ids].sort()]);
+    function unique(move){
+      const key=selectionKey(move.cardId,move.targetIds||[]);
+      if(seen.has(key))return false;
+      seen.add(key);return true;
+    }
+    const numericEntries=target=>loose.map(x=>({id:x.id,
+      values:cardValues(x.card,rules).filter(v=>v<=target)})).filter(x=>x.values.length);
+    // Enumerate each possible capture at each of the card's legal values.
+    for(const card of hand){
+      const values=cardValues(card,rules);
+      if(!values.length){
+        for(const item of loose){
+          if(item.card.rank!==card.rank)continue;
+          const move={kind:'capture',cardId:card.id,targetIds:[item.id]};
+          if(validateAction(state,move).ok&&unique(move))yield move;
+        }
+        continue;
+      }
+      for(const target of values){
+        const entries=[...builds.filter(b=>b.value===target).map(b=>({id:b.id,values:[target]})),
+          ...numericEntries(target)];
+        for(const ids of hintSubsets(entries,target,[0])){
+          const move={kind:'capture',cardId:card.id,targetIds:ids};
+          if(validateAction(state,move).ok&&unique(move))yield move;
+        }
+      }
+    }
+    // Build creation, extension and raising. At most one existing build can
+    // participate, but any number of loose cards may form the required groups.
+    if(rules.builds)for(const card of hand){
+      const played=cardValues(card,rules);
+      if(!played.length)continue;
+      const targets=rules.buildAnything
+        ? Array.from({length:maxBuildValue(rules)},(_,i)=>i+1)
+        : [...new Set(hand.filter(c=>c.id!==card.id).flatMap(c=>cardValues(c,rules)))];
+      for(const target of targets){
+        const entries=numericEntries(target);
+        const values=played.filter(v=>v<=target);
+        if(!values.length)continue;
+        for(const ids of hintSubsets(entries,target,values)){
+          const key=selectionKey(card.id,ids);
+          if(seen.has(key))continue;
+          const move=legalBuildOptions(state,card.id,ids).find(option=>option.value===target);
+          if(move&&unique(move))yield move;
+        }
+        for(const build of builds){
+          const extend=rules.multipleBuilds&&build.value===target;
+          const raise=build.groups.length===1&&values.some(v=>build.value+v===target);
+          if(!extend&&!raise)continue;
+          const initial=extend?values:values.filter(v=>build.value+v===target);
+          for(const extra of hintSubsets(entries,target,initial.map(v=>v+build.value),true)){
+            const ids=[build.id,...extra];
+            if(seen.has(selectionKey(card.id,ids)))continue;
+            const move=legalBuildOptions(state,card.id,ids).find(option=>option.value===target);
+            if(move&&unique(move))yield move;
+          }
+        }
+      }
+    }
+    for(const card of hand){
+      const move={kind:'trail',cardId:card.id,targetIds:[]};
+      if(validateAction(state,move).ok&&unique(move))yield move;
+    }
   }
   function explainMove(state, move) {
     if (move.kind === 'trail') return `Trail ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))} onto the table.`;
@@ -1597,7 +1677,7 @@ html,body,#app{background:#005d0b;color:#fff}
   return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, applyAction, scoreHand, finishHand, nextHand,
-    captureChoices, buildChoices, allComputerMoves, chooseComputerMove, chooseHintMove,
+    captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
     explainMove, moveScore, buildActionLabel };
 });
 
@@ -1613,9 +1693,9 @@ html,body,#app{background:#005d0b;color:#fff}
   let draft = null, draftPreset = 'classic';
   let detailSetting = '';
   let variationsScrollTop = 0;
-  let buildOptions = [], lastMotion = '', suggestedMove = null;
+  let buildOptions = [], lastMotion = '', hintIterator = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.22';
+  const APP_VERSION = '0.5.23';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -1959,8 +2039,7 @@ html,body,#app{background:#005d0b;color:#fff}
     const targetRect = destination.getBoundingClientRect();
     const center = r => ({x:r.left+r.width/2,y:r.top+r.height/2});
     const end = center(targetRect);
-    // The CPU stack is positioned in the clear lane between its hand and
-    // the measured table cards, not at a fixed point near the loose-card row.
+    // Capture stacks land in measured open lanes outside the table cards.
     const feltRectForCapture=app.querySelector('.table-area')?.getBoundingClientRect();
     const captureFront = capture && feltRectForCapture ? {
       x:feltRectForCapture.left + feltRectForCapture.width*.5,
@@ -2180,6 +2259,32 @@ html,body,#app{background:#005d0b;color:#fff}
             const half=tableHeight*frontScale/2;
             captureFront.y=Math.min(laneTop+Math.max(half,available/2),laneBottom-half);
           }
+          if(!snapshot.byComputer && feltRectForCapture){
+            // Leave an actual gap under the lowest table card, including
+            // captured cards still in flight and the remaining row's layout.
+            const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card')||[],node=>node.getBoundingClientRect());
+            const sourceRects=snapshot.tableRects||capturedCards.map(piece=>piece.rect);
+            const allRects=[...sourceRects,...liveRects];
+            const clearance=Math.max(12,Math.min(22,tableHeight*.24));
+            const spread=Math.min(ghosts.length-1,7)*1.5;
+            const fieldBottom=feltRectForCapture.top+feltRectForCapture.height;
+            const handTop=app.querySelector('.human-hand')?.getBoundingClientRect().top??fieldBottom;
+            const laneBottom=Math.min(fieldBottom,handTop)-8-spread;
+            const bottomOf=rects=>rects.length ? Math.max(...rects.map(r=>r.top+r.height)) :
+              feltRectForCapture.top+feltRectForCapture.height*.53+tableHeight/2;
+            let laneTop=bottomOf(allRects)+clearance;
+            // A very tall build at the side need not force the stack into
+            // the hand if the central capture lane itself is clear.
+            if(laneBottom-laneTop<tableHeight*.55){
+              const overlapping=allRects.filter(r=>r.left<captureFront.x+tableWidth/2+12&&r.left+r.width>captureFront.x-tableWidth/2-4);
+              if(overlapping.length)laneTop=Math.min(laneTop,bottomOf(overlapping)+clearance);
+            }
+            const available=laneBottom-laneTop;
+            frontScale=Math.min(1,Math.max(.35,available/tableHeight));
+            // The top edge of the capture stack is below the table, not its
+            // center. Prefer a normal card size whenever the lane allows it.
+            captureFront.y=laneTop+tableHeight*frontScale/2;
+          }
           const stack=ghosts.map(entry=>({
             entry, scale:frontScale*tableWidth/Math.max(entry.rect.width,1)
           }));
@@ -2363,28 +2468,28 @@ html,body,#app{background:#005d0b;color:#fff}
     return E.validateAction(game, move);
   }
   // A hint identifies the precise legal action without executing it.
-  function suggestedAction(kind, option = null) {
-    if (!suggestedMove || suggestedMove.kind !== kind || suggestedMove.cardId !== pickedCard) return false;
-    const selected=currentSelection();
-    const targets=suggestedMove.targetIds || [];
-    if (selected.length!==targets.length || !targets.every(id=>pickedTable.has(id))) return false;
-    return kind !== 'build' || !!option && option.value===suggestedMove.value && option.mode===suggestedMove.mode;
-  }
+  // Hints only change the ordinary card selection. Repeated taps walk
+  // every legal selection; after the last trail, start the cycle again.
   function actionButton(kind, label, option = null, index = -1) {
-    const recommended=suggestedAction(kind,option);
-    return `<button class="action-btn ${kind==='build'?'build-main':kind==='capture'?'primary':''}${recommended?' hint-recommended':''}" data-action="${kind}" ${kind==='build'?`data-index="${index}"`:''} ${recommended?`aria-label="Suggested move: ${escapeHtml(label)}"`:''}>${escapeHtml(label)}</button>`;
+    return `<button class="action-btn ${kind==='build'?'build-main':kind==='capture'?'primary':''}" data-action="${kind}" ${kind==='build'?`data-index="${index}"`:''}>${escapeHtml(label)}</button>`;
   }
   function suggestMove() {
     if (!isHumanTurn()) return;
     try {
-      const move=E.chooseHintMove(game);
+      if(!hintIterator)hintIterator=E.hintSelections(game);
+      let next=hintIterator.next();
+      if(next.done){
+        hintIterator=E.hintSelections(game);
+        next=hintIterator.next();
+      }
+      if(next.done)throw new Error('No legal move found.');
+      const move=next.value;
       const check=E.validateAction(game,move);
-      if (!check.ok) throw new Error(check.reason);
-      suggestedMove=move;
+      if(!check.ok)throw new Error(check.reason);
       pickedCard=move.cardId;
-      pickedTable=new Set(move.targetIds || []);
+      pickedTable=new Set(move.targetIds||[]);
       toast='';
-    } catch (error) { resetSelection(); toast=error.message; }
+    } catch(error) { resetSelection(); toast=error.message; }
     render();
   }
   function renderToolbar(active, computerScore = 0) {
@@ -2683,7 +2788,7 @@ html,body,#app{background:#005d0b;color:#fff}
     persist(); resetSelection(); sound('tap'); render();
     applyPendingUpdate();
   }
-  function resetSelection() { pickedCard = null; pickedTable.clear(); suggestedMove = null; }
+  function resetSelection() { pickedCard = null; pickedTable.clear(); hintIterator = null; }
   function botTurn() {
     if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
     busy = true;
@@ -2895,14 +3000,14 @@ html,body,#app{background:#005d0b;color:#fff}
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       pickedCard = pickedCard === id ? null : id;
-      suggestedMove = null; toast = '';
+      hintIterator = null; toast = '';
       sound('tap'); return render();
     }
     if (action === 'table') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
-      suggestedMove = null; toast = ''; sound('tap'); return render();
+      hintIterator = null; toast = ''; sound('tap'); return render();
     }
     if (action === 'clear') { resetSelection(); toast = ''; return render(); }
     if (action === 'trail' || action === 'capture') return play({ kind: action, cardId: pickedCard, targetIds: action === 'trail' ? [] : currentSelection() });

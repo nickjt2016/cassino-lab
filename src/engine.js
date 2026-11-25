@@ -498,18 +498,106 @@
     scored.sort((a, b) => b.score - a.score);
     return scored[0].move;
   }
-  // Hints rank legal moves independently of the opponent's difficulty.
-  // Include every hand card and choose deterministically without playing.
-  function chooseHintMove(state) {
-    const moves = allComputerMoves(state, Infinity);
-    let best = null, bestScore = -Infinity;
-    for (const move of moves) {
-      if (!validateAction(state, move).ok) continue;
-      const score = moveScore(state, move);
-      if (score > bestScore) { best = move; bestScore = score; }
+  // Yield candidate subsets whose possible numerical sum is a multiple of
+  // the target. The suffix residue masks prune impossible branches, without
+  // limiting the number of cards or the number of legal results.
+  function* hintSubsets(entries, target, initialValues, allowEmpty = false) {
+    const suffix=Array(entries.length+1);
+    suffix[entries.length]=new Set([0]);
+    for(let i=entries.length-1;i>=0;i--){
+      const after=suffix[i+1];
+      suffix[i]=new Set(after);
+      for(const value of entries[i].values) for(const residue of after)
+        suffix[i].add((value+residue)%target);
     }
-    if (!best) throw new Error('No legal move found.');
-    return best;
+    function* walk(start, residues, ids){
+      if((ids.length||allowEmpty)&&residues.has(0)) yield ids;
+      for(let i=start;i<entries.length;i++){
+        const next=new Set();
+        for(const residue of residues) for(const value of entries[i].values)
+          next.add((residue+value)%target);
+        if(![...next].some(r=>suffix[i+1].has((target-r)%target)))continue;
+        yield* walk(i+1,next,[...ids,entries[i].id]);
+      }
+    }
+    yield* walk(0,new Set(initialValues.map(v=>v%target)),[]);
+  }
+
+  // One hint per visible hand/table selection. A selection can expose several
+  // distinct actions; the unchanged normal buttons show all of those actions.
+  // Capture and build selections precede every legal trail. Iteration is lazy
+  // so a very large table does not require storing every possible move up front.
+  function* hintSelections(state) {
+    if(!state||state.phase!=='playing')return;
+    const hand=state.players[state.turn].hand;
+    const rules=state.rules;
+    const loose=state.table.filter(x=>x.type==='loose');
+    const builds=state.table.filter(x=>x.type==='build');
+    const seen=new Set();
+    const selectionKey=(cardId,ids)=>JSON.stringify([cardId,[...ids].sort()]);
+    function unique(move){
+      const key=selectionKey(move.cardId,move.targetIds||[]);
+      if(seen.has(key))return false;
+      seen.add(key);return true;
+    }
+    const numericEntries=target=>loose.map(x=>({id:x.id,
+      values:cardValues(x.card,rules).filter(v=>v<=target)})).filter(x=>x.values.length);
+    // Enumerate each possible capture at each of the card's legal values.
+    for(const card of hand){
+      const values=cardValues(card,rules);
+      if(!values.length){
+        for(const item of loose){
+          if(item.card.rank!==card.rank)continue;
+          const move={kind:'capture',cardId:card.id,targetIds:[item.id]};
+          if(validateAction(state,move).ok&&unique(move))yield move;
+        }
+        continue;
+      }
+      for(const target of values){
+        const entries=[...builds.filter(b=>b.value===target).map(b=>({id:b.id,values:[target]})),
+          ...numericEntries(target)];
+        for(const ids of hintSubsets(entries,target,[0])){
+          const move={kind:'capture',cardId:card.id,targetIds:ids};
+          if(validateAction(state,move).ok&&unique(move))yield move;
+        }
+      }
+    }
+    // Build creation, extension and raising. At most one existing build can
+    // participate, but any number of loose cards may form the required groups.
+    if(rules.builds)for(const card of hand){
+      const played=cardValues(card,rules);
+      if(!played.length)continue;
+      const targets=rules.buildAnything
+        ? Array.from({length:maxBuildValue(rules)},(_,i)=>i+1)
+        : [...new Set(hand.filter(c=>c.id!==card.id).flatMap(c=>cardValues(c,rules)))];
+      for(const target of targets){
+        const entries=numericEntries(target);
+        const values=played.filter(v=>v<=target);
+        if(!values.length)continue;
+        for(const ids of hintSubsets(entries,target,values)){
+          const key=selectionKey(card.id,ids);
+          if(seen.has(key))continue;
+          const move=legalBuildOptions(state,card.id,ids).find(option=>option.value===target);
+          if(move&&unique(move))yield move;
+        }
+        for(const build of builds){
+          const extend=rules.multipleBuilds&&build.value===target;
+          const raise=build.groups.length===1&&values.some(v=>build.value+v===target);
+          if(!extend&&!raise)continue;
+          const initial=extend?values:values.filter(v=>build.value+v===target);
+          for(const extra of hintSubsets(entries,target,initial.map(v=>v+build.value),true)){
+            const ids=[build.id,...extra];
+            if(seen.has(selectionKey(card.id,ids)))continue;
+            const move=legalBuildOptions(state,card.id,ids).find(option=>option.value===target);
+            if(move&&unique(move))yield move;
+          }
+        }
+      }
+    }
+    for(const card of hand){
+      const move={kind:'trail',cardId:card.id,targetIds:[]};
+      if(validateAction(state,move).ok&&unique(move))yield move;
+    }
   }
   function explainMove(state, move) {
     if (move.kind === 'trail') return `Trail ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))} onto the table.`;
@@ -519,6 +607,6 @@
   return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, applyAction, scoreHand, finishHand, nextHand,
-    captureChoices, buildChoices, allComputerMoves, chooseComputerMove, chooseHintMove,
+    captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
     explainMove, moveScore, buildActionLabel };
 });

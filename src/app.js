@@ -9,9 +9,9 @@
   let draft = null, draftPreset = 'classic';
   let detailSetting = '';
   let variationsScrollTop = 0;
-  let buildOptions = [], lastMotion = '', suggestedMove = null;
+  let buildOptions = [], lastMotion = '', hintIterator = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.22';
+  const APP_VERSION = '0.5.23';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -355,8 +355,7 @@
     const targetRect = destination.getBoundingClientRect();
     const center = r => ({x:r.left+r.width/2,y:r.top+r.height/2});
     const end = center(targetRect);
-    // The CPU stack is positioned in the clear lane between its hand and
-    // the measured table cards, not at a fixed point near the loose-card row.
+    // Capture stacks land in measured open lanes outside the table cards.
     const feltRectForCapture=app.querySelector('.table-area')?.getBoundingClientRect();
     const captureFront = capture && feltRectForCapture ? {
       x:feltRectForCapture.left + feltRectForCapture.width*.5,
@@ -576,6 +575,32 @@
             const half=tableHeight*frontScale/2;
             captureFront.y=Math.min(laneTop+Math.max(half,available/2),laneBottom-half);
           }
+          if(!snapshot.byComputer && feltRectForCapture){
+            // Leave an actual gap under the lowest table card, including
+            // captured cards still in flight and the remaining row's layout.
+            const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card')||[],node=>node.getBoundingClientRect());
+            const sourceRects=snapshot.tableRects||capturedCards.map(piece=>piece.rect);
+            const allRects=[...sourceRects,...liveRects];
+            const clearance=Math.max(12,Math.min(22,tableHeight*.24));
+            const spread=Math.min(ghosts.length-1,7)*1.5;
+            const fieldBottom=feltRectForCapture.top+feltRectForCapture.height;
+            const handTop=app.querySelector('.human-hand')?.getBoundingClientRect().top??fieldBottom;
+            const laneBottom=Math.min(fieldBottom,handTop)-8-spread;
+            const bottomOf=rects=>rects.length ? Math.max(...rects.map(r=>r.top+r.height)) :
+              feltRectForCapture.top+feltRectForCapture.height*.53+tableHeight/2;
+            let laneTop=bottomOf(allRects)+clearance;
+            // A very tall build at the side need not force the stack into
+            // the hand if the central capture lane itself is clear.
+            if(laneBottom-laneTop<tableHeight*.55){
+              const overlapping=allRects.filter(r=>r.left<captureFront.x+tableWidth/2+12&&r.left+r.width>captureFront.x-tableWidth/2-4);
+              if(overlapping.length)laneTop=Math.min(laneTop,bottomOf(overlapping)+clearance);
+            }
+            const available=laneBottom-laneTop;
+            frontScale=Math.min(1,Math.max(.35,available/tableHeight));
+            // The top edge of the capture stack is below the table, not its
+            // center. Prefer a normal card size whenever the lane allows it.
+            captureFront.y=laneTop+tableHeight*frontScale/2;
+          }
           const stack=ghosts.map(entry=>({
             entry, scale:frontScale*tableWidth/Math.max(entry.rect.width,1)
           }));
@@ -759,28 +784,28 @@
     return E.validateAction(game, move);
   }
   // A hint identifies the precise legal action without executing it.
-  function suggestedAction(kind, option = null) {
-    if (!suggestedMove || suggestedMove.kind !== kind || suggestedMove.cardId !== pickedCard) return false;
-    const selected=currentSelection();
-    const targets=suggestedMove.targetIds || [];
-    if (selected.length!==targets.length || !targets.every(id=>pickedTable.has(id))) return false;
-    return kind !== 'build' || !!option && option.value===suggestedMove.value && option.mode===suggestedMove.mode;
-  }
+  // Hints only change the ordinary card selection. Repeated taps walk
+  // every legal selection; after the last trail, start the cycle again.
   function actionButton(kind, label, option = null, index = -1) {
-    const recommended=suggestedAction(kind,option);
-    return `<button class="action-btn ${kind==='build'?'build-main':kind==='capture'?'primary':''}${recommended?' hint-recommended':''}" data-action="${kind}" ${kind==='build'?`data-index="${index}"`:''} ${recommended?`aria-label="Suggested move: ${escapeHtml(label)}"`:''}>${escapeHtml(label)}</button>`;
+    return `<button class="action-btn ${kind==='build'?'build-main':kind==='capture'?'primary':''}" data-action="${kind}" ${kind==='build'?`data-index="${index}"`:''}>${escapeHtml(label)}</button>`;
   }
   function suggestMove() {
     if (!isHumanTurn()) return;
     try {
-      const move=E.chooseHintMove(game);
+      if(!hintIterator)hintIterator=E.hintSelections(game);
+      let next=hintIterator.next();
+      if(next.done){
+        hintIterator=E.hintSelections(game);
+        next=hintIterator.next();
+      }
+      if(next.done)throw new Error('No legal move found.');
+      const move=next.value;
       const check=E.validateAction(game,move);
-      if (!check.ok) throw new Error(check.reason);
-      suggestedMove=move;
+      if(!check.ok)throw new Error(check.reason);
       pickedCard=move.cardId;
-      pickedTable=new Set(move.targetIds || []);
+      pickedTable=new Set(move.targetIds||[]);
       toast='';
-    } catch (error) { resetSelection(); toast=error.message; }
+    } catch(error) { resetSelection(); toast=error.message; }
     render();
   }
   function renderToolbar(active, computerScore = 0) {
@@ -1079,7 +1104,7 @@
     persist(); resetSelection(); sound('tap'); render();
     applyPendingUpdate();
   }
-  function resetSelection() { pickedCard = null; pickedTable.clear(); suggestedMove = null; }
+  function resetSelection() { pickedCard = null; pickedTable.clear(); hintIterator = null; }
   function botTurn() {
     if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
     busy = true;
@@ -1291,14 +1316,14 @@
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       pickedCard = pickedCard === id ? null : id;
-      suggestedMove = null; toast = '';
+      hintIterator = null; toast = '';
       sound('tap'); return render();
     }
     if (action === 'table') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
-      suggestedMove = null; toast = ''; sound('tap'); return render();
+      hintIterator = null; toast = ''; sound('tap'); return render();
     }
     if (action === 'clear') { resetSelection(); toast = ''; return render(); }
     if (action === 'trail' || action === 'capture') return play({ kind: action, cardId: pickedCard, targetIds: action === 'trail' ? [] : currentSelection() });
