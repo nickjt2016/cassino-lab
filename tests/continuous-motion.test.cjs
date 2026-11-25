@@ -26,7 +26,8 @@ test('Opponent flip and destination-sized trail are all scheduled before any ani
   assert.equal(calls[0].options.duration,610);
   assert.equal(calls[1].options.duration,335);
   assert.equal(calls[2].options.duration,335);
-  assert.ok(calls.every(c=>c.anim.startTime===1000));
+  assert.ok(calls.every(c=>c.anim.startTime===1016));
+  assert.equal(calls[0].options.easing,'cubic-bezier(.35,0,.35,1)');
   assert.equal(ghost.style.width,landing.width+'px');
   assert.deepEqual(events,['back mounted']);
   assert.equal(target.style.visibility,'hidden');
@@ -49,4 +50,11 @@ test('Snapshot caches rectangles and only copies final-hand residue when needed'
   assert.match(s,/const measured=new WeakMap/);
   assert.match(s,/if\(measured\.has\(node\)\)return measured\.get\(node\)/);
   assert.match(s,/const remainingCards = \(lastCard\?tableNodes:\[\]\)/);
+});
+
+test('Opponent motion starts and ends with zero velocity and a shared paint lead',()=>{
+  assert.match(app,/const cpuEasing='cubic-bezier\(\.35,0,\.35,1\)'/);
+  assert.match(app,/motionStart=Number\.isFinite\(now\)\?now\+16:null/);
+  assert.match(app,/const easing=snapshot\.byComputer\?cpuEasing/);
+  assert.match(app,/easing:snapshot\.byComputer&&snapshot\.kind==='trail'\?cpuEasing/);
 });

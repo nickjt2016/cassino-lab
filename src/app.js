@@ -470,7 +470,15 @@
         document.body.appendChild(ghost);
         return {ghost,rect:piece.rect};
       }) : [];
-    let motionStart=document.timeline?.currentTime;
+    let motionStart=null;
+    // Give the browser a brief opportunity to paint both sides at their
+    // fixed sizes before the shared timeline moves them. This is a start
+    // offset, not a frame-rate limit or a JS frame loop.
+    function beginMotionBatch(){
+      const now=document.timeline?.currentTime;
+      motionStart=Number.isFinite(now)?now+16:null;
+    }
+    const cpuEasing='cubic-bezier(.35,0,.35,1)';
     const animate=(node,frames,opts) => new Promise(resolve=>{
       if (!node.animate) {resolve();return;}
       const {sync,...timing}=opts;
@@ -510,7 +518,8 @@
       Object.assign(entry.ghost.style,finish,{transform:start,opacity:'1'});
       releaseCardTint(entry,delay);
       return animate(entry.ghost,[{transform:start},{transform:landed}],
-        {duration,delay,fill:'both',sync:snapshot.byComputer&&snapshot.kind==='trail',easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
+        {duration,delay,fill:'both',sync:snapshot.byComputer&&snapshot.kind==='trail',
+         easing:snapshot.byComputer&&snapshot.kind==='trail'?cpuEasing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
         if(generation!==motionGeneration)return;
         entry.ghost.style.transform='none';
         entry.rect={left:slotRect.left,top:slotRect.top,width:slotRect.width,height:slotRect.height};
@@ -574,7 +583,7 @@
       const finish=transform(end.x,end.y,scale*.32);
       const beginAt=flipDuration+index*stagger;
       const duration=collectAt+280;
-      const easing='cubic-bezier(.2,.72,.25,1)';
+      const easing=snapshot.byComputer?cpuEasing:'cubic-bezier(.2,.72,.25,1)';
       const frames=[{transform:start,opacity:1,offset:0}];
       if(beginAt>0)frames.push({transform:start,opacity:1,offset:beginAt/duration});
       frames[frames.length-1].easing=easing;
@@ -681,7 +690,7 @@
           const gatherDuration=snapshot.byComputer?390:340;
           const gatherAt=flipDuration+gatherDuration+(stack.length-1)*stagger;
           const collectAt=gatherAt+125;
-          motionStart=document.timeline?.currentTime;
+          beginMotionBatch();
           const flights=stack.map(({entry,scale},i)=>
             captureTrack(entry,frontPositions[i],scale,i,stagger,gatherDuration,collectAt));
           const flip=flipComputerCard();
@@ -692,7 +701,7 @@
           try{await Promise.all([...flights,flip]);}
           finally{if(typeof clearTimeout==='function')clearTimeout(landedSound);}
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
-          motionStart=document.timeline?.currentTime;
+          beginMotionBatch();
           await flipComputerCard();
           if(generation!==motionGeneration)return;
           const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
@@ -764,7 +773,7 @@
             landingRect=probe.getBoundingClientRect();probe.remove();
           }
           const landingCenter=destination.matches('[data-action="table"]')?center(landingRect):end;
-          motionStart=document.timeline?.currentTime;
+          beginMotionBatch();
           const flights=ghosts.map((g,i)=>moveBuildCard(g,{
             left:landingCenter.x+i*3-landingRect.width/2,
             top:landingCenter.y+i*2-landingRect.height/2,

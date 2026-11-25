@@ -190,3 +190,5 @@ Build Obligation replaces the inverse Build To Anything label; saved flags retai
 
 ### v0.5.33 — uninterrupted opponent motion
 Prepaint both sides of the opponent's card; native two-sided rotations replace the old midpoint HTML swap. Trails are prepared at landing size before flipping and use a common animation clock. Each capture runs a single compositor track including staggered gather, the 125 ms hold and simultaneous collection, with no JavaScript-triggered movement handoff. Snapshot geometry is measured once and end-of-hand residue markup is copied only when needed. The final collection fade now begins with the collection movement rather than late in it. Game rules, AI, card artwork and destinations are unchanged.
+
+The CPU trail and capture tracks use a gentler zero-velocity start/end easing and a shared 16 ms paint lead; native refresh-rate timing remains uncapped.
