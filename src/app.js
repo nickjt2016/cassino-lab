@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.25';
+  const APP_VERSION = '0.5.26';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -449,9 +449,9 @@
         {backgroundColor:after?.backgroundColor || '#fff',borderColor:after?.borderColor || '#c8c8c8'}
       ],{duration:130,easing:'ease-out'});
     }
-    // Interpolate actual layout dimensions instead of scaling a rasterized
-    // face. Container-relative lettering and border widths stay consistent
-    // with the final card when the moving overlay is replaced.
+    // Build and trail flights share the actual-dimension animation. The
+    // corner indices use container-relative units, so scaling a smaller
+    // rendered face would not exactly match a larger destination face.
     function moveBuildCard(entry, slotRect, duration) {
       const start={left:entry.rect.left+'px',top:entry.rect.top+'px',
         width:entry.rect.width+'px',height:entry.rect.height+'px'};
@@ -463,6 +463,10 @@
       return animate(entry.ghost,[start,finish],{duration,easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
         if(generation!==motionGeneration)return;
         Object.assign(entry.ghost.style,finish);
+        // The real landing rectangle becomes the new origin. A final trail
+        // can continue into end-of-hand collection without a size jump.
+        entry.rect={left:slotRect.left,top:slotRect.top,width:slotRect.width,height:slotRect.height};
+        entry.motion={x:0,y:0,scale:1,scaleY:1};
         entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
       });
     }
@@ -680,7 +684,9 @@
           // Do not let the next turn's render destroy an unfinished fade.
           await Promise.all(panelFades);
         } else {
-          // Computer trails: flip face-up before movement and match destination size.
+          // Trails use the exact same real-size flight as builds. After the
+          // opponent flips, resize the actual face as it travels, rather
+          // than magnifying its small, previously laid-out lettering.
           const landingCard=destination.querySelector('.playing-card') ||
             app.querySelector('.table-cards .playing-card') ||
             app.querySelector('.human-hand .playing-card');
@@ -692,11 +698,11 @@
             landingRect=probe.getBoundingClientRect();probe.remove();
           }
           const landingCenter=destination.matches('[data-action="table"]')?center(landingRect):end;
-          await Promise.all(ghosts.map((g,i)=>move(g,{x:landingCenter.x+i*3,y:landingCenter.y+i*2},
-            snapshot.byComputer?610:490,{
-              scale:landingRect.width/Math.max(1,g.rect.width),
-              scaleY:landingRect.height/Math.max(1,g.rect.height)
-            })));
+          await Promise.all(ghosts.map((g,i)=>moveBuildCard(g,{
+            left:landingCenter.x+i*3-landingRect.width/2,
+            top:landingCenter.y+i*2-landingRect.height/2,
+            width:landingRect.width,height:landingRect.height
+          },snapshot.byComputer?610:490)));
         }
         await labelsFaded;
         await gatherEndOfHand();

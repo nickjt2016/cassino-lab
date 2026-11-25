@@ -470,7 +470,7 @@ html,body,#app{background:#005d0b;color:#fff}
 /* v0.4.2: reference-video card proportions, typography, and physical Foley motion. */
 /* Portrait sizes match the compact face-up playing cards in the recording,
    while remaining comfortably readable on a 390 CSS-pixel viewport. */
-.playing-card:not(.mini) { width:clamp(53px,16.5vw,76px); height:auto; aspect-ratio: .715; border-radius:2px; background:#fff; border:1px solid #c8c8c8;
+.playing-card:not(.mini) { box-sizing:border-box; width:clamp(53px,16.5vw,76px); height:auto; aspect-ratio: .715; border-radius:2px; background:#fff; border:1px solid #c8c8c8;
   box-shadow:0 2px 3px #00270064; contain:layout style; container-type:inline-size; overflow:hidden; }
 .playing-card:not(.mini) .card-corner { position:absolute; left:4%; top:2%; width:auto; height:20%; display:flex; flex-direction:row;
   gap:1px; align-items:baseline; font-family:Georgia,'Times New Roman',serif; white-space:nowrap; line-height:1; }

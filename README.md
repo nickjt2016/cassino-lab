@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.25**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.26**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -164,3 +164,6 @@ Removed the dashed empty-table placeholder and its unused sizing rule. The felt 
 
 ### v0.5.25 — cleaner hand results and final collection
 Category leaders use bold numbers without colored cells; ties are unbolded. Remaining table cards gather and travel to their recipient at their existing size, fading instead of shrinking. Final trails continue from their actual landing transform.
+
+### v0.5.26 — trail artwork continuity
+Human and computer trails use the same actual-dimension animation as build cards. The face is laid out at its true intermediate size, and the moving card ends with exactly the destination's dimensions and border-box sizing. This avoids a last-frame corner-index shift caused by scaling a smaller card face. The final landing becomes the new origin for end-of-hand collection, with no shrink or size reset.

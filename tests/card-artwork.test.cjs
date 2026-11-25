@@ -42,7 +42,7 @@ test('Selected moving cards keep their artwork and fade their tint and border to
 
 test('Build transfer reuses physical card ghosts and interpolates actual dimensions',()=>{
   assert.match(app,/const individualBuild=snapshot\.kind==='build'&&!snapshot\.finalHand/);
-  const build=app.slice(app.indexOf("} else if(snapshot.kind === 'build' && !snapshot.finalHand)"),app.indexOf('          // Computer trails:'));
+  const build=app.slice(app.indexOf("} else if(snapshot.kind === 'build' && !snapshot.finalHand)"),app.indexOf('          // Trails use the exact same'));
   assert.match(build,/const buildGhosts=ghosts\.filter/);
   assert.doesNotMatch(build,/document\.createElement|innerHTML=/);
   const start=app.indexOf('    function moveBuildCard('),end=app.indexOf('    // A card\'s last position',start);
