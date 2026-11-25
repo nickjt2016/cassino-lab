@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.29**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.30**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -176,3 +176,6 @@ Every full-size card uses identical clipped border geometry. Multiple-build divi
 
 ### v0.5.29 — independent build reservations
 Each separate owned build must be backed by a distinct physical capture card remaining in hand. A single King cannot reserve two independent builds of 13; adding a group to one multiple build still requires only one King. The shared legality validator uses matching assignments for alternate-valued Royal cards, and applies to building, raising, capturing and trailing, including AI and hints. Pirate Builds still permits separate builds when all obligations can be met. The explicit Build To Anything exception remains unchanged.
+
+### v0.5.30 — smoother animation
+Build/trail faces are laid out once at exact destination dimensions and moved with compositor-friendly transforms. Capture, build, residue and deal staggers run on the Web Animations timeline instead of per-card timers. Layout measurements are batched, selected artwork fades as an opacity-only overlay, and synthesized audio buffers are cached. Existing destinations, delays, durations, turn gating and game rules remain unchanged. Frame rate remains dependent on the device/browser.

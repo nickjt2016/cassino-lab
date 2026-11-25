@@ -55,7 +55,7 @@ for(const kind of ['capture','trail'])for(const byComputer of [false,true]){
       const flights=n.frames.filter(f=>f[0].transform?.startsWith('translate'));
       const gather=flights.at(-2),collect=flights.at(-1);
       assert.ok(gather&&collect);
-      if(flights.length===3)assert.equal(gather[0].transform,flights[0][2].transform);
+      if(flights.length===3)assert.equal(gather[0].transform,flights[0].at(-1).transform);
       assert.equal(collect[0].transform,gather[2].transform);
       const scale=t=>t.slice(t.lastIndexOf('scale('));
       assert.equal(scale(gather[0].transform),scale(gather[2].transform));

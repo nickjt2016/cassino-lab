@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.29';
+  const APP_VERSION = '0.5.30';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -63,6 +63,7 @@
   }
   // Synthesized, original card-table Foley: a short dry click followed by a
   // quiet paper brush.  No audio samples from the reference app are reused.
+  const soundBuffers=new Map();
   function sound(type = 'tap', dealCount = 12) {
     if (!prefs.sound) return;
     try {
@@ -83,15 +84,20 @@
         deal: Array.from({length: dealCount}, (_, i) => [i * .094, i < 4 ? .15 : .13, .072]),
       }[type] || [[0, .04, .045]];
       for (const [offset, volume, duration] of pattern) {
-        const frames = Math.ceil(rate * duration);
-        const buffer = audioContext.createBuffer(1, frames, rate);
-        const channel = buffer.getChannelData(0);
+        const key=(type==='deal'?'deal':'card')+':'+rate+':'+duration;
+        let buffer=soundBuffers.get(key);
+        if(!buffer){
+          const frames = Math.ceil(rate * duration);
+          buffer = audioContext.createBuffer(1, frames, rate);
+          const channel = buffer.getChannelData(0);
         // Crisp attack + a decaying paper/riffle tail; intentionally subtle.
         for (let i = 0; i < frames; i++) {
           const t = i / rate;
           const body = Math.exp(-t * (type === 'deal' ? 56 : 72));
           const brush = Math.exp(-t * (type === 'deal' ? 30 : 21)) * (type === 'deal' ? .56 : .29);
           channel[i] = (Math.random() * 2 - 1) * (body + brush);
+        }
+          soundBuffers.set(key,buffer);
         }
         const src = audioContext.createBufferSource(); src.buffer = buffer;
         const filter = audioContext.createBiquadFilter();
@@ -155,6 +161,7 @@
     const nodes = [...app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]'),
       ...app.querySelectorAll('.opponent-hand .card-back')];
     let cpu=0;
+    const shifts=[];
     nodes.forEach(node => {
       const key = node.classList.contains('card-back') ? 'cpu-back:'+(cpu++) : node.dataset.action+':'+node.dataset.id;
       const from=previous.get(key);
@@ -170,10 +177,13 @@
       // the gaps. The CPU first spends 335 ms turning its card face-up.
       const delay=motion==='capture' && isTableCard && node.classList.contains('table-item')
         ? (byComputer?495:160) : 0;
+      shifts.push({node,dx,dy,isTableCard,delay});
+    });
+    for(const {node,dx,dy,isTableCard,delay} of shifts){
       node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
         {duration:isTableCard ? 355 : 420,delay,fill:'backwards',
          easing:isTableCard ? 'cubic-bezier(.22,.72,.24,1)' : 'cubic-bezier(.2,.8,.2,1)'});
-    });
+    }
   }
   // Dealt cards never materialize in the hand. Until the deck animation
   // reaches them, their DOM destinations remain hidden but retain layout space.
@@ -220,12 +230,11 @@
       return Promise.resolve();
     }
     const generation=motionGeneration;
-    const flyOne=({node,faceUp},index)=>new Promise(resolve=>{
-      setTimeout(()=>{
+    const measured=items.map(item=>({...item,rect:item.node.getBoundingClientRect()}));
+    const flyOne=({node,faceUp,rect},index)=>new Promise(resolve=>{
         if(generation!==motionGeneration || !node.isConnected){
           node.style.visibility='';resolve();return;
         }
-        const rect=node.getBoundingClientRect();
         if(!rect.width || !rect.height || !node.animate){
           node.style.visibility='';resolve();return;
         }
@@ -237,8 +246,8 @@
           position:'fixed',pointerEvents:'none',zIndex:'95',
           left:(start.x-rect.width/2)+'px',top:(start.y-rect.height/2)+'px',
           width:rect.width+'px',height:rect.height+'px',
-          transformOrigin:'center',willChange:'transform',
-          transform:`scale(${initialScale})`
+          transformOrigin:'center',willChange:'transform,opacity',
+          opacity:'0',transform:`scale(${initialScale})`
         });
         ghost.innerHTML=renderBack();
         const back=ghost.querySelector('.card-back');
@@ -255,12 +264,13 @@
         (async()=>{
           try{
             await run([
-              {transform:`scale(${initialScale}) rotate(-3deg)`},
-              {transform:`translate(${dx*.70}px,${dy*.70-6}px) scale(${initialScale+(1-initialScale)*.7}) rotate(2deg)`,offset:.72},
-              {transform:end}
-            ],{duration:440,easing:'cubic-bezier(.22,.74,.24,1)'});
+              {transform:`scale(${initialScale}) rotate(-3deg)`,opacity:1},
+              {transform:`translate(${dx*.70}px,${dy*.70-6}px) scale(${initialScale+(1-initialScale)*.7}) rotate(2deg)`,opacity:1,offset:.72},
+              {transform:end,opacity:1}
+            ],{duration:440,delay:index*94,easing:'cubic-bezier(.22,.74,.24,1)'});
             if(generation!==motionGeneration)return;
             ghost.style.transform=end;
+            ghost.style.opacity='1';
             ghost.getAnimations().forEach(a=>a.cancel());
             if(faceUp){
               await run([{transform:end+' rotateY(0deg)'},{transform:end+' rotateY(90deg)'}],{duration:100,easing:'ease-in'});
@@ -276,11 +286,10 @@
             }
           }finally{done();}
         })();
-      },index*94);
     });
     const stockCount=app.querySelector('.draw-stock-count');
     if(stockCount?.animate)stockCount.animate([{scale:1.06},{scale:1}],{duration:250});
-    return Promise.all(items.map(flyOne)).then(()=>{});
+    return Promise.all(measured.map(flyOne)).then(()=>{});
   }
   // The engine changes turn when a move is committed, but the next player
   // is not visually on turn until all move and replacement-deal flights end.
@@ -437,36 +446,38 @@
       anim.onfinish=finish;anim.oncancel=finish;
     });
     // The source face stays intact. Only its selection tint fades away.
-    function releaseCardTint(entry) {
+    function releaseCardTint(entry,delay=0) {
       const face=entry.ghost.querySelector('.playing-card.card-selected');
       if (!face) return;
-      const before=globalThis.getComputedStyle?.(face);
-      const paper=before?.getPropertyValue('--divider-paper').trim() || '#fff59b';
-      const edge=before?.getPropertyValue('--divider-edge').trim() || '#d6a526';
+      // Keep the exact selected artwork in a temporary compositor layer.
+      // No animation of gradient colors (which repaints the face each frame).
+      const tint=face.cloneNode(true);
+      tint.classList.add('flight-selection-tint');
+      tint.setAttribute('aria-hidden','true');
+      tint.removeAttribute('data-card-id');
       face.classList.remove('card-selected');
-      const after=globalThis.getComputedStyle?.(face);
-      if (face.animate) face.animate([
-        {'--divider-paper':paper,'--divider-edge':edge},
-        {'--divider-paper':after?.getPropertyValue('--divider-paper').trim() || '#fff',
-         '--divider-edge':after?.getPropertyValue('--divider-edge').trim() || '#c8c8c8'}
-      ],{duration:130,easing:'ease-out'});
+      entry.ghost.appendChild(tint);
+      animate(tint,[{opacity:1},{opacity:0}],{duration:130,delay,fill:'both',easing:'ease-out'})
+        .then(()=>tint.remove());
     }
-    // Build and trail flights share the actual-dimension animation. The
-    // corner indices use container-relative units, so scaling a smaller
-    // rendered face would not exactly match a larger destination face.
-    function moveBuildCard(entry, slotRect, duration) {
-      const start={left:entry.rect.left+'px',top:entry.rect.top+'px',
-        width:entry.rect.width+'px',height:entry.rect.height+'px'};
+    // Lay out the face once at its exact destination dimensions, then let
+    // the browser composite its position/scale. The inverse start transform
+    // matches the source rectangle; landing has no scaled-font reset.
+    function moveBuildCard(entry, slotRect, duration, delay=0) {
+      const source=entry.rect;
       const finish={left:slotRect.left+'px',top:slotRect.top+'px',
         width:slotRect.width+'px',height:slotRect.height+'px'};
+      const dx=source.left+source.width/2-slotRect.left-slotRect.width/2;
+      const dy=source.top+source.height/2-slotRect.top-slotRect.height/2;
+      const start=`translate(${dx}px,${dy}px) scale(${source.width/Math.max(slotRect.width,1)}, ${source.height/Math.max(slotRect.height,1)})`;
+      const landed='translate(0px,0px) scale(1, 1)';
       entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
-      Object.assign(entry.ghost.style,start,{transform:'none',opacity:'1'});
-      releaseCardTint(entry);
-      return animate(entry.ghost,[start,finish],{duration,easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
+      Object.assign(entry.ghost.style,finish,{transform:start,opacity:'1'});
+      releaseCardTint(entry,delay);
+      return animate(entry.ghost,[{transform:start},{transform:landed}],
+        {duration,delay,fill:'both',easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
         if(generation!==motionGeneration)return;
-        Object.assign(entry.ghost.style,finish);
-        // The real landing rectangle becomes the new origin. A final trail
-        // can continue into end-of-hand collection without a size jump.
+        entry.ghost.style.transform='none';
         entry.rect={left:slotRect.left,top:slotRect.top,width:slotRect.width,height:slotRect.height};
         entry.motion={x:0,y:0,scale:1,scaleY:1};
         entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
@@ -484,7 +495,7 @@
       const start=`translate(${from.x}px,${from.y}px) scale(${from.scale}, ${fromScaleY})`;
       const finish=`translate(${dx}px,${dy}px) scale(${scale}, ${scaleY})`;
       const finalOpacity=options.fade?0.06:1;
-      releaseCardTint(entry);
+      releaseCardTint(entry,options.delay||0);
       entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
       entry.ghost.style.transform=start;
       entry.ghost.style.opacity='1';
@@ -492,7 +503,7 @@
         {transform:start,opacity:1,offset:0},
         {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58}px) scale(${from.scale+(scale-from.scale)*.58}, ${fromScaleY+(scaleY-fromScaleY)*.58})`,opacity:1,offset:.58},
         {transform:finish,opacity:finalOpacity,offset:1}
-      ],{duration,easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
+      ],{duration,delay:options.delay||0,fill:'both',easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
         if(generation!==motionGeneration)return;
         entry.ghost.style.transform=finish;
         entry.ghost.style.opacity=String(finalOpacity);
@@ -528,14 +539,13 @@
       const together={x:felt ? felt.left+felt.width*.5 : source[0].x,
         y:felt ? felt.top+felt.height*.5 : source[0].y};
       const gap=Math.min(60,Math.max(22,300/Math.max(all.length,1)));
-      await Promise.all(all.map(async(entry,i)=>{
-        await new Promise(resolve=>setTimeout(resolve,i*gap));
+      await Promise.all(all.map((entry,i)=>{
         if(generation!==motionGeneration)return;
         // Continue from the actual landing transform of a final played card.
         // Remaining table cards keep their original size throughout collection.
         const from=entry.motion;
-        await move(entry,{x:together.x+Math.min(i,8)*2,y:together.y+Math.min(i,8)*2},330,{
-          from,scale:from?.scale??1,scaleY:from?.scaleY??1
+        return move(entry,{x:together.x+Math.min(i,8)*2,y:together.y+Math.min(i,8)*2},330,{
+          from,scale:from?.scale??1,scaleY:from?.scaleY??1,delay:i*gap
         });
       }));
       if(generation!==motionGeneration)return;
@@ -605,9 +615,8 @@
           }));
           const stagger=Math.min(35,150/Math.max(stack.length-1,1));
           await Promise.all(stack.map(async({entry,scale},i)=>{
-            if(i) await new Promise(resolve=>setTimeout(resolve,i*stagger));
             if(generation!==motionGeneration)return;
-            await move(entry,frontPositions[i],snapshot.byComputer?390:340,{scale});
+            await move(entry,frontPositions[i],snapshot.byComputer?390:340,{scale,delay:i*stagger});
           }));
           if(generation!==motionGeneration)return;
           sound('tap');
@@ -622,6 +631,7 @@
         } else if(snapshot.kind === 'build' && !snapshot.finalHand) {
           const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
           const order=new Map(layers.map((node,i)=>[node.dataset.cardId,i]));
+          const slotRects=layers.map(node=>node.getBoundingClientRect());
           const buildGhosts=ghosts.filter(piece=>order.has(piece.id)).sort((a,b)=>order.get(a.id)-order.get(b.id));
           buildGhosts.forEach(piece=>{piece.ghost.style.zIndex=String(105+order.get(piece.id));});
           const oldCount=buildGhosts.filter(piece=>existingIds.has(piece.id)).length;
@@ -640,12 +650,12 @@
           await Promise.all(buildGhosts.map(async(piece,i)=>{
             // The existing stack travels as a unit. New cards arrive on top.
             const delay=existingIds.has(piece.id)?0:Math.max(0,i-oldCount)*48;
-            await new Promise(resolve=>setTimeout(resolve,delay));
             if(generation!==motionGeneration)return;
-            const slot=layers[order.get(piece.id)];
+            const index=order.get(piece.id);
+            const slot=layers[index];
             if(!slot)return;
-            const slotRect=slot.getBoundingClientRect();
-            await moveBuildCard(piece,slotRect,snapshot.byComputer?365:310);
+            const slotRect=slotRects[index];
+            await moveBuildCard(piece,slotRect,snapshot.byComputer?365:310,delay);
             if(generation!==motionGeneration)return;
             piece.ghost.classList.toggle('build-group-start',slot.parentElement.classList.contains('build-group-start'));
             sound('tap');
@@ -675,9 +685,8 @@
           // Do not let the next turn's render destroy an unfinished fade.
           await Promise.all(panelFades);
         } else {
-          // Trails use the exact same real-size flight as builds. After the
-          // opponent flips, resize the actual face as it travels, rather
-          // than magnifying its small, previously laid-out lettering.
+          // Trails use the exact same destination-sized composited flight
+          // as builds, so their final lettering and border already match.
           const landingCard=destination.querySelector('.playing-card') ||
             app.querySelector('.table-cards .playing-card') ||
             app.querySelector('.human-hand .playing-card');

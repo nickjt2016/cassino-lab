@@ -76,14 +76,10 @@ html,body,#app { width:100%; height:100%; min-height:0; overflow:hidden; overscr
 .menu-row span { width:23px; text-align:center; font-size:19px; color:#efd08d; }
 .menu-row b { font-weight:650; font-size:13px; } .menu-row em { font-size:11px; font-style:normal; margin-left:auto; color:#f2d494; }
 .menu-row.danger-row { border-color:#6c5147; background:#40312b; }
-.animations-on .felt[data-motion="capture"] .table-cards { animation:table-snap .3s ease-out; }
-.animations-on .felt[data-motion="trail"] .table-cards,.animations-on .felt[data-motion="build"] .table-cards { animation:table-bloom .32s ease-out; }
-.animations-on .felt[data-motion="deal"] .opponent-hand,.animations-on .felt[data-motion="deal"] .human-hand { animation:cards-deal .38s ease-out; }
+/* Individual card flights own gameplay movement; no table-wide effects. */
 .animations-on .table-item,.animations-on .build-item { transition:transform .18s ease,box-shadow .18s ease; }
 .move-ghost { filter:drop-shadow(0 8px 9px #0007); }
 @keyframes cards-deal { from { opacity:.2; transform:translateY(-14px) scale(.95); } to { opacity:1; transform:translateY(0) scale(1); } }
-@keyframes table-bloom { from { filter:brightness(1.55); } to { filter:brightness(1); } }
-@keyframes table-snap { 0%{transform:scale(1.02);filter:brightness(1.35)} 100%{transform:scale(1);filter:brightness(1)} }
 @media(max-width:700px) {
  .shell { padding: max(5px,env(safe-area-inset-top)) 6px max(5px,env(safe-area-inset-bottom)); }
  .felt { min-height:0; padding:5px 7px 4px; }
@@ -1062,3 +1058,9 @@ html,body,#app{background:#005d0b;color:#fff}
 }
 .build-layer.build-group-start > .playing-card,
 .card-flight.build-group-start > .playing-card {--divider-dark:#605a51;}
+
+/* Animation-only overlay: the selected face fades as a single texture. */
+.card-flight > .playing-card.flight-selection-tint {
+  position:absolute;inset:0;z-index:4;pointer-events:none;
+  will-change:opacity;box-shadow:none;
+}

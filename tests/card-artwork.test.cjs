@@ -29,29 +29,30 @@ test('Selected cards have yellow paper and a gold border; build panel retains bl
   assert.match(app,/class="build-value \$\{selected\?'card-selected':''\}"/);
 });
 
-test('Selected moving cards keep their artwork and fade their tint and border together',()=>{
+test('Selected moving cards fade an identical painted overlay using opacity only',()=>{
   assert.match(app,/html:byComputer\?renderCard\(playerCard\):from\.outerHTML/);
   assert.match(app,/id:card\.dataset\.cardId,rect:rect\(card\),html:card\.outerHTML/);
   const start=app.indexOf('    function releaseCardTint(');
   const fade=app.slice(start,app.indexOf('\n    }',start));
+  assert.match(fade,/face\.cloneNode\(true\)/);
   assert.match(fade,/face\.classList\.remove\('card-selected'\)/);
-  assert.match(fade,/\{'--divider-paper':paper,'--divider-edge':edge\}/);
-  assert.match(fade,/'--divider-paper':after\?\.getPropertyValue\('--divider-paper'\)/);
-  assert.match(fade,/'--divider-edge':after\?\.getPropertyValue\('--divider-edge'\)/);
-  assert.doesNotMatch(fade,/innerHTML|fontSize|opacity:/);
+  assert.match(fade,/animate\(tint,\[\{opacity:1\},\{opacity:0\}\]/);
+  assert.match(fade,/then\(\(\)=>tint\.remove\(\)\)/);
+  assert.doesNotMatch(fade,/getComputedStyle|backgroundColor|fontSize/);
+  assert.match(css,/\.flight-selection-tint\s*\{[^}]*pointer-events:none/);
 });
 
-test('Build transfer reuses physical card ghosts and interpolates actual dimensions',()=>{
+test('Build transfer reuses ghosts and lays out the destination face once',()=>{
   assert.match(app,/const individualBuild=snapshot\.kind==='build'&&!snapshot\.finalHand/);
   const build=app.slice(app.indexOf("} else if(snapshot.kind === 'build' && !snapshot.finalHand)"),app.indexOf('          // Trails use the exact same'));
   assert.match(build,/const buildGhosts=ghosts\.filter/);
   assert.doesNotMatch(build,/document\.createElement|innerHTML=/);
   const start=app.indexOf('    function moveBuildCard('),end=app.indexOf('    // A card\'s last position',start);
   const move=app.slice(start,end);
-  assert.match(move,/width:entry\.rect\.width\+'px',height:entry\.rect\.height\+'px'/);
   assert.match(move,/width:slotRect\.width\+'px',height:slotRect\.height\+'px'/);
-  assert.match(move,/Object\.assign\(entry\.ghost\.style,finish\)/);
-  assert.doesNotMatch(move,/scale\(/);
+  assert.match(move,/Object\.assign\(entry\.ghost\.style,finish,\{transform:start,opacity:'1'\}\)/);
+  assert.match(move,/animate\(entry\.ghost,\[\{transform:start\},\{transform:landed\}\]/);
+  assert.match(move,/entry\.ghost\.style\.transform='none'/);
 });
 
 test('Stock, opponent and flying card backs share a proportional pattern',()=>{

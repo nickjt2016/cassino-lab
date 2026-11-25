@@ -5,7 +5,7 @@ const path = require('node:path');
 const app = fs.readFileSync(path.join(__dirname, '../src/app.js'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, '../src/compact.css'), 'utf8');
 
-test('Trails resize the physical card rather than magnifying a rendered face', () => {
+test('Trails use destination-sized faces and composited transforms', () => {
   const start=app.indexOf('          // Trails use the exact same');
   const trail=app.slice(start,app.indexOf('        await labelsFaded;',start));
   assert.ok(start>=0);
@@ -40,10 +40,16 @@ for(const byComputer of [true,false])for(const rank of [1,6,10,13]){
     await new Promise(resolve=>play({kind:'trail',byComputer,played:{id:'S'+rank,rect:source,html:face},groups:[],finalHand:false},resolve));
     assert.equal(nodes.length,1);
     const node=nodes[0];
-    const flights=node.frames.filter(x=>x.frames[0].width);
+    const flights=node.frames.filter(x=>x.frames[0].transform.startsWith('translate'));
     assert.equal(flights.length,1);
     const expected=r=>({left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px'});
-    assert.deepEqual(flights[0].frames,[expected(source),expected(landing)]);
+    const dx=source.left+source.width/2-landing.left-landing.width/2;
+    const dy=source.top+source.height/2-landing.top-landing.height/2;
+    assert.deepEqual(flights[0].frames,[
+      {transform:'translate('+dx+'px,'+dy+'px) scale('+source.width/landing.width+', '+source.height/landing.height+')'},
+      {transform:'translate(0px,0px) scale(1, 1)'}
+    ]);
+    assert.equal(flights[0].opts.fill,'both');
     for(const [key,value] of Object.entries(expected(landing)))assert.equal(node.style[key],value);
     assert.equal(node.style.transform,'none');
     assert.equal(node.innerHTML,face);

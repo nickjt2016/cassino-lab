@@ -12,7 +12,7 @@ test('Filmed K-build cards travel on direct paths without a vertical hop',()=>{
 test('Build stack assembly is quick, staggered and real-card-sized',()=>{
   assert.match(app,/existingIds\.has\(piece\.id\)\?0:Math\.max\(0,i-oldCount\)\*48/);
   assert.match(app,/snapshot\.byComputer\?365:310/);
-  assert.match(app,/await moveBuildCard\(piece,slotRect,snapshot\.byComputer\?365:310\)/);
+  assert.match(app,/await moveBuildCard\(piece,slotRect,snapshot\.byComputer\?365:310,delay\)/);
 });
 test('Black build owner/value panel appears only after cards settle',()=>{
   const settle=app.indexOf('setTimeout(resolve,65)');
