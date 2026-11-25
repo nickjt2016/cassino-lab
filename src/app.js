@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', suggestedMove = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.21';
+  const APP_VERSION = '0.5.22';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -440,10 +440,15 @@
     function releaseCardTint(entry) {
       const face=entry.ghost.querySelector('.playing-card.card-selected');
       if (!face) return;
-      const color=globalThis.getComputedStyle?.(face).backgroundColor || '#fff59b';
+      const before=globalThis.getComputedStyle?.(face);
+      const color=before?.backgroundColor || '#fff59b';
+      const edge=before?.borderColor || '#d6a526';
       face.classList.remove('card-selected');
-      if (face.animate) face.animate([{backgroundColor:color},{backgroundColor:'#fff'}],
-        {duration:130,easing:'ease-out'});
+      const after=globalThis.getComputedStyle?.(face);
+      if (face.animate) face.animate([
+        {backgroundColor:color,borderColor:edge},
+        {backgroundColor:after?.backgroundColor || '#fff',borderColor:after?.borderColor || '#c8c8c8'}
+      ],{duration:130,easing:'ease-out'});
     }
     // Interpolate actual layout dimensions instead of scaling a rasterized
     // face. Container-relative lettering and border widths stay consistent
@@ -601,12 +606,15 @@
           buildGhosts.forEach(piece=>{piece.ghost.style.zIndex=String(105+order.get(piece.id));});
           const oldCount=buildGhosts.filter(piece=>existingIds.has(piece.id)).length;
           if(retainedPanel?.classList.contains('card-selected')){
-            // Smoothly remove only the old panel's yellow selection tint.
+            // Fade the old panel's highlighted ink and border, never its black paper.
             const tintNodes=[retainedPanel,...retainedPanel.querySelectorAll('.build-value-owner,.build-value-number')];
-            const before=tintNodes.map(node=>({backgroundColor:getComputedStyle(node).backgroundColor,color:getComputedStyle(node).color}));
+            const inkAndEdge=node=>{
+              const style=getComputedStyle(node);
+              return {color:style.color,borderColor:style.borderColor};
+            };
+            const before=tintNodes.map(inkAndEdge);
             retainedPanel.classList.remove('card-selected');
-            tintNodes.forEach((node,i)=>node.animate?.([before[i],
-              {backgroundColor:getComputedStyle(node).backgroundColor,color:getComputedStyle(node).color}],
+            tintNodes.forEach((node,i)=>node.animate?.([before[i],inkAndEdge(node)],
               {duration:130,easing:'ease-out'}));
           }
           await Promise.all(buildGhosts.map(async(piece,i)=>{

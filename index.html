@@ -658,7 +658,7 @@ html,body,#app{background:#005d0b;color:#fff}
 }
 .build-layer:last-child .build-value {
   bottom:0!important;height:36%;min-height:36%;
-  color:#f5e6aa!important;z-index:5;border-radius:0 0 2px 2px
+  z-index:5;border-radius:0 0 2px 2px
 }
 
 /* v0.5.4 — build piles modeled after visible stacked-card transitions.
@@ -678,18 +678,18 @@ html,body,#app{background:#005d0b;color:#fff}
   gap:1px;padding:2px 2px 1px;
   border:0;border-top:1px solid #b29a64;
   border-radius:0 0 2px 2px;background:#16140f;
-  color:#fff6d9!important;
+  color:var(--build-ink,#fff);
   text-align:center;z-index:10;pointer-events:none;
   box-shadow:none;
 }
 .build-value-owner {
   display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;
   font:600 clamp(8px,2.3vw,11px)/1.05 Arial,sans-serif;
-  color:#f1e8cb;
+  color:inherit;
 }
 .build-value-number {
   display:block;font:700 clamp(19px,6vw,29px)/1.08 Georgia,'Times New Roman',serif;
-  color:#fff3c5;min-width:0;
+  color:inherit;min-width:0;
 }
 @media(orientation:landscape) and (max-height:450px){
   .build-pile .build-layer:last-child .build-value,.capture-label-flight > .build-value,.retained-build-value{gap:0;padding:1px}
@@ -779,8 +779,9 @@ html,body,#app{background:#005d0b;color:#fff}
   top:auto!important;
   height:77%!important;
   min-height:77%!important;
-  background:var(--build-panel-paper,#12110e);
-  border-top:1px solid var(--build-panel-rule,#c2ab69);
+  background:#12110e;
+  border:1px solid var(--build-outline,#c8c8c8);
+  border-top-color:var(--build-outline,#c2ab69);
 }
 .build-pile .build-layer:last-child .playing-card .card-corner {
   z-index:11;
@@ -946,13 +947,15 @@ html,body,#app{background:#005d0b;color:#fff}
   font-size:19cqw;
 }
 
-/* One full-face yellow selection wash, with no stacked outlines. */
-.playing-card.card-selected {background-color:#fff59b;}
-.build-value.card-selected {
-  --build-panel-paper:#fff59b;--build-panel-rule:#c7ad55;
+/* Selection changes the white card paper and its existing border.
+   The value panel always stays black; only its white ink and border
+   turn yellow/gold. Reuse the actual borders, never nested outlines. */
+.playing-card.card-selected {
+  background-color:#fff59b;border-color:#d6a526;
 }
-.build-value.card-selected .build-value-owner,
-.build-value.card-selected .build-value-number {color:#332b14;}
+.build-value.card-selected {
+  --build-ink:#fff59b;--build-outline:#d6a526;
+}
 /* One physical back design for the stock, opponent's hand and moving cards.
    The original blue SVG is retained; its tile and margins scale with the card,
    rather than changing the number of motifs when a flight is resized. */
@@ -1060,11 +1063,16 @@ html,body,#app{background:#005d0b;color:#fff}
 .card-flight.build-group-start::after {
   content:'';position:absolute;inset:0;pointer-events:none;z-index:12;
   box-sizing:border-box;border:1.5px solid transparent;border-radius:2px;
-  background:linear-gradient(to bottom,#605a51 0px,#605a51 1.5px,#c8c8c8 7px,transparent 10px) border-box;
+  background:linear-gradient(to bottom,#605a51 0px,#605a51 1.5px,var(--group-outline,#c8c8c8) 7px,transparent 10px) border-box;
   -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0) border-box;
   -webkit-mask-composite:xor;
   mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0) border-box;
   mask-composite:exclude;
+}
+
+/* Keep the multiple-build divider dark; blend into the same selected edge. */
+.build-group-start:has(> .playing-card.card-selected)::after {
+  --group-outline:#d6a526;
 }
 
 </style></head><body><div id="app"></div>
@@ -1607,7 +1615,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', suggestedMove = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.21';
+  const APP_VERSION = '0.5.22';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -2036,10 +2044,15 @@ html,body,#app{background:#005d0b;color:#fff}
     function releaseCardTint(entry) {
       const face=entry.ghost.querySelector('.playing-card.card-selected');
       if (!face) return;
-      const color=globalThis.getComputedStyle?.(face).backgroundColor || '#fff59b';
+      const before=globalThis.getComputedStyle?.(face);
+      const color=before?.backgroundColor || '#fff59b';
+      const edge=before?.borderColor || '#d6a526';
       face.classList.remove('card-selected');
-      if (face.animate) face.animate([{backgroundColor:color},{backgroundColor:'#fff'}],
-        {duration:130,easing:'ease-out'});
+      const after=globalThis.getComputedStyle?.(face);
+      if (face.animate) face.animate([
+        {backgroundColor:color,borderColor:edge},
+        {backgroundColor:after?.backgroundColor || '#fff',borderColor:after?.borderColor || '#c8c8c8'}
+      ],{duration:130,easing:'ease-out'});
     }
     // Interpolate actual layout dimensions instead of scaling a rasterized
     // face. Container-relative lettering and border widths stay consistent
@@ -2197,12 +2210,15 @@ html,body,#app{background:#005d0b;color:#fff}
           buildGhosts.forEach(piece=>{piece.ghost.style.zIndex=String(105+order.get(piece.id));});
           const oldCount=buildGhosts.filter(piece=>existingIds.has(piece.id)).length;
           if(retainedPanel?.classList.contains('card-selected')){
-            // Smoothly remove only the old panel's yellow selection tint.
+            // Fade the old panel's highlighted ink and border, never its black paper.
             const tintNodes=[retainedPanel,...retainedPanel.querySelectorAll('.build-value-owner,.build-value-number')];
-            const before=tintNodes.map(node=>({backgroundColor:getComputedStyle(node).backgroundColor,color:getComputedStyle(node).color}));
+            const inkAndEdge=node=>{
+              const style=getComputedStyle(node);
+              return {color:style.color,borderColor:style.borderColor};
+            };
+            const before=tintNodes.map(inkAndEdge);
             retainedPanel.classList.remove('card-selected');
-            tintNodes.forEach((node,i)=>node.animate?.([before[i],
-              {backgroundColor:getComputedStyle(node).backgroundColor,color:getComputedStyle(node).color}],
+            tintNodes.forEach((node,i)=>node.animate?.([before[i],inkAndEdge(node)],
               {duration:130,easing:'ease-out'}));
           }
           await Promise.all(buildGhosts.map(async(piece,i)=>{

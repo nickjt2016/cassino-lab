@@ -12,9 +12,14 @@ test('Moving cards use exact source dimensions and no extra flight-only texture 
   assert.doesNotMatch(css,/\.build-layer\s*\{[^}]*filter:drop-shadow/);
 });
 
-test('Selection fills the entire card and build panel with no overlapping outlines',()=>{
-  assert.match(css,/\.playing-card\.card-selected\s*\{background-color:#fff59b/);
-  assert.match(css,/\.build-value\.card-selected\s*\{\s*--build-panel-paper:#fff59b/);
+test('Selected cards have yellow paper and a gold border; build panel retains black paper',()=>{
+  assert.match(css,/\.playing-card\.card-selected\s*\{\s*background-color:#fff59b;border-color:#d6a526/);
+  assert.match(css,/\.build-value\.card-selected\s*\{\s*--build-ink:#fff59b;--build-outline:#d6a526/);
+  assert.match(css,/\.retained-build-value\s*\{[^}]*background:#12110e;\s*border:1px solid var\(--build-outline,#c8c8c8\)/);
+  assert.match(css,/\.retained-build-value\s*\{[^}]*color:var\(--build-ink,#fff\)/);
+  assert.match(css,/\.build-value-number\s*\{[^}]*color:inherit/);
+  assert.match(css,/\.build-value-owner\s*\{[^}]*color:inherit/);
+  assert.doesNotMatch(css,/\.build-value\.card-selected\s*\{[^}]*(?:background|--build-panel-paper)/);
   assert.doesNotMatch(css,/\.build-item\.selected[^{}]*\{[^}]*outline:/);
   assert.doesNotMatch(css,/\.build-layer \.playing-card:not\(\.mini\)\s*\{[^}]*outline:/);
   assert.doesNotMatch(css,/\.build-item\.selected[^{}]*\{[^}]*box-shadow:/);
@@ -24,14 +29,15 @@ test('Selection fills the entire card and build panel with no overlapping outlin
   assert.match(app,/class="build-value \$\{selected\?'card-selected':''\}"/);
 });
 
-test('Selected moving cards keep their source face and fade only the tint',()=>{
+test('Selected moving cards keep their artwork and fade their tint and border together',()=>{
   assert.match(app,/html:byComputer\?renderCard\(playerCard\):from\.outerHTML/);
   assert.match(app,/id:card\.dataset\.cardId,rect:rect\(card\),html:card\.outerHTML/);
   const start=app.indexOf('    function releaseCardTint(');
   const fade=app.slice(start,app.indexOf('\n    }',start));
   assert.match(fade,/face\.classList\.remove\('card-selected'\)/);
-  assert.match(fade,/\{backgroundColor:color\},\{backgroundColor:'#fff'\}/);
-  assert.doesNotMatch(fade,/innerHTML|fontSize|border|opacity:/);
+  assert.match(fade,/\{backgroundColor:color,borderColor:edge\}/);
+  assert.match(fade,/backgroundColor:after\?\.backgroundColor \|\| '#fff',borderColor:after\?\.borderColor \|\| '#c8c8c8'/);
+  assert.doesNotMatch(fade,/innerHTML|fontSize|opacity:/);
 });
 
 test('Build transfer reuses physical card ghosts and interpolates actual dimensions',()=>{
@@ -63,4 +69,14 @@ test('Both CPU flips and dealing use the same card-back renderer; only flips rep
   const deal=app.slice(app.indexOf('  function animateNewDeal'),app.indexOf('  function animateTurnMessage'));
   assert.match(deal,/ghost\.innerHTML=renderBack\(\)/);
   assert.ok(deal.indexOf('if(faceUp)')<deal.indexOf('ghost.replaceChildren(face)'));
+});
+
+test('Retained build panel transitions only ink and border, keeping black paper throughout',()=>{
+  const start=app.indexOf('const inkAndEdge=node=>');
+  const end=app.indexOf('await Promise.all(buildGhosts.map',start);
+  assert.ok(start>=0&&end>start);
+  const transition=app.slice(start,end);
+  assert.match(transition,/return \{color:style.color,borderColor:style.borderColor\}/);
+  assert.match(transition,/retainedPanel.classList.remove\('card-selected'\)/);
+  assert.doesNotMatch(transition,/backgroundColor|background:/);
 });
