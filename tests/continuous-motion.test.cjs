@@ -23,7 +23,7 @@ test('Opponent flip and destination-sized trail are all scheduled before any ani
   assert.equal(calls.length,3);
   assert.deepEqual(calls.map(c=>c.name),['flight','back','face']);
   assert.equal(calls[0].options.delay,335);
-  assert.equal(calls[0].options.duration,610);
+  assert.equal(calls[0].options.duration,490);
   assert.equal(calls[1].options.duration,335);
   assert.equal(calls[2].options.duration,335);
   assert.ok(calls.every(c=>c.anim.startTime===1016));
@@ -52,9 +52,13 @@ test('Snapshot caches rectangles and only copies final-hand residue when needed'
   assert.match(s,/const remainingCards = \(lastCard\?tableNodes:\[\]\)/);
 });
 
-test('Opponent motion starts and ends with zero velocity and a shared paint lead',()=>{
-  assert.match(app,/const cpuEasing='cubic-bezier\(\.35,0,\.35,1\)'/);
+test('Both players share the same zero-velocity easing and travel durations',()=>{
+  assert.match(app,/const travelEasing='cubic-bezier\(\.35,0,\.35,1\)'/);
   assert.match(app,/motionStart=Number\.isFinite\(now\)\?now\+16:null/);
-  assert.match(app,/const easing=snapshot\.byComputer\?cpuEasing/);
-  assert.match(app,/easing:snapshot\.byComputer&&snapshot\.kind==='trail'\?cpuEasing/);
+  assert.match(app,/const easing=travelEasing/);
+  assert.match(app,/sync:snapshot\.kind==='trail',\s*easing:travelEasing/);
+  assert.match(app,/const gatherDuration=340/);
+  assert.match(app,/},490,flipDuration\)\)/);
+  assert.match(app,/moveBuildCard\(piece,slotRect,310,delay\)/);
+  assert.doesNotMatch(app,/snapshot\.byComputer\?(?:610:490|390:340|365:310)/);
 });

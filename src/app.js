@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.34';
+  const APP_VERSION = '0.5.35';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -478,7 +478,9 @@
       const now=document.timeline?.currentTime;
       motionStart=Number.isFinite(now)?now+16:null;
     }
-    const cpuEasing='cubic-bezier(.35,0,.35,1)';
+    // All physical travel has the same rhythm, regardless of the actor.
+    // The opponent's face-down reveal is the only additional stage.
+    const travelEasing='cubic-bezier(.35,0,.35,1)';
     const animate=(node,frames,opts) => new Promise(resolve=>{
       if (!node.animate) {resolve();return;}
       const {sync,...timing}=opts;
@@ -518,8 +520,8 @@
       Object.assign(entry.ghost.style,finish,{transform:start,opacity:'1'});
       releaseCardTint(entry,delay);
       return animate(entry.ghost,[{transform:start},{transform:landed}],
-        {duration,delay,fill:'both',sync:snapshot.byComputer&&snapshot.kind==='trail',
-         easing:snapshot.byComputer&&snapshot.kind==='trail'?cpuEasing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
+        {duration,delay,fill:'both',sync:snapshot.kind==='trail',
+         easing:travelEasing}).then(()=>{
         if(generation!==motionGeneration)return;
         entry.ghost.style.transform='none';
         entry.rect={left:slotRect.left,top:slotRect.top,width:slotRect.width,height:slotRect.height};
@@ -547,7 +549,7 @@
         {transform:start,opacity:1,offset:0},
         {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58}px) scale(${from.scale+(scale-from.scale)*.58}, ${fromScaleY+(scaleY-fromScaleY)*.58})`,opacity:1,offset:.58},
         {transform:finish,opacity:finalOpacity,offset:1}
-      ],{duration,delay:options.delay||0,fill:'both',easing:'cubic-bezier(.2,.72,.25,1)'}).then(()=>{
+      ],{duration,delay:options.delay||0,fill:'both',easing:travelEasing}).then(()=>{
         if(generation!==motionGeneration)return;
         entry.ghost.style.transform=finish;
         entry.ghost.style.opacity=String(finalOpacity);
@@ -583,7 +585,7 @@
       const finish=transform(end.x,end.y,scale*.32);
       const beginAt=flipDuration+index*stagger;
       const duration=collectAt+280;
-      const easing=snapshot.byComputer?cpuEasing:'cubic-bezier(.2,.72,.25,1)';
+      const easing=travelEasing;
       const frames=[{transform:start,opacity:1,offset:0}];
       if(beginAt>0)frames.push({transform:start,opacity:1,offset:beginAt/duration});
       frames[frames.length-1].easing=easing;
@@ -687,7 +689,7 @@
             y:captureFront.y+Math.min(i,7)*spreadStep
           }));
           const stagger=Math.min(35,150/Math.max(stack.length-1,1));
-          const gatherDuration=snapshot.byComputer?390:340;
+          const gatherDuration=340;
           const gatherAt=flipDuration+gatherDuration+(stack.length-1)*stagger;
           const collectAt=gatherAt+125;
           beginMotionBatch();
@@ -730,7 +732,7 @@
             const slot=layers[index];
             if(!slot)return;
             const slotRect=slotRects[index];
-            await moveBuildCard(piece,slotRect,snapshot.byComputer?365:310,delay);
+            await moveBuildCard(piece,slotRect,310,delay);
             if(generation!==motionGeneration)return;
             piece.ghost.classList.toggle('build-group-start',slot.parentElement.classList.contains('build-group-start'));
             sound('tap');
@@ -778,7 +780,7 @@
             left:landingCenter.x+i*3-landingRect.width/2,
             top:landingCenter.y+i*2-landingRect.height/2,
             width:landingRect.width,height:landingRect.height
-          },snapshot.byComputer?610:490,flipDuration));
+          },490,flipDuration));
           // The face is already laid out at its landing size before its
           // flip begins. Translation starts on the same native clock.
           await Promise.all([...flights,flipComputerCard()]);
@@ -1257,44 +1259,69 @@
   }
   function resetSelection() { pickedCard = null; pickedTable.clear(); hintIterator = null; }
   let activeBotSearch=null;
+  let preparedBotTurn=null;
   function cancelComputerSearch(){
-    if(activeBotSearch)activeBotSearch();
+    preparedBotTurn=null;
+    activeBotSearch?.cancel();
   }
   function requestAdvancedMove(state){
     const view=E.publicPosition(state);
     const fallback=E.quickLegalMove(state);
-    // Reuse the exact inline engine shipped in the offline HTML. The worker
-    // gets only the detached public position, never the real game state.
+    const advanced=view.rules.difficulty==='hard'||view.rules.difficulty==='expert';
+    const localMove=()=>{
+      if(advanced)return fallback;
+      // Preserve the existing Easy/Medium policy if a browser disallows
+      // workers. Normal supported browsers do not run this on the UI thread.
+      try{return E.chooseComputerMove(state);}catch(_){return fallback;}
+    };
     const source=document.scripts?.[0]?.textContent;
     if(!source||typeof Worker!=='function'||typeof Blob!=='function'||!URL.createObjectURL)
-      return Promise.resolve(fallback);
+      return Promise.resolve(localMove());
     return new Promise(resolve=>{
-      let worker=null,url=null,timer=null,done=false;
+      let worker=null,url=null,timer=null,done=false,best=fallback;
       function finish(move){
         if(done)return;
         done=true;
         if(timer!==null)clearTimeout(timer);
         worker?.terminate();
         if(url)URL.revokeObjectURL(url);
-        if(activeBotSearch===cancel)activeBotSearch=null;
+        if(activeBotSearch===search)activeBotSearch=null;
         resolve(move);
       }
-      const cancel=()=>finish(null);
-      activeBotSearch=cancel;
+      const search={cancel:()=>finish(null),take:()=>finish(best)};
+      activeBotSearch=search;
       try {
-        url=URL.createObjectURL(new Blob([source,
-          "\\nself.onmessage=event=>{try{const result=self.CassinoEngine.analyzeComputerMove(event.data);self.postMessage({move:result.move});}catch(error){self.postMessage({error:String(error)});}};".replace('\\n','\n')
-        ],{type:'text/javascript'}));
+        // Easy/Medium use their existing scoring policy on a sampled world;
+        // only the public position is sent. Advanced search streams each
+        // completed iteration before its final answer.
+        const workerCode="\nself.onmessage=event=>{try{const E=self.CassinoEngine,view=event.data;const advanced=view.rules.difficulty==='hard'||view.rules.difficulty==='expert';const move=advanced?E.analyzeComputerMove(view,{onProgress:move=>self.postMessage({move,progress:true})}).move:E.chooseComputerMove(E.samplePublicPosition(view));self.postMessage({move});}catch(error){self.postMessage({error:String(error)});}};";
+        url=URL.createObjectURL(new Blob([source,workerCode],{type:'text/javascript'}));
         worker=new Worker(url);
         worker.onmessage=event=>{
+          if(done)return;
           const move=event.data?.move;
-          finish(move&&E.validateAction(state,move).ok?move:fallback);
+          if(move&&E.validateAction(state,move).ok)best=move;
+          if(event.data?.progress===true)return;
+          finish(move||advanced?best:localMove());
         };
-        worker.onerror=()=>finish(fallback);
-        timer=setTimeout(()=>finish(fallback),view.rules.difficulty==='expert'?2700:1800);
+        worker.onerror=()=>{if(!done)finish(advanced?best:localMove());};
+        timer=setTimeout(()=>finish(best),view.rules.difficulty==='expert'?2700:1800);
         worker.postMessage(view);
-      }catch(_){finish(fallback);}
+      }catch(_){finish(localMove());}
     });
+  }
+  // Start as soon as a committed position is known. A generation and move
+  // number bind the result to exactly one turn, even across Undo or dealing.
+  function prepareComputerTurn(){
+    if(screen!=='game'||game.phase!=='playing'||game.turn!==1)return null;
+    if(preparedBotTurn?.state===game&&preparedBotTurn.generation===motionGeneration&&
+       preparedBotTurn.moveNumber===game.moveNumber)return preparedBotTurn;
+    cancelComputerSearch();
+    const prepared={state:game,generation:motionGeneration,moveNumber:game.moveNumber,promise:null,error:null};
+    try{prepared.promise=requestAdvancedMove(game);}
+    catch(error){prepared.error=error;prepared.promise=Promise.resolve(null);}
+    preparedBotTurn=prepared;
+    return prepared;
   }
   function botTurn() {
     if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
@@ -1306,11 +1333,7 @@
       if(!stillCurrent())return;
       busy=false;turnInMotion=false;toast=`Computer move error: ${error.message}`;render();
     };
-    let search=null;
-    try{
-      if(game.rules?.difficulty==='hard'||game.rules?.difficulty==='expert')
-        search=requestAdvancedMove(game);
-    }catch(error){fail(error);return;}
+    const prepared=prepareComputerTurn();
     const commitMove=move=>{
       if(!stillCurrent()||!move)return;
       try{
@@ -1330,13 +1353,17 @@
         playMotion(before, () => completeTurn(cardsDealt));
       }catch(error){fail(error);}
     };
-    // Analysis overlaps the existing thinking pause, not card animation.
+    // Only the presentation pause starts after the player's animation.
+    // Analysis was already running. At 600 ms, take the final result or the
+    // latest completed search iteration; never wait for a deeper search.
     pendingBot=setTimeout(()=>{
       pendingBot=null;
-      if(!stillCurrent())return;
-      if(search)search.then(commitMove,fail);
-      else {try{commitMove(E.chooseComputerMove(game));}catch(error){fail(error);}}
-    },1200);
+      if(!stillCurrent()||preparedBotTurn!==prepared)return;
+      activeBotSearch?.take();
+      preparedBotTurn=null;
+      if(!prepared||prepared.error){fail(prepared?.error||new Error('No prepared computer turn.'));return;}
+      prepared.promise.then(commitMove,fail);
+    },600);
   }
   function play(action) {
     if (!isHumanTurn()) return;
@@ -1360,6 +1387,9 @@
     busy = true;
     persist(); render();
     playMotion(before, () => completeTurn(cardsDealt));
+    // The state (including any replacement draw) is committed. Let the
+    // worker calculate while the visual confirmation is still in flight.
+    prepareComputerTurn();
   }
   // One shared deal/round-end/next-turn path for human and computer.
   function completeTurn(cardsDealt) {
@@ -1403,6 +1433,7 @@
     collectDeal(); pendingStockOrigin=null;
     dealing = busy = !!(motionAllowed() && app.querySelectorAll);
     sound('deal',12); persist(); render();
+    prepareComputerTurn();
     const generation=motionGeneration;
     Promise.resolve(dealAnimation).then(() => {
       if(screen!=='game'||generation!==motionGeneration)return;
@@ -1419,6 +1450,7 @@
     screen = 'game'; resetSelection(); draft = null;
     dealing = busy = !!(motionAllowed() && app.querySelectorAll);
     sound('deal',12); persist(); render();
+    prepareComputerTurn();
     const generation=motionGeneration;
     Promise.resolve(dealAnimation).then(() => {
       if(screen!=='game'||generation!==motionGeneration)return;

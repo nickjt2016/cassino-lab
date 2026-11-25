@@ -57,6 +57,8 @@ for(const byComputer of [true,false])for(const rank of [1,6,10,13]){
     assert.equal(target.style.visibility,'visible');
     assert.equal(node.frames.length,1);
     assert.equal(flights[0].opts.delay,byComputer?335:0);
+    assert.equal(flights[0].opts.duration,490);
+    assert.equal(flights[0].opts.easing,'cubic-bezier(.35,0,.35,1)');
   });
 }
 test('Final trail commits real landing size before remaining-card collection',()=>{

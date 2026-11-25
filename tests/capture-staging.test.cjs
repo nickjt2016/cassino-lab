@@ -88,9 +88,9 @@ for (const byComputer of [false,true]) {
       assert.equal(gather.opacity,1);
       assert.equal(hold.opacity,1);
       assert.equal(finish.opacity,.06);
-      const flip=byComputer?335:0,duration=flip+(byComputer?390:340)+105+125+280;
+      const flip=byComputer?335:0,duration=flip+340+105+125+280;
       assert.ok(Math.abs(hold.offset*duration-(duration-280))<1e-8);
-      assert.ok(Math.abs(gather.offset*duration-(flip+(byComputer?390:340)+i*35))<1e-8);
+      assert.ok(Math.abs(gather.offset*duration-(flip+340+i*35))<1e-8);
     }
   });
 }

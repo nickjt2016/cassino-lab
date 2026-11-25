@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.34**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.35**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -195,3 +195,6 @@ The CPU trail and capture tracks use a gentler zero-velocity start/end easing an
 
 ### v0.5.34 — touch selection and difficulty layout
 Removed legacy hover lifts from hand cards, loose cards and builds. Only the selected class controls elevation; deselection returns to the normal position with a short transform transition. Selection updates no longer run a second FLIP movement or measure the board unnecessarily. The four difficulty choices appear in one horizontal row. CPU animation paths and gameplay rules are unchanged.
+
+### v0.5.35 — concurrent thinking and matching animation rhythm
+The opponent starts calculating the committed position as soon as the player's flight is scheduled (also during an opening/replacement deal). All four difficulties use the public-information worker where supported; Easy/Medium retain their scoring policy. Hard/Expert publish completed search iterations. The visible pause is 600 ms after the player's action and any dealing complete; at the deadline the CPU uses the best completed legal result and cancels remaining work. Undo/new match/exit discard obsolete searches. Both players use 490 ms trails, 340 ms capture gathering, 125 ms hold, 280 ms collection, 310 ms build flights, identical easing and staggering. The CPU retains its 335 ms face-down reveal. No rules or scoring changes.

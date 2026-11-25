@@ -109,3 +109,66 @@ test('Worker gets only the public view and cancels obsolete searches',async()=>{
   const next=api.request(s);const move=E.quickLegalMove(s);workers[1].onmessage({data:{move}});
   assert.deepEqual(await next,move);assert.equal(terminated,2);assert.equal(revoked,2);
 });
+
+test('Search reports completed iterations without changing its selected result',()=>{
+  const s=endgame(),published=[];
+  const options=()=>({random:seeded(9),now:()=>0,maxNodes:100000,timeMs:1000});
+  const ordinary=E.analyzeComputerMove(E.publicPosition(s),options());
+  const streamed=E.analyzeComputerMove(E.publicPosition(s),{...options(),onProgress:move=>published.push(move)});
+  assert.deepEqual(streamed,ordinary);
+  assert.ok(published.length>=2);
+  assert.deepEqual(published.at(-1),streamed.move);
+  assert.ok(published.every(move=>E.validateAction(s,move).ok));
+});
+test('Prepared turn launches once, reuses its worker, and takes the latest completed move at deadline',async()=>{
+  const start=app.indexOf('  let activeBotSearch=null;'),end=app.indexOf('  function botTurn()',start);
+  let terminated=0,revoked=0;const workers=[];
+  const Worker=function(){workers.push(this);this.postMessage=view=>this.view=view;this.terminate=()=>terminated++;};
+  const Blob=function(parts){this.parts=parts;};
+  const URL={createObjectURL:()=>'blob:worker',revokeObjectURL(){revoked++;}};
+  const doc={scripts:[{textContent:'/* engine */'}]};
+  const s=E.newMatch(E.rulesFor('royal',{difficulty:'expert'}),seeded(6));
+  s.turn=1;
+  const api=new Function('E','Worker','Blob','URL','document','setTimeout','clearTimeout','game',
+    "let screen='game',motionGeneration=0;\n"+app.slice(start,end)+
+    ';return {prepare:prepareComputerTurn,cancel:cancelComputerSearch,take:()=>activeBotSearch?.take(),next:()=>{motionGeneration++;}};')
+    (E,Worker,Blob,URL,doc,()=>1,()=>{},s);
+  const pending=api.prepare();
+  assert.equal(workers.length,1);
+  assert.equal(api.prepare(),pending);
+  assert.equal(workers[0].view.players[0].hand,undefined);
+  const moves=E.allComputerMoves(s);
+  const move=moves.at(-1);
+  workers[0].onmessage({data:{move,progress:true}});
+  assert.equal(terminated,0,'progress does not end the search');
+  api.take();
+  assert.deepEqual(await pending.promise,move);
+  assert.equal(terminated,1);assert.equal(revoked,1);
+  api.next();const next=api.prepare();
+  assert.equal(workers.length,2);
+  api.cancel();
+  assert.equal(await next.promise,null);
+  assert.equal(terminated,2);assert.equal(revoked,2);
+});
+test('Every difficulty can execute in the public-information worker',async()=>{
+  const engine=fs.readFileSync(path.join(__dirname,'../src/engine.js'),'utf8');
+  const start=app.indexOf('  let activeBotSearch=null;'),end=app.indexOf('  function botTurn()',start);
+  let source,posted;
+  const Blob=function(parts){this.source=parts.join('');};
+  const URL={createObjectURL:blob=>{source=blob.source;return 'blob:worker';},revokeObjectURL(){}};
+  const Worker=function(){
+    const worker=this,scope={postMessage:data=>worker.onmessage({data})};
+    new Function('globalThis','self',source)(scope,scope);
+    this.postMessage=view=>{posted=view;scope.onmessage({data:view});};
+    this.terminate=()=>{};
+  };
+  const api=new Function('E','Worker','Blob','URL','document','setTimeout','clearTimeout',
+    app.slice(start,end)+';return requestAdvancedMove;')(E,Worker,Blob,URL,{scripts:[{textContent:engine}]},()=>1,()=>{});
+  for(const difficulty of ['casual','thoughtful','hard','expert']){
+    const state=E.newMatch(E.rulesFor('classic',{difficulty}),seeded(19));
+    const move=await api(state);
+    assert.ok(E.validateAction(state,move).ok);
+    assert.equal(posted.players[1-state.turn].hand,undefined);
+    assert.equal(posted.stock,undefined);
+  }
+});

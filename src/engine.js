@@ -938,6 +938,7 @@
     roots.sort((a,b)=>b.score-a.score);
     let best=roots[0].move,ranked=roots;
     samplesUsed=rootSamples;
+    if(typeof options.onProgress==='function')options.onProgress(best);
     const handLeft=view.players.reduce((n,p)=>n+p.handCount,0);
     const perfect=view.stockCount===0&&worlds.length===1&&
       worlds[0].players[1-root].hand.length===view.players[1-root].handCount;
@@ -1005,6 +1006,7 @@
       if(!complete||scored.length!==candidates.length)break;
       scored.sort((a,b)=>b.score-a.score);
       ranked=scored;best=ranked[0].move;completedDepth=round.depth;samplesUsed=count;
+      if(typeof options.onProgress==='function')options.onProgress(best);
       if(exhaustive&&completedDepth>=handLeft)break;
     }
     return {move:best,nodes,rootMoves:roots.length,rootTruncated,completedDepth,samplesUsed,

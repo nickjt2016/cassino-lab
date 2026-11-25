@@ -14,7 +14,15 @@ function harness(cardsDealt=0){
     let game={turn:0,phase:'playing',stock:Array(8),players:[{hand:[]},{hand:[]}],table:[]};
     let busy=false,turnInMotion=false,dealing=false,screen='game',modal='',toast='',
       motionGeneration=0,lastMotion='',pendingBot=null,checkpoint=null;
-    let animationDone, timer, finishDeal;
+    let animationDone, timer, timerDelay, finishDeal, preparedBotTurn=null, activeBotSearch=null;
+    const searches=[];
+    function prepareComputerTurn(){
+      if(game.turn!==1||game.phase!=='playing')return null;
+      if(preparedBotTurn)return preparedBotTurn;
+      searches.push({turn:game.turn,stock:game.stock.length,frames:frames.slice()});
+      preparedBotTurn={promise:Promise.resolve({kind:'trail'}),error:null};
+      return preparedBotTurn;
+    }
     const dealAnimation=new Promise(resolve=>{finishDeal=resolve;});
     const frames=[];
     const render=()=>frames.push(turnBannerText());
@@ -27,24 +35,29 @@ function harness(cardsDealt=0){
     const takeMotionSnapshot=()=>({});
     const rememberStockOrigin=()=>{},collectDeal=()=>{},sound=()=>{},persist=()=>{},resetSelection=()=>{};
     const playMotion=(snapshot,after)=>{animationDone=after;};
-    const setTimeout=fn=>{timer=fn;return 1;};
+    const setTimeout=(fn,delay)=>{timer=fn;timerDelay=delay;return 1;};
     ${app.slice(start,end)}
     ${app.slice(moveStart,moveEnd)}
     return {play,frames,finish:()=>animationDone(),cpu:()=>timer(),
-      deal:()=>finishDeal(),text:turnBannerText};
+      deal:()=>finishDeal(),text:turnBannerText,searches,delay:()=>timerDelay};
   `)();
 }
 
-test('Human and opponent banners are hidden during every committed move and appear only on completion',()=>{
+test('Human and opponent banners are hidden during every committed move and appear only on completion',async()=>{
   const h=harness();
   assert.equal(h.text(),'Your turn');
   h.play({kind:'trail'});
   assert.equal(h.text(),'');
   assert.deepEqual(h.frames,['']);
+  assert.equal(h.searches.length,1,'calculation begins before human flight ends');
+  assert.deepEqual(h.searches[0].frames,['']);
   h.finish();
   assert.equal(h.text(),"Opponent's turn");
   assert.deepEqual(h.frames,['',"Opponent's turn"]);
+  assert.equal(h.delay(),600);
+  assert.equal(h.searches.length,1,'reuse the in-flight calculation');
   h.cpu();
+  await Promise.resolve();
   assert.equal(h.text(),'');
   h.finish();
   assert.equal(h.text(),'Your turn');
@@ -54,11 +67,15 @@ test('Human and opponent banners are hidden during every committed move and appe
 test('Replacement dealing is part of the outgoing turn, not the next turn',async()=>{
   const h=harness(1);
   h.play({kind:'trail'});
+  assert.equal(h.searches[0].stock,7,'search uses committed replacement draw');
   h.finish();
   assert.equal(h.text(),'');
+  assert.equal(h.delay(),undefined,'no visible thinking timer during dealing');
   h.deal();
   await Promise.resolve();
   assert.equal(h.text(),"Opponent's turn");
+  assert.equal(h.delay(),600);
+  assert.equal(h.searches.length,1);
 });
 
 test('Outgoing turn fades immediately and incoming turn fades in without sliding',()=>{

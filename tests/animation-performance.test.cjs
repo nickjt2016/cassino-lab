@@ -14,7 +14,7 @@ test('All movement keyframes use transforms/opacity rather than layout propertie
 });
 test('Staggered movements use native delays, batch rectangle reads, and wait for completion',()=>{
   assert.match(app,/const slotRects=layers\.map\(node=>node\.getBoundingClientRect\(\)\)/);
-  assert.match(app,/moveBuildCard\(piece,slotRect,snapshot\.byComputer\?365:310,delay\)/);
+  assert.match(app,/moveBuildCard\(piece,slotRect,310,delay\)/);
   assert.match(app,/captureTrack\(entry,frontPositions\[i\],scale,i,stagger,gatherDuration,collectAt\)/);
   assert.match(app,/from,scale:from\?\.scale\?\?1,scaleY:from\?\.scaleY\?\?1,delay:i\*gap/);
   assert.match(app,/const measured=items\.map\(item=>\(\{\.\.\.item,rect:item\.node\.getBoundingClientRect\(\)\}\)\)/);
