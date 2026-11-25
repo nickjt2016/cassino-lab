@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.31';
+  const APP_VERSION = '0.5.32';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -329,6 +329,7 @@
   }
   function cancelMotion() {
     motionGeneration++;
+    if(typeof cancelComputerSearch==='function')cancelComputerSearch();
     turnInMotion = false;
     // Explicit cancellation settles oncancel promises, including delayed
     // flights, and releases animated textures when a match is left or undone.
@@ -1072,7 +1073,7 @@
     return `<div class="dialog-head"><div><h2>${settingsOrigin==='newgame'?'New Game':'Game Setup'}</h2></div><button data-action="close" class="icon-close" aria-label="Close">×</button></div>
       <div class="dialog-content variations-content unified-setup">
         <h3>PLAYERS</h3><div class="pill-row"><button class="pill-choice selected" aria-pressed="true" type="button">2</button><button class="pill-choice" disabled>3 <small>soon</small></button><button class="pill-choice" disabled>4 <small>soon</small></button></div>
-        <h3>DIFFICULTY</h3><div class="pill-row diff-row">${[['casual','Easy'],['thoughtful','Medium']].map(([key,name])=>`<button class="pill-choice ${draft.difficulty===key?'selected':''}" data-action="setup-difficulty" data-value="${key}" aria-pressed="${draft.difficulty===key}">${name}</button>`).join('')}<button class="pill-choice" disabled>Hard <small>soon</small></button><button class="pill-choice" disabled>Insane <small>soon</small></button></div>
+        <h3>DIFFICULTY</h3><div class="pill-row diff-row">${[['casual','Easy'],['thoughtful','Medium'],['hard','Hard'],['expert','Expert']].map(([key,name])=>`<button class="pill-choice ${draft.difficulty===key?'selected':''}" data-action="setup-difficulty" data-value="${key}" aria-pressed="${draft.difficulty===key}">${name}</button>`).join('')}</div>
         <h3>VARIATION</h3><div class="pill-row preset-grid">${menu.map(([key,name])=>`<button class="pill-choice ${draftPreset===key?'selected':''}" data-action="preset-choice" data-value="${key}" aria-pressed="${draftPreset===key}">${name}</button>`).join('')}</div>
         <h3>ROYAL OPTIONS</h3><div class="variation-card">
           ${variationRow('royal','Face Cards')}
@@ -1201,15 +1202,64 @@
     applyPendingUpdate();
   }
   function resetSelection() { pickedCard = null; pickedTable.clear(); hintIterator = null; }
+  let activeBotSearch=null;
+  function cancelComputerSearch(){
+    if(activeBotSearch)activeBotSearch();
+  }
+  function requestAdvancedMove(state){
+    const view=E.publicPosition(state);
+    const fallback=E.quickLegalMove(state);
+    // Reuse the exact inline engine shipped in the offline HTML. The worker
+    // gets only the detached public position, never the real game state.
+    const source=document.scripts?.[0]?.textContent;
+    if(!source||typeof Worker!=='function'||typeof Blob!=='function'||!URL.createObjectURL)
+      return Promise.resolve(fallback);
+    return new Promise(resolve=>{
+      let worker=null,url=null,timer=null,done=false;
+      function finish(move){
+        if(done)return;
+        done=true;
+        if(timer!==null)clearTimeout(timer);
+        worker?.terminate();
+        if(url)URL.revokeObjectURL(url);
+        if(activeBotSearch===cancel)activeBotSearch=null;
+        resolve(move);
+      }
+      const cancel=()=>finish(null);
+      activeBotSearch=cancel;
+      try {
+        url=URL.createObjectURL(new Blob([source,
+          "\\nself.onmessage=event=>{try{const result=self.CassinoEngine.analyzeComputerMove(event.data);self.postMessage({move:result.move});}catch(error){self.postMessage({error:String(error)});}};".replace('\\n','\n')
+        ],{type:'text/javascript'}));
+        worker=new Worker(url);
+        worker.onmessage=event=>{
+          const move=event.data?.move;
+          finish(move&&E.validateAction(state,move).ok?move:fallback);
+        };
+        worker.onerror=()=>finish(fallback);
+        timer=setTimeout(()=>finish(fallback),view.rules.difficulty==='expert'?2700:1800);
+        worker.postMessage(view);
+      }catch(_){finish(fallback);}
+    });
+  }
   function botTurn() {
     if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
     busy = true;
     render();
-    pendingBot = setTimeout(() => {
-      pendingBot = null;
-      if (screen !== 'game' || !busy || game.phase !== 'playing' || game.turn !== 1) { busy = false; render(); return; }
-      try {
-        const move = E.chooseComputerMove(game);
+    const startedGame=game,generation=motionGeneration;
+    const stillCurrent=()=>screen==='game'&&busy&&game===startedGame&&generation===motionGeneration&&game.phase==='playing'&&game.turn===1;
+    const fail=error=>{
+      if(!stillCurrent())return;
+      busy=false;turnInMotion=false;toast=`Computer move error: ${error.message}`;render();
+    };
+    let search=null;
+    try{
+      if(game.rules?.difficulty==='hard'||game.rules?.difficulty==='expert')
+        search=requestAdvancedMove(game);
+    }catch(error){fail(error);return;}
+    const commitMove=move=>{
+      if(!stillCurrent()||!move)return;
+      try{
         const stockBefore = game.stock.length;
         const preHuman=game.players[0].hand.map(c=>c.id),preCpu=game.players[1].hand.map(c=>c.id);
         const before = takeMotionSnapshot(move, true);
@@ -1224,12 +1274,15 @@
         sound(game.phase !== 'playing' ? 'score' : move.kind);
         persist(); render();
         playMotion(before, () => completeTurn(cardsDealt));
-      } catch (error) {
-        busy = false; turnInMotion = false;
-        toast = `Computer move error: ${error.message}`;
-        render();
-      }
-    }, 1200);
+      }catch(error){fail(error);}
+    };
+    // Analysis overlaps the existing thinking pause, not card animation.
+    pendingBot=setTimeout(()=>{
+      pendingBot=null;
+      if(!stillCurrent())return;
+      if(search)search.then(commitMove,fail);
+      else {try{commitMove(E.chooseComputerMove(game));}catch(error){fail(error);}}
+    },1200);
   }
   function play(action) {
     if (!isHumanTurn()) return;

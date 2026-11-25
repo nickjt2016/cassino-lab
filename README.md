@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.31**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.5.32**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
 
 ## One-time GitHub Pages setup
 
@@ -184,3 +184,6 @@ Build/trail faces are laid out once at exact destination dimensions and moved wi
 Selection and hint changes update only card classes and legal-action controls; menu operations leave the live board and animation destinations mounted. Unnecessary validation, duplicate persistent saves, concurrent version checks, and uncancelled flight animations are eliminated. The offline cache has four canonical asset entries rather than accumulating query variants. The engine rejects impossible partition sums early, memoizes failed subproblems, prunes alternate-value combinations, and finds the same AI maximum without sorting. No legal move, scoring, hint ordering or AI strategy changes are intended; the prior proposal to merge raised independent builds is not included pending rule confirmation.
 
 Retained table elements cancel superseded translations before starting a new one, preventing rapid-selection animation buildup. Dialogs are layered above in-flight cards. The partition failure cache is capped at 4,096 entries per search.
+
+### v0.5.32 — build obligation, raise-and-merge, Hard and Expert
+Build Obligation replaces the inverse Build To Anything label; saved flags retain their meaning. Raise one single build using a hand card and merge existing matching builds into a multiple build without breaking groups. The contextual menu can include the player's matching build automatically. Hard and Expert share public-information sampling, constrained by build obligations, a strategic score evaluator, and bounded iterative lookahead. Expert searches deeper and can solve small known-hand endgames exactly when the budget permits. Advanced AI runs in a cancellable offline-compatible worker and never receives the actual hidden hand or stock. Easy/Medium retain their previous search strategy. Worker failure or timeout falls back to a cheap legal move.

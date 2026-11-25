@@ -114,3 +114,12 @@ test('Build Obligation is a visible inverse of the legacy saved Build To Anythin
   saved.open('newgame');saved.choose('custom');
   assert.equal(checked(saved.html(),'buildObligation'),false);
 });
+
+test('All four difficulty levels are enabled and preserved on preset changes',()=>{
+  const h=harness();h.open('newgame');
+  for(const level of ['casual','thoughtful','hard','expert']){
+    assert.match(h.html(),new RegExp('data-action="setup-difficulty" data-value="'+level+'"'));
+    h.difficulty(level);h.choose('royal');assert.equal(h.rules().difficulty,level);h.choose('classic');
+  }
+  assert.doesNotMatch(h.html(),/Insane|Hard <small>soon/);
+});

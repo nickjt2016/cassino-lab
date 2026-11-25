@@ -580,6 +580,8 @@
     return -0.1 - (card.id === 'D10' ? 4 : 0) - (card.id === 'S2' ? 2 : 0) - (card.rank === 1 ? 1.1 : 0) - (v >= 8 ? 0.35 : 0);
   }
   function chooseComputerMove(state, random = Math.random) {
+    if(state.rules.difficulty==='hard'||state.rules.difficulty==='expert')
+      return analyzeComputerMove(publicPosition(state),{random}).move;
     const options = allComputerMoves(state);
     if (!options.length) throw new Error('No legal moves for computer.');
     if (state.rules.difficulty === 'casual') {
@@ -710,6 +712,305 @@
     }
   }
   function* hintSelections(state){yield* legalActions(state,()=>false,true);}
+
+  // Strong opponents receive a detached, public-information-only view.
+  // The other hand and stock are represented by counts, never actual IDs.
+  function publicPosition(state){
+    const root=state.turn;
+    const players=state.players.map((p,i)=>({
+      name:p.name,score:p.score,sweeps:p.sweeps,captured:p.captured,
+      handCount:p.hand.length,...(i===root?{hand:p.hand}:{})
+    }));
+    return JSON.parse(JSON.stringify({rules:state.rules,players,table:state.table,
+      stockCount:state.stock.length,turn:root,lastCapture:state.lastCapture,
+      nextId:state.nextId,moveNumber:state.moveNumber,dealer:state.dealer,
+      round:state.round,phase:state.phase}));
+  }
+  // Draw a plausible hidden world from the unseen deck. Public build
+  // obligations constrain the opponent's hand; reserve distinct cards.
+  // With an exhausted stock the remaining unseen cards determine the hand.
+  function samplePublicPosition(view,random=Math.random){
+    const root=view.turn,other=1-root;
+    const known=new Set([
+      ...view.players[root].hand,
+      ...view.players.flatMap(p=>p.captured),
+      ...view.table.flatMap(cardsInElement)
+    ].map(c=>c.id));
+    const pool=shuffle(makeDeck().filter(c=>!known.has(c.id)),random);
+    const count=view.players[other].handCount;
+    const obligations=view.rules.buildAnything?[]:view.table.filter(b=>b.type==='build'&&b.owner===other)
+      .map(b=>({value:b.value,choices:pool.map((c,i)=>cardValues(c,view.rules).includes(b.value)?i:-1).filter(i=>i>=0)}))
+      .sort((a,b)=>a.choices.length-b.choices.length);
+    const reserved=new Set();
+    function reserve(i){
+      if(i===obligations.length)return true;
+      for(const index of obligations[i].choices){
+        if(reserved.has(index))continue;
+        reserved.add(index);
+        if(reserve(i+1))return true;
+        reserved.delete(index);
+      }
+      return false;
+    }
+    if(obligations.length>count||!reserve(0))return null;
+    const hidden=[...reserved].map(i=>pool[i]);
+    const remaining=pool.filter((_,i)=>!reserved.has(i));
+    hidden.push(...remaining.splice(0,count-hidden.length));
+    if(hidden.length!==count||remaining.length<view.stockCount)return null;
+    const players=view.players.map((p,i)=>({name:p.name,score:p.score||0,sweeps:p.sweeps||0,
+      captured:p.captured.slice(),hand:(i===root?p.hand:hidden).slice()}));
+    return {rules:view.rules,players,table:view.table.slice(),stock:remaining.slice(0,view.stockCount),
+      turn:root,lastCapture:view.lastCapture,nextId:view.nextId,moveNumber:view.moveNumber,
+      dealer:view.dealer,round:view.round,phase:view.phase,result:null,lastAction:'',log:[]};
+  }
+  // Cheap legal safety move: direct captures (including owned builds), then
+  // a legal trail. A valid state always permits one or the other. No hidden
+  // cards are read, even when the worker is unavailable or times out.
+  function quickLegalMove(state){
+    let best=null,bestScore=-Infinity;
+    for(const card of state.players[state.turn].hand){
+      const offer=move=>{
+        if(!validateAction(state,move).ok)return;
+        const score=moveScore(state,move);
+        if(score>bestScore){best=move;bestScore=score;}
+      };
+      offer({kind:'trail',cardId:card.id,targetIds:[]});
+      for(const item of state.table)offer({kind:'capture',cardId:card.id,targetIds:[item.id]});
+    }
+    if(best)return best;
+    // Corrupt/legacy states can lack a simple move; do not invent an illegal one.
+    throw new Error('No simple legal move in the current position.');
+  }
+  function simulationCopy(state){
+    // Cards, groups and rules are immutable during applyAction. Only copy
+    // the containers it mutates, not the entire serialized match history.
+    return {...state,players:state.players.map(p=>({...p,hand:p.hand.slice(),captured:p.captured.slice()})),
+      stock:state.stock.slice(),table:state.table.slice(),log:[]};
+  }
+  const tacticalWorth=c=>.11+(c.rank===1?1:0)+(c.id==='D10'?2:0)+(c.id==='S2'?1:0)+(c.suit==='S'?.14:0);
+  function strategicValue(state,root){
+    const other=1-root,p=state.players[root],q=state.players[other],rules=state.rules;
+    if(state.phase!=='playing'){
+      const margin=p.score-q.score;
+      const terminal=state.result?.winner;
+      return margin+(state.phase==='gameOver'?(terminal===root?100:terminal===other?-100:0):0);
+    }
+    function tally(pile){
+      let spades=0,special=0;
+      for(const c of pile){
+        if(c.suit==='S'){spades++;if(rules.spadeScoring&&c.id==='S11')special++;}
+        special+=(c.rank===1?1:0)+(c.id==='D10'?2:0)+(c.id==='S2'?1:0);
+      }
+      return {count:pile.length,spades,special};
+    }
+    const a=tally(p.captured),b=tally(q.captured);
+    const remaining=Math.max(0,52-a.count-b.count),remainingSpades=Math.max(0,13-a.spades-b.spades);
+    const majority=(diff,left,points)=>{
+      if(diff>left)return points;
+      if(diff< -left)return -points;
+      if(!left)return Math.sign(diff)*points;
+      return points*Math.tanh(diff/Math.max(1,left*.26));
+    };
+    let score=p.score-q.score+a.special-b.special+majority(a.count-b.count,remaining,3)
+      +(rules.spadeScoring?a.spades-b.spades:majority(a.spades-b.spades,remainingSpades,1))
+      +(p.sweeps-q.sweeps)*rules.sweepPoints+.045*(a.count-b.count);
+    const vals=state.players.map(pl=>pl.hand.map(c=>cardValues(c,rules)));
+    const matches=(i,v)=>vals[i].some(values=>values.includes(v));
+    // Possible loose sums and exact build values, for mobility, capture
+    // potential and preserving flexible cards. A bitset avoids subset copies.
+    let sums=1;
+    const buildValues=new Set(),faces=new Set();
+    let tableWorth=0;
+    for(const item of state.table){
+      if(item.type==='loose'){
+        const values=cardValues(item.card,rules);
+        const old=sums;
+        for(const v of values)sums|=old<<v;
+        sums&=0x1ffff;
+        if(!values.length)faces.add(item.card.rank);
+        tableWorth+=tacticalWorth(item.card);
+        continue;
+      }
+      buildValues.add(item.value);
+      const worth=cardsInElement(item).reduce((sum,c)=>sum+tacticalWorth(c),0);
+      tableWorth+=worth;
+      const owner=item.owner,enemy=1-owner;
+      const secured=matches(owner,item.value),stealable=matches(enemy,item.value);
+      let raiseable=false;
+      if(item.groups.length===1&&rules.builds){
+        raiseable=vals[enemy].some((values,i)=>values.some(v=>
+          v+item.value<=maxBuildValue(rules)&&
+          (rules.buildAnything||vals[enemy].some((rest,j)=>i!==j&&rest.includes(v+item.value)))));
+      }
+      const security=secured?(stealable?.04:raiseable?.20:.43):-.14;
+      score+=(owner===root?1:-1)*(worth*security-.065);
+    }
+    for(let i=0;i<2;i++){
+      const hand=state.players[i].hand,distinct=new Set();
+      let mobility=0;
+      for(let j=0;j<hand.length;j++){
+        const values=vals[i][j];
+        if(values.length){
+          values.forEach(v=>distinct.add(v));
+          if(values.some(v=>buildValues.has(v)||(sums&(1<<v))))mobility++;
+        }else{
+          distinct.add('face'+hand[j].rank);
+          if(faces.has(hand[j].rank))mobility++;
+        }
+      }
+      score+=(i===root?1:-1)*(.052*distinct.size+.105*mobility);
+    }
+    // Late-hand residue matters: favor retaining the last-capture right
+    // when few actions remain. Search handles the actual award exactly.
+    if(!state.stock.length&&state.lastCapture!==null){
+      const left=p.hand.length+q.hand.length;
+      score+=(state.lastCapture===root?1:-1)*tableWorth*.23/(1+left*.35);
+    }
+    return score;
+  }
+  // Hard and Expert share the same evaluator and imperfect-information
+  // model. Root moves are exhaustive until an explicit safety budget;
+  // deeper nonterminal branches are ranked/limited, with iterative search
+  // over common sampled worlds. A partial iteration never replaces the
+  // last completed one. Small perfect-information endgames can be exact.
+  function analyzeComputerMove(view,options={}){
+    const expert=view.rules.difficulty==='expert',root=view.turn;
+    const random=options.random||Math.random,now=options.now||Date.now;
+    const timeMs=options.timeMs??(expert?1500:650),maxNodes=options.maxNodes??(expert?18000:4800);
+    const maxRoots=options.maxRoots??(expert?1800:900);
+    const began=now(),deadline=began+timeMs;
+    let nodes=0,rootTruncated=false,completedDepth=1,samplesUsed=0;
+    const stopped=()=>nodes>=maxNodes||now()>=deadline;
+    const sampleCount=view.stockCount===0?1:expert?5:3;
+    const worlds=[];
+    for(let i=0;i<sampleCount;i++){
+      const world=samplePublicPosition(view,random);
+      if(world)worlds.push(world);
+    }
+    if(!worlds.length)throw new Error('No plausible hidden hand satisfies the public position.');
+    const baseline=worlds[0];
+    const fallback=quickLegalMove(baseline);
+    const advance=(state,move)=>{
+      if(stopped())return null;
+      nodes++;
+      const child=simulationCopy(state);
+      return applyAction(child,move).ok?child:null;
+    };
+    const rootKey=m=>JSON.stringify([m.kind,m.cardId,[...m.targetIds].sort(),m.value,m.mode]);
+    const seen=new Set(),roots=[];
+    const rootSamples=Math.min(worlds.length,expert?3:2);
+    const rootStopped=()=>{
+      const stop=stopped()||roots.length>=maxRoots||now()>=began+timeMs*.38;
+      if(stop)rootTruncated=true;
+      return stop;
+    };
+    const risk=(view.players[root].score||0)>(view.players[1-root].score||0)&&
+      (view.players[root].score||0)>view.rules.winningScore*.65?.12:0;
+    const aggregate=values=>{
+      const mean=values.reduce((a,b)=>a+b,0)/values.length;
+      return mean-risk*Math.sqrt(values.reduce((a,b)=>a+(b-mean)**2,0)/values.length);
+    };
+    function addRoot(move){
+      const key=rootKey(move);
+      if(seen.has(key)||stopped())return;
+      seen.add(key);
+      const values=[];
+      for(let i=0;i<rootSamples;i++){
+        const child=advance(worlds[i],move);
+        if(!child)break;
+        values.push(strategicValue(child,root));
+      }
+      if(values.length!==rootSamples)return;
+      roots.push({move,score:aggregate(values)+.0001*moveScore(baseline,move)});
+    }
+    addRoot(fallback);
+    // Keep legal trails in the candidate list even if a huge capture set
+    // hits the root limit before the generator reaches its trailing phase.
+    for(const c of baseline.players[root].hand){
+      const move={kind:'trail',cardId:c.id,targetIds:[]};
+      if(validateAction(baseline,move).ok)addRoot(move);
+    }
+    for(const move of legalActions(baseline,rootStopped)){
+      if(rootStopped())break;
+      addRoot(move);
+    }
+    if(!roots.length)return {move:fallback,nodes,rootMoves:0,rootTruncated:true,completedDepth:0,samplesUsed:0,exact:false};
+    roots.sort((a,b)=>b.score-a.score);
+    let best=roots[0].move,ranked=roots;
+    samplesUsed=rootSamples;
+    const handLeft=view.players.reduce((n,p)=>n+p.handCount,0);
+    const perfect=view.stockCount===0&&worlds.length===1&&
+      worlds[0].players[1-root].hand.length===view.players[1-root].handCount;
+    const exhaustive=perfect&&!rootTruncated&&handLeft<=8&&roots.length<=100;
+    const branchLimit=expert?120:90,beam=expert?8:6;
+    function minimax(state,depth,alpha,beta){
+      if(stopped())return null;
+      if(depth===0||state.phase!=='playing')return strategicValue(state,root);
+      const maximize=state.turn===root,children=[],keys=new Set();
+      function offer(move){
+        const k=rootKey(move);
+        if(keys.has(k))return;
+        keys.add(k);
+        const child=advance(state,move);
+        if(child)children.push({child,score:strategicValue(child,root)});
+      }
+      // Keep a safe move and all trails represented even when a sampled
+      // position is wide; in exact endgames no branch beam is used.
+      offer(quickLegalMove(state));
+      for(const c of state.players[state.turn].hand){
+        const move={kind:'trail',cardId:c.id,targetIds:[]};
+        if(validateAction(state,move).ok)offer(move);
+      }
+      for(const move of legalActions(state,stopped)){
+        if(stopped())return null;
+        offer(move);
+        if(!exhaustive&&children.length>=branchLimit)break;
+      }
+      if(stopped())return null;
+      children.sort((a,b)=>maximize?b.score-a.score:a.score-b.score);
+      if(!children.length)return strategicValue(state,root);
+      const selected=exhaustive?children:children.slice(0,beam);
+      let best=maximize?-Infinity:Infinity;
+      for(const {child,score} of selected){
+        const value=depth===1?score:minimax(child,depth-1,alpha,beta);
+        if(value===null)return null;
+        if(maximize){best=Math.max(best,value);alpha=Math.max(alpha,best);}
+        else{best=Math.min(best,value);beta=Math.min(beta,best);}
+        if(beta<=alpha)break;
+      }
+      return best;
+    }
+    const rounds=exhaustive&&expert
+      ? Array.from({length:Math.max(0,handLeft-1)},(_,i)=>({depth:i+2,width:Infinity,count:1}))
+      : expert?[{depth:2,width:16,count:4},{depth:3,width:8,count:3},{depth:4,width:5,count:2}]
+        : [{depth:2,width:12,count:3}];
+    for(const round of rounds){
+      if(stopped())break;
+      const candidates=exhaustive?ranked:ranked.slice(0,round.width);
+      const count=Math.min(worlds.length,round.count);
+      const scored=[];
+      let complete=true;
+      for(const candidate of candidates){
+        const values=[];
+        for(let i=0;i<count;i++){
+          const child=advance(worlds[i],candidate.move);
+          if(!child){complete=false;break;}
+          const value=minimax(child,round.depth-1,-Infinity,Infinity);
+          if(value===null){complete=false;break;}
+          values.push(value);
+        }
+        if(!complete)break;
+        scored.push({move:candidate.move,score:aggregate(values)});
+      }
+      if(!complete||scored.length!==candidates.length)break;
+      scored.sort((a,b)=>b.score-a.score);
+      ranked=scored;best=ranked[0].move;completedDepth=round.depth;samplesUsed=count;
+      if(exhaustive&&completedDepth>=handLeft)break;
+    }
+    return {move:best,nodes,rootMoves:roots.length,rootTruncated,completedDepth,samplesUsed,
+      exact:exhaustive&&completedDepth>=handLeft};
+  }
+
   function explainMove(state, move) {
     if (move.kind === 'trail') return `Trail ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))} onto the table.`;
     if (move.kind === 'capture') return `Capture ${move.targetIds.length} table group${move.targetIds.length === 1 ? '' : 's'} with ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))}.`;
@@ -719,5 +1020,5 @@
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
-    explainMove, moveScore, buildActionLabel };
+    explainMove, moveScore, buildActionLabel, publicPosition, samplePublicPosition, quickLegalMove, analyzeComputerMove, strategicValue };
 });
