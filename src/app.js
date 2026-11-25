@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', suggestedMove = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.18';
+  const APP_VERSION = '0.5.19';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -889,7 +889,6 @@
         <h3>PLAYERS</h3><div class="pill-row"><button class="pill-choice selected" aria-pressed="true" type="button">2</button><button class="pill-choice" disabled>3 <small>soon</small></button><button class="pill-choice" disabled>4 <small>soon</small></button></div>
         <h3>DIFFICULTY</h3><div class="pill-row diff-row">${[['casual','Easy'],['thoughtful','Medium']].map(([key,name])=>`<button class="pill-choice ${draft.difficulty===key?'selected':''}" data-action="setup-difficulty" data-value="${key}" aria-pressed="${draft.difficulty===key}">${name}</button>`).join('')}<button class="pill-choice" disabled>Hard <small>soon</small></button><button class="pill-choice" disabled>Insane <small>soon</small></button></div>
         <h3>VARIATION</h3><div class="pill-row preset-grid">${menu.map(([key,name])=>`<button class="pill-choice ${draftPreset===key?'selected':''}" data-action="preset-choice" data-value="${key}" aria-pressed="${draftPreset===key}">${name}</button>`).join('')}</div>
-        <p class="setup-rule-note">${locked?'Choose Custom to edit the rules below.':'Customize the rules below. Your choices are saved when you start the game.'}</p>
         <h3>ROYAL OPTIONS</h3><div class="variation-card">
           ${variationRow('royal','Face Cards')}
           ${variationRow('royalAces','Aces')}

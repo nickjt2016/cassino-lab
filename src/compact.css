@@ -1044,9 +1044,6 @@ html,body,#app{background:#005d0b;color:#fff}
   grid-auto-columns:auto;
 }
 .unified-setup .preset-grid .pill-choice {font-size:clamp(12px,3.7vw,16px);padding:6px 3px;}
-.unified-setup .setup-rule-note {
-  color:#716858;font-size:12px;line-height:1.5;margin:12px 3px 0;
-}
 .unified-setup .variation-row {flex-wrap:wrap;gap:9px;}
 .unified-setup .variation-row>span {min-width:0;}
 .unified-setup .variation-row.locked>span {color:#8c897d;}

@@ -87,3 +87,12 @@ test('In-game setup recognizes the current preset and explanations stay inline',
   assert.match(app,/existingSettings\.innerHTML = renderSettings\(\)/);
   assert.match(app,/restoreVariationsScroll\(\)/);
 });
+
+test('No explanatory paragraph appears beneath any variation selector',()=>{
+  const h=harness();h.open('newgame');
+  for(const key of [...Object.keys(E.PRESETS),'custom']) {
+    h.choose(key);
+    assert.doesNotMatch(h.html(),/setup-rule-note|Choose Custom to edit|Customize the rules below|Your choices are saved/);
+  }
+  assert.doesNotMatch(css,/\.setup-rule-note/);
+});
