@@ -11,7 +11,7 @@
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let screen = 'home';
-  const APP_VERSION = '0.5.28';
+  const APP_VERSION = '0.5.29';
   let availableUpdate = null;
   let updateReloading = false;
   // Apply new releases on launch or at the main menu, never during play.
@@ -952,8 +952,8 @@
     royalAces: ['Aces', 'Royal Aces may count as either 1 or 14 in captures and builds. The game chooses a legal value for the move.'],
     royalBigLittle: ['2 and 10', 'Little Cassino (2♠) can count as 2 or 15; Big Cassino (10♦) can count as 10 or 16 in captures and builds.'],
     pirateCaptures: ['Captures', 'When enabled, you may capture loose cards and other builds while you still own a build. When off, you must first capture your own build.'],
-    pirateBuilds: ['Builds', 'When enabled, you may start another independent build while you own one. Otherwise, resolve your current build first.'],
-    allowTrailWithOwnBuild: ['Trails', 'Allows trailing a card onto the table while owning a build, as long as you retain a hand card able to capture that build.'],
+    pirateBuilds: ['Builds', 'When enabled, you may start another independent build while you own one. Each separate build requires its own matching capture card in your hand, unless Build To Anything is enabled. A multiple build counts as one stack. Otherwise, resolve your current build first.'],
+    allowTrailWithOwnBuild: ['Trails', 'Allows trailing a card onto the table while owning builds, as long as you retain a distinct matching capture card for each independent build (unless Build To Anything is enabled).'],
     buildAnything: ['Build To Anything', 'When enabled, build to any legal card value without holding a matching capture card. A player without a matching card can still make other legal moves. This experimental rule can leave a build vulnerable.'],
     drawMode: ['Draw', 'After every turn, the player who played draws a replacement card until the stock is exhausted, rather than waiting for all players to run out of cards.'],
     sweepCancel: ['Sweep', 'When a capture clears the table, award a sweep. At hand scoring, each side scores only the number of sweeps beyond the opponent’s sweep count.'],

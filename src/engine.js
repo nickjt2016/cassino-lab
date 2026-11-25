@@ -140,10 +140,36 @@
     return partition && partition.map(group => group.map(x => x.card));
   }
   function ownBuildObligation(state, table, hand, player) {
-    for (const element of table) {
-      if (element.type === 'build' && element.owner === player && !state.rules.buildAnything && !hasValue(hand, element.value, state.rules)) {
-        return `You must retain a ${element.value} to capture your existing build.`;
+    if (state.rules.buildAnything) return null;
+    // A multiple build occupies one table element, regardless of its number
+    // of equal-valued groups. Each independent owned element needs a distinct
+    // physical card in the remaining hand, even if the values are identical.
+    const own = table.filter(element => element.type === 'build' && element.owner === player);
+    const values = hand.map(card => cardValues(card, state.rules));
+    const obligations = own.map(element => ({
+      value: element.value,
+      choices: values.flatMap((possible, index) => possible.includes(element.value) ? [index] : [])
+    })).sort((a,b) => a.choices.length - b.choices.length);
+    for (const obligation of obligations) {
+      if (!obligation.choices.length) return `You must retain a ${obligation.value} to capture your existing build.`;
+    }
+    // Solve the small assignment problem, rather than counting ranks
+    // independently. A Royal Ace, for example, cannot reserve both a 1
+    // and a 14 build, but can reserve either if a different card covers the
+    // other. Backtracking avoids rejecting valid overlapping value choices.
+    const used = new Set();
+    function reserve(index) {
+      if (index === obligations.length) return true;
+      for (const choice of obligations[index].choices) {
+        if (used.has(choice)) continue;
+        used.add(choice);
+        if (reserve(index + 1)) return true;
+        used.delete(choice);
       }
+      return false;
+    }
+    if (own.length > hand.length || !reserve(0)) {
+      return 'Each independent build needs its own matching capture card in your hand.';
     }
     return null;
   }
