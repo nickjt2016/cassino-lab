@@ -49,20 +49,37 @@
     return hand.some(c => cardValues(c, rules).includes(value));
   }
   function findValuePartition(cards, target, desired, rules) {
-    // Enumerate alternative card values only for the few special cards; ordinary
-    // hands take the same fast path as classic Cassino.
-    const possible = cards.map(x => cardValues(x.card, rules));
+    if (!cards.length || !Number.isInteger(target) || target < 1) return null;
+    const possible = cards.map(x => cardValues(x.card, rules).filter(v => v <= target));
     if (possible.some(vals => !vals.length)) return null;
-    const choose = (i, chosen) => {
+    // The common case has exactly one value for every card. No recursive
+    // assignment or array copies are necessary before partitioning.
+    if (possible.every(vals => vals.length === 1)) {
+      return findPartition(cards.map((x,i) => ({card:x.card,v:possible[i][0]})), target, desired);
+    }
+    // For alternate values, prune branches whose remaining values cannot
+    // make a total divisible by the target. Original value order is retained.
+    const residues=Array(cards.length+1);
+    residues[cards.length]=new Set([0]);
+    for(let i=cards.length-1;i>=0;i--){
+      const next=new Set();
+      for(const value of possible[i])for(const rest of residues[i+1])next.add((value+rest)%target);
+      residues[i]=next;
+    }
+    const chosen=[];
+    const choose = (i,total) => {
+      if(!residues[i].has((target-total%target)%target))return null;
       if (i === cards.length) return findPartition(chosen, target, desired);
       for (const v of possible[i]) {
-        if (v > target) continue;
-        const result = choose(i + 1, [...chosen, {card:cards[i].card, v}]);
-        if (result) return result;
+        if(desired==='single'&&total+v>target)continue;
+        chosen.push({card:cards[i].card,v});
+        const result=choose(i+1,total+v);
+        chosen.pop();
+        if(result)return result;
       }
       return null;
     };
-    return choose(0, []);
+    return choose(0,0);
   }
   function makeDeck() {
     return SUITS.flatMap(suit => Array.from({ length: 13 }, (_, i) => ({
@@ -112,6 +129,12 @@
     if (!cards.length || !Number.isInteger(target) || target < 1) return null;
     const values = cards.map(c => c.v);
     if (values.some(v => !Number.isInteger(v) || v < 1 || v > target)) return null;
+    const total=values.reduce((sum,v)=>sum+v,0);
+    if(total%target || (desired==='single'&&total!==target) ||
+      (desired==='multiple'&&total<2*target))return null;
+    // The unique single-group partition is always in original card order.
+    if(total===target)return [cards.map(x=>x.card)];
+    const failed=new Set();
     // First unchecked card always starts the next group, so each partition is found once.
     const walk = (remaining, groups) => {
       if (!remaining.length) {
@@ -119,6 +142,10 @@
         if (desired === 'multiple' && groups.length < 2) return null;
         return groups;
       }
+      // Only impossible subproblems are memoized. A successful branch
+      // still returns the original card identities in the original order.
+      const key=remaining.map(x=>x.v).join(',');
+      if(failed.has(key))return null;
       const [first, ...rest] = remaining;
       const choose = (offset, need, selected, leftovers) => {
         if (need === 0) {
@@ -134,7 +161,9 @@
         }
         return null;
       };
-      return choose(0, target - first.v, [], []);
+      const result=choose(0, target - first.v, [], []);
+      if(!result)failed.add(key);
+      return result;
     };
     const partition = walk(cards.map((card, i) => ({ ...card, v: values[i] })), []);
     return partition && partition.map(group => group.map(x => x.card));
@@ -520,9 +549,14 @@
       if (captures.length && random() < 0.78) return captures[Math.floor(random() * captures.length)];
       return options[Math.floor(random() * options.length)];
     }
-    const scored = options.map(move => ({ move, score: moveScore(state, move) + random() * 0.6 }));
-    scored.sort((a, b) => b.score - a.score);
-    return scored[0].move;
+    // Stable maximum: identical scoring, random calls and tie order as
+    // the former sort, without allocating and sorting a second move list.
+    let best=options[0],bestScore=-Infinity;
+    for(const move of options){
+      const score=moveScore(state,move)+random()*.6;
+      if(score>bestScore){best=move;bestScore=score;}
+    }
+    return best;
   }
   // Yield candidate subsets whose possible numerical sum is a multiple of
   // the target. The suffix residue masks prune impossible branches, without

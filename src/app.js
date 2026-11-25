@@ -10,10 +10,12 @@
   let detailSetting = '';
   let variationsScrollTop = 0;
   let buildOptions = [], lastMotion = '', hintIterator = null;
+  let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.30';
+  const APP_VERSION = '0.5.31';
   let availableUpdate = null;
   let updateReloading = false;
+  let checkingForUpdate = false;
   // Apply new releases on launch or at the main menu, never during play.
   function applyPendingUpdate() {
     if (!availableUpdate || updateReloading || screen !== 'home' || modal || busy || dealing) return;
@@ -28,7 +30,8 @@
     location.reload();
   }
   async function checkForAppUpdate() {
-    if (updateReloading || !/^https?:/.test(location.protocol)) return;
+    if (checkingForUpdate || updateReloading || !/^https?:/.test(location.protocol)) return;
+    checkingForUpdate=true;
     try {
       const response = await fetch('./version.json', { cache: 'no-store' });
       if (!response.ok) return;
@@ -45,6 +48,7 @@
         applyPendingUpdate();
       }
     } catch (_) { /* Offline: continue with the installed version. */ }
+    finally { checkingForUpdate=false; }
   }
   let hasSavedMatch = false;
   let customDraft = null;
@@ -317,7 +321,15 @@
   function cancelMotion() {
     motionGeneration++;
     turnInMotion = false;
-    if (document.querySelectorAll) document.querySelectorAll('.card-flight').forEach(node => node.remove());
+    // Explicit cancellation settles oncancel promises, including delayed
+    // flights, and releases animated textures when a match is left or undone.
+    if (document.querySelectorAll) document.querySelectorAll('.card-flight').forEach(node => {
+      node.getAnimations?.({subtree:true}).forEach(animation=>animation.cancel());
+      node.remove();
+    });
+    pendingDeal=null;
+    pendingStockOrigin=null;
+    dealAnimation=Promise.resolve();
   }
   function takeMotionSnapshot(move, byComputer = false) {
     if (!motionAllowed() || !document.body || !app.querySelector) return null;
@@ -739,9 +751,17 @@
   function saveCustomRules() {
     try { localStorage.setItem(CUSTOM_STORE, JSON.stringify(customRules)); } catch (_) {}
   }
+  let persistedGame=null, persistedMove=-1, persistedCheckpoint;
   function persist() {
     hasSavedMatch = true;
-    try { localStorage.setItem(STORE, JSON.stringify({ game, checkpoint })); } catch (error) { /* optional persistence */ }
+    // Game state mutates only on an engine move; new hands/undo replace it.
+    // Keep the immediate committed-move save, but skip identical writes
+    // during its animation, completion, and return to the menu.
+    if(persistedGame===game&&persistedMove===game.moveNumber&&persistedCheckpoint===checkpoint)return;
+    try {
+      localStorage.setItem(STORE,JSON.stringify({game,checkpoint}));
+      persistedGame=game;persistedMove=game.moveNumber;persistedCheckpoint=checkpoint;
+    } catch(error){ /* Retry on the next save if storage was unavailable. */ }
   }
   function me() { return game.players[0]; }
   function opponent() { return game.players[1]; }
@@ -812,7 +832,7 @@
       pickedTable=new Set(move.targetIds||[]);
       toast='';
     } catch(error) { resetSelection(); toast=error.message; }
-    render();
+    render('selection');
   }
   function renderToolbar(active, computerScore = 0) {
     return `<header class="header game-toolbar" aria-label="Game controls">
@@ -868,22 +888,69 @@
     const scrollArea = app && app.querySelector && app.querySelector('.variations-content');
     if (scrollArea) scrollArea.scrollTop = Math.min(variationsScrollTop, Math.max(0, scrollArea.scrollHeight - scrollArea.clientHeight));
   }
-  function render() {
+  function syncSelection(controlsMarkup,actionsMarkup) {
+    const felt=app.querySelector('.shell .felt');
+    const human=felt?.querySelector('.human-area');
+    const stats=felt?.querySelector('.game-stats');
+    if(!felt||!human||!stats||modal)return false;
+    for(const node of felt.querySelectorAll('[data-action="hand"][data-id],[data-action="table"][data-id]')){
+      const selected=node.dataset.action==='hand'?node.dataset.id===pickedCard:pickedTable.has(node.dataset.id);
+      if(node.classList.contains('selected')!==selected){
+        node.classList.toggle('selected',selected);
+        node.setAttribute('aria-pressed',String(selected));
+        for(const face of node.querySelectorAll('.playing-card,.build-value'))face.classList.toggle('card-selected',selected);
+      }
+    }
+    const controls=felt.querySelector('.contextual-controls');
+    if(!controlsMarkup){controls?.remove();}
+    else if(!controls){human.insertAdjacentHTML('beforebegin',controlsMarkup);}
+    else if(actionsMarkup!==renderedActionMarkup){controls.querySelector('.main-actions').innerHTML=actionsMarkup;}
+    renderedActionMarkup=actionsMarkup;
+    const error=felt.querySelector('.game-error');
+    if(!toast)error?.remove();
+    else if(error)error.textContent=toast;
+    else stats.insertAdjacentHTML('beforebegin',`<p class="game-error" role="alert">${escapeHtml(toast)}</p>`);
+    return true;
+  }
+  // Dialog-only interactions must never replace live animation destinations.
+  function syncGameOverlay() {
+    const shell=app.querySelector('.shell');
+    if(!shell)return false;
+    shell.classList.toggle('animations-on',!!prefs.animations);
+    shell.classList.toggle('animations-off',!prefs.animations);
+    const actions=shell.querySelector('.header-actions');
+    if(actions&&!!actions.querySelector('[data-action="undo"]')!==!!prefs.undo){
+      // The toolbar markup has one canonical renderer. Reuse just its
+      // right-hand controls when the Undo preference changes.
+      const template=document.createElement('template');
+      template.innerHTML=renderToolbar(isHumanTurn(),opponent().score);
+      actions.replaceChildren(...template.content.querySelector('.header-actions').children);
+    }
+    const overlay=app.querySelector('.overlay');
+    if(!modal){overlay?.remove();return true;}
+    if(!overlay){app.insertAdjacentHTML('beforeend',renderModal());}
+    else {
+      const panel=overlay.querySelector('.dialog');
+      if(!panel)return false;
+      panel.setAttribute('aria-label',modal);
+      panel.innerHTML=renderDialogBody();
+    }
+    restoreVariationsScroll();
+    return true;
+  }
+  function render(mode = 'full') {
     if (!app) return;
-    const oldLayout = screen === 'game' && motionAllowed() ? layoutPositions() : null;
-    const previousBanner=app.querySelector?.('.turn-banner[data-turn-visible="true"]');
-    const previousTurn=previousBanner ? {text:previousBanner.textContent,
-      opacity:Number(globalThis.getComputedStyle?.(previousBanner).opacity ?? 1)} : null;
     rememberVariationsScroll();
     // Changes to rules redraw only the content inside the mounted settings dialog.
     // Keeping the backdrop and dialog intact prevents their opening fade from replaying.
-    const existingSettings = modal === 'settings' && app.querySelector
+    const existingSettings = modal === 'settings' && (mode==='overlay'||screen==='home') && app.querySelector
       ? app.querySelector('.overlay .dialog[aria-label="settings"]') : null;
     if (existingSettings) {
       existingSettings.innerHTML = renderSettings();
       restoreVariationsScroll();
       return;
     }
+    if(screen==='game'&&mode==='overlay'&&syncGameOverlay())return;
     if (screen === 'home') {
       const home = app.querySelector('.launch-screen');
       const overlay = home?.querySelector('.overlay');
@@ -900,16 +967,30 @@
       restoreVariationsScroll();
       return;
     }
+    const oldLayout=motionAllowed()?layoutPositions():null;
+    const previousBanner=app.querySelector?.('.turn-banner[data-turn-visible="true"]');
+    const previousTurn=previousBanner ? {text:previousBanner.textContent,
+      opacity:Number(globalThis.getComputedStyle?.(previousBanner).opacity ?? 1)} : null;
     if (game.phase !== 'playing') resetSelection();
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) resetSelection();
     const active = isHumanTurn();
-    const capture = actionReady('capture');
-    const trail = actionReady('trail');
-    buildOptions = active && pickedCard ? E.legalBuildOptions(game, pickedCard, currentSelection()) : [];
+    // Never run a validator for an action the current selection cannot show.
+    const capture = pickedTable.size ? actionReady('capture') : null;
+    const trail = pickedTable.size ? null : actionReady('trail');
+    buildOptions = active && pickedCard && pickedTable.size ? E.legalBuildOptions(game,pickedCard,currentSelection()) : [];
     const canTrail = !!(trail && trail.ok && !pickedTable.size);
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
     const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
+    const actionsMarkup=buildOptions.map((o,i)=>actionButton('build',o.label,o,i)).join('')+
+      (canTrail?actionButton('trail','Trail'):'')+(canCapture?actionButton('capture','Capture cards'):'');
+    const controlsMarkup=active && pickedCard && visibleActionCount
+      ? `<section class="controls contextual-controls" aria-label="Legal moves"><div class="main-actions">${actionsMarkup}</div></section>`:'';
+    if(mode==='selection'&&syncSelection(controlsMarkup,actionsMarkup)){
+      animateLayout(oldLayout);
+      return;
+    }
+    renderedActionMarkup=actionsMarkup;
     const phaseText = turnBannerText();
     const motion = lastMotion;
     lastMotion = '';
@@ -926,13 +1007,7 @@
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
             <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
           </div>
-          ${active && pickedCard && visibleActionCount ? `<section class="controls contextual-controls" aria-label="Legal moves">
-            <div class="main-actions">
-              ${buildOptions.map((o,i) => actionButton('build',o.label,o,i)).join('')}
-              ${canTrail ? actionButton('trail','Trail') : ''}
-              ${canCapture ? actionButton('capture','Capture cards') : ''}
-            </div>
-          </section>` : ''}
+          ${controlsMarkup}
           <div class="human-area">
             <div class="player-caption sr-only"><b>Your hand</b></div>
             <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
@@ -1072,8 +1147,11 @@
       <div class="dialog-actions"><button data-action="cancel-exit" class="action-btn">Keep playing</button>
         <button data-action="confirm-exit" class="action-btn primary">Exit to menu</button></div>`;
   }
+  function renderDialogBody() {
+    return modal === 'exit-confirm' ? renderExitConfirm() : modal === 'menu' ? renderMenu() : modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
+  }
   function renderModal() {
-    const body = modal === 'exit-confirm' ? renderExitConfirm() : modal === 'menu' ? renderMenu() : modal === 'settings' ? renderSettings() : modal === 'rules' ? renderRules() : modal === 'history' ? renderHistory() : renderRound();
+    const body=renderDialogBody();
     return `<div class="overlay" role="presentation"><section class="dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(modal)}">${body}</section></div>`;
   }
   function showExitConfirm() {
@@ -1246,7 +1324,7 @@
       }) || 'custom';
       customDraft = draftPreset === 'custom' ? {...draft} : customRules ? {...customRules} : null;
     }
-    modal = 'settings'; render();
+    modal = 'settings'; render('overlay');
   }
   function selectVariation(key) {
     if (!Object.hasOwn(E.PRESETS,key) && key !== 'custom') return;
@@ -1260,7 +1338,7 @@
       draft = E.rulesFor(key,{difficulty});
     }
     draftPreset = key;
-    render();
+    render('overlay');
   }
   function updateDraftSetting(prop, value) {
     if (!draft || !Object.hasOwn(E.DEFAULT_RULES,prop) ||
@@ -1277,7 +1355,7 @@
     draftPreset = 'custom';
     draft.name = 'Custom Cassino';
     customDraft = {...draft};
-    render();
+    render('overlay');
   }
   app.addEventListener('change', ev => {
     const target = ev.target;
@@ -1298,16 +1376,16 @@
     if (action === 'confirm-exit') { exitGameToMenu(); return; }
     if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); if(game.turn===1 && game.phase==='playing') botTurn(); else {if(game.phase!=='playing')modal='round';render();} return; }
     if (action === 'setup-new-game') { sound('tap'); return openSettings('newgame'); }
-    if (action === 'info-setting' && modal === 'settings') { detailSetting=detailSetting===node.dataset.key?'':node.dataset.key; render(); return; }
+    if (action === 'info-setting' && modal === 'settings') { detailSetting=detailSetting===node.dataset.key?'':node.dataset.key; render('overlay'); return; }
     if (action === 'preset-choice' && modal === 'settings') return selectVariation(node.dataset.value);
-    if (action === 'setup-difficulty' && modal === 'settings') { draft.difficulty=node.dataset.value; render(); return; }
-    if (action === 'menu') { modal = 'menu'; sound('tap'); render(); return; }
+    if (action === 'setup-difficulty' && modal === 'settings') { draft.difficulty=node.dataset.value; render('overlay'); return; }
+    if (action === 'menu') { modal = 'menu'; sound('tap'); render('overlay'); return; }
     if (action === 'settings') return openSettings(screen);
-    if (action === 'rules' || action === 'history') { modal = action; render(); return; }
-    if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render(); return; }
-    if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render(); return; }
-    if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render(); return; }
-    if (action === 'close') { modal = ''; render(); applyPendingUpdate(); return; }
+    if (action === 'rules' || action === 'history') { modal = action; render('overlay'); return; }
+    if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render('overlay'); return; }
+    if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render('overlay'); return; }
+    if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render('overlay'); return; }
+    if (action === 'close') { modal = ''; render('overlay'); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
     if (action === 'undo') return undo();
@@ -1323,15 +1401,15 @@
       const id = node.dataset.id;
       pickedCard = pickedCard === id ? null : id;
       hintIterator = null; toast = '';
-      sound('tap'); return render();
+      sound('tap'); return render('selection');
     }
     if (action === 'table') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
-      hintIterator = null; toast = ''; sound('tap'); return render();
+      hintIterator = null; toast = ''; sound('tap'); return render('selection');
     }
-    if (action === 'clear') { resetSelection(); toast = ''; return render(); }
+    if (action === 'clear') { resetSelection(); toast = ''; return render('selection'); }
     if (action === 'trail' || action === 'capture') return play({ kind: action, cardId: pickedCard, targetIds: action === 'trail' ? [] : currentSelection() });
     if (action === 'build') return play(buildOptions[Number(node.dataset.index)]);
     if (action === 'hint') return suggestMove();
@@ -1339,7 +1417,7 @@
   document.addEventListener('keydown', ev => {
     if (ev.key === 'Escape' && modal) {
       if (modal === 'exit-confirm') { cancelExit(); return; }
-      modal = ''; render(); applyPendingUpdate(); return;
+      modal = ''; render('overlay'); applyPendingUpdate(); return;
     }
     else if (ev.key.toLowerCase() === 'u' && !modal && prefs.undo && checkpoint) undo();
   });

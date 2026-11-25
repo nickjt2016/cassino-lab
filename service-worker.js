@@ -1,7 +1,14 @@
-/* Offline-capable, network-first browser cache; updated when a new release is deployed. */
+/* Network-first offline cache for the small, fixed app asset set. */
 const CACHE_PREFIX = 'cassino-lab-';
-const CACHE = CACHE_PREFIX + 'v0.5.30-composited-motion';
-const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './version.json'];
+const CACHE = CACHE_PREFIX + 'v0.5.31-retained-ui';
+const ASSETS = ['./index.html', './manifest.webmanifest', './icon.svg', './version.json'];
+const scope = new URL(self.registration.scope);
+const home = new URL('./index.html', scope).href;
+const assetKeys = new Map(ASSETS.map(asset => {
+  const url=new URL(asset,scope);
+  return [url.pathname,url.href];
+}));
+assetKeys.set(scope.pathname,home);
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE)
     .then(cache => cache.addAll(ASSETS))
@@ -13,26 +20,23 @@ self.addEventListener('activate', event => {
   )).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', event => {
-  const request = event.request;
-  if (request.method !== 'GET') return;
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin ||
-      !url.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
-  event.respondWith(
-    fetch(request, {cache:'no-store'}).then(response => {
-      if (response.ok) {
-        const copy = response.clone();
-        event.waitUntil(caches.open(CACHE).then(cache => cache.put(request, copy)));
-      }
-      return response;
-    }).catch(async () => {
-      const cached = await caches.match(request);
-      if (cached) return cached;
-      if (request.mode === 'navigate') {
-        const offlineHome = await caches.match(new URL('./index.html', self.registration.scope));
-        if (offlineHome) return offlineHome;
-      }
-      return Response.error();
-    })
-  );
+  const request=event.request;
+  if(request.method!=='GET')return;
+  const url=new URL(request.url);
+  if(url.origin!==scope.origin||!url.pathname.startsWith(scope.pathname))return;
+  const key=assetKeys.get(url.pathname);
+  // Do not accumulate unrelated or query-versioned responses in storage.
+  if(!key&&request.mode!=='navigate')return;
+  event.respondWith(fetch(request,{cache:'no-store'}).then(response=>{
+    if(response.ok&&key){
+      const copy=response.clone();
+      event.waitUntil(caches.open(CACHE).then(cache=>cache.put(key,copy)).catch(()=>{}));
+    }
+    return response;
+  }).catch(async()=>{
+    const cache=await caches.open(CACHE);
+    if(key){const cached=await cache.match(key);if(cached)return cached;}
+    if(request.mode==='navigate'){const cached=await cache.match(home);if(cached)return cached;}
+    return Response.error();
+  }));
 });
