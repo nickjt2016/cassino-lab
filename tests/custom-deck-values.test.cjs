@@ -52,8 +52,8 @@ test('Difficulty descriptions are info-only and multi-option help uses separate 
 
 test('Build requirements use clear table-card terminology without changing saved rule keys',()=>{
  const h=harness();h.open('newgame');
- assert.match(h.html(),/Builds must absorb matching table cards/);
- assert.match(h.html(),/Builds must combine matching builds/);
+ assert.match(h.html(),/Builds must combine same-value table cards/);
+ assert.match(h.html(),/Builds must combine same-value builds/);
  assert.doesNotMatch(h.html(),/loose[- ](?:table )?cards?/i);
  h.info('absorbMatching');
  assert.match(h.html(),/every unbuilt table card that individually matches/);

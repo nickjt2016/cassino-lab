@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.1';
+  const APP_VERSION = '0.8.2';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1131,8 +1131,8 @@
     singleCardBuild:['Single-card declaration','A hand card alone can be declared as a build, subject to the ordinary obligation.'],
     raiseOwnBuild:['Modify own builds','Permit changing the announced value of your own single build.'],
     raiseOpponentBuild:['Modify opponent builds','Permit changing the announced value of the opponent’s single build.'],
-    mergeSameValue:['Builds must combine matching builds','Include existing same-value builds in a new build.'],
-    absorbMatching:['Builds must absorb matching table cards','Include table cards matching the new build value.'],
+    mergeSameValue:['Builds must combine same-value builds','Include existing same-value builds in a new build.'],
+    absorbMatching:['Builds must combine same-value table cards','Include table cards matching the new build value.'],
     extraAfterSweep:['Extra turn after a sweep','The opponent receives a second turn after a sweep, if they still have a card.'],
     multiHandCapture:['Multiple hand cards','Planned: use multiple cards from hand for one capture.'],
     tableOnlyBuild:['Table-only building','Planned: build without spending a card from hand.'],
@@ -1368,7 +1368,7 @@
     ],
     [
       "Unlimited",
-      "There is no fixed per-player stack limit. Equal-value stacks may coexist unless Builds must combine matching builds is enabled. Each stack may require its own capturing card."
+      "There is no fixed per-player stack limit. Equal-value stacks may coexist unless Builds must combine same-value builds is enabled. Each stack may require its own capturing card."
     ]
   ],
   "scoreMode": [
@@ -1528,7 +1528,7 @@
     ],
     [
       "On",
-      "A new or modified build must absorb every unbuilt table card that individually matches its value. For example, a new 8-build must include any separate 8 on the table. Additional combinations summing to 8 are not required. Requires multiple builds."
+      "A new or modified build must combine with every unbuilt table card that individually matches its value. For example, a new 8-build must include any separate 8 on the table. Additional combinations summing to 8 are not required. Requires multiple builds."
     ]
   ],
   "buildObligation": [
@@ -1770,7 +1770,7 @@
         ruleSwitch('subtractiveBuilds','Subtractive building',false,'9 − 2 makes a 7-build')+ruleSwitch('singleCardBuild','Single-card declarations')+
         ruleSelect('buildRange','Allowed build values',[['all','All capturable'],['9-13','9–13'],['10-13','10–13']]))+
       ruleGroup('Modifying builds',ruleSwitch('raiseOwnBuild','Modify own build value')+ruleSwitch('raiseOpponentBuild','Modify opponent build value')+
-        ruleSwitch('mergeSameValue','Builds must combine matching builds',!multiple)+ruleSwitch('absorbMatching','Builds must absorb matching table cards',!multiple))+
+        ruleSwitch('mergeSameValue','Builds must combine same-value builds',!multiple)+ruleSwitch('absorbMatching','Builds must combine same-value table cards',!multiple))+
       ruleGroup('While owning a build',ruleSwitch('buildObligation','Keep a capturing card',false,'Reserve a distinct card for each stack')+
         ruleSelect('independentBuilds','Independent builds per player',[['1','One'],['2','Up to two'],['unlimited','Unlimited']])+
         ruleSwitch('pirateCaptures','Allow unrelated captures')+ruleSwitch('allowTrailWithOwnBuild','Allow trailing')):'');

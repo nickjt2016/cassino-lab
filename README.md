@@ -218,3 +218,7 @@ Deck selection: 40 (A–10), 52, 54 (two identical jokers), or any subset of the
 ### 0.8.1 — rule terminology
 
 Renamed the switches to **Builds must absorb matching table cards** and **Builds must combine matching builds**. Player-facing help, validation and accessibility labels now refer to table cards instead of loose cards. A table card in these settings means an individual, unbuilt card. Internal state identifiers and game mechanics are unchanged for save compatibility.
+
+### 0.8.2 — revised build labels
+
+The build requirements are now named **Builds must combine same-value table cards** and **Builds must combine same-value builds**. Their behavior remains unchanged.

@@ -1485,9 +1485,9 @@
         if(changed.some(e=>e.owner===player?state.rules.raiseOwnBuild===false:state.rules.raiseOpponentBuild===false))
           return {ok:false,reason:'Changing the value of that owner’s build is disabled.'};
         if(state.rules.mergeSameValue&&remainingTable.some(e=>e.type==='build'&&e.value===outcome.build.value))
-          return {ok:false,reason:'Combine matching builds in this move.'};
+          return {ok:false,reason:'Combine all same-value builds in this move.'};
         if(state.rules.absorbMatching&&remainingTable.some(e=>e.type==='loose'&&cardValues(e.card,state.rules).includes(outcome.build.value)))
-          return {ok:false,reason:'Absorb all individual table cards matching the build value.'};
+          return {ok:false,reason:'Combine all individual table cards with the same value as the build.'};
         if(state.rules.buildLimit&&state.rules.buildLimit!=='unlimited'&&remainingTable.filter(e=>e.type==='build'&&e.owner===player).length+1>Number(state.rules.buildLimit))
           return {ok:false,reason:'The independent build limit has been reached.'};
       }
