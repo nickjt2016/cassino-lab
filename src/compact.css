@@ -1210,3 +1210,57 @@ html,body,#app{background:#005d0b;color:#fff}
 .difficulty-explanations>div{border-bottom:1px solid #e5dac4;padding:8px 0}.difficulty-explanations b{font-size:13px;color:#514b3b}.difficulty-explanations .current b{color:#17563e}.difficulty-explanations p{font-size:11px;line-height:1.4;color:#6c6351;margin:3px 0}.difficulty-explanations .difficulty-footnote{padding:6px 0}
 .all-rules-heading{margin:18px 0 7px}.rules-single-page{gap:15px}.rules-page-heading{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;padding:0 1px}.rules-page-heading h3{font-size:15px;letter-spacing:0;text-transform:none;margin:0;font-weight:750;color:#254e37}.rules-page-heading small{font-size:11px;color:#786e58;line-height:1.3}
 .rules-page-body .rules-subheading{margin-top:11px}.rules-page-body .rules-group{margin-bottom:3px}.rules-page-body .rules-description{margin:6px 1px}
+
+/* v0.8.0 — custom deck and individual capture values */
+.rule-option-help{display:grid;gap:7px}
+.rule-option-help p{margin:0;font-size:12px;line-height:1.45}
+.rule-option-help p+p{padding-top:6px;border-top:1px solid #ddd1b7}
+.rule-option-help b{font-weight:750;color:#403b2d}
+.hand-slider-setting{grid-template-columns:minmax(0,1fr) 28px 44px;gap:6px}
+.hand-slider-setting output{font-variant-numeric:tabular-nums;text-align:center;min-width:35px;padding:5px 2px;border:1px solid #d6c9a8;background:#f3ecda;border-radius:7px;color:#214d36;font-weight:750;font-size:14px}
+.hand-slider-control{grid-column:1/-1;padding:1px 8px 3px;display:flex;flex-direction:column;gap:3px}
+.hand-slider-control input[type="range"]{width:100%;margin:0;min-height:30px;accent-color:#195b40;touch-action:pan-y;cursor:pointer}
+.hand-size-ticks{display:flex;justify-content:space-between;align-items:center;padding:0 7px;height:9px;pointer-events:none}
+.hand-size-ticks span{height:4px;width:4px;border-radius:50%;background:#b8ab8b;flex:none}
+.hand-size-ticks span.active{height:7px;width:7px;background:#195b40}
+.hand-size-bounds{display:flex;justify-content:space-between;padding:0 4px;color:#71664f;font-size:10px;font-variant-numeric:tabular-nums}
+.hand-slider-setting.is-inactive .hand-slider-control,.hand-slider-setting.is-inactive output{opacity:.45}
+.deck-checklist,.custom-value-editor{background:#f6efdf;border:1px solid #ded1b3;border-radius:10px;padding:9px;margin:8px 0 10px;min-width:0}
+.deck-checklist-head,.custom-value-heading{display:flex;align-items:center;gap:6px;margin:0 0 7px}
+.deck-checklist-head b,.custom-value-heading b{flex:1;font-size:12px;color:#254e37}
+.deck-checklist-head .rules-reset{min-height:32px;font-size:10px;padding:5px 6px}
+.deck-checklist-scroll,.value-picker-scroll{max-height:min(250px,35dvh);min-height:70px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:0 3px 4px}
+.deck-grid,.value-card-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;align-items:center}
+.card-grid-suit{text-align:center;color:#25291f;font-size:16px;line-height:1.2;padding:3px;position:sticky;top:0;background:#f6efdf;z-index:1}
+.red-card{color:#a12c2c!important}
+.deck-check-card{display:flex;align-items:center;gap:3px;justify-content:center;min-height:34px;background:#fffaf1;border:1px solid #ded1b3;border-radius:6px;padding:4px 2px;color:#2b2921;font-size:12px;font-weight:650;cursor:pointer;white-space:nowrap}
+.deck-check-card input{margin:0;width:15px;height:15px;flex:none;accent-color:#195b40}
+.deck-check-card:has(input:checked){background:#e5efdf;border-color:#9cb79e}
+.deck-joker-row{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.deck-joker-row .deck-check-card{font-size:11px}
+.deck-checklist .rules-description{font-size:10px;margin-bottom:0}
+.custom-value-heading .rules-info{min-height:28px}
+.card-value-equation{display:grid;grid-template-columns:minmax(0,1.05fr) 10px minmax(0,1fr) 7px minmax(0,1fr);align-items:end;gap:4px}
+.card-value-equation>div{min-width:0;display:flex;flex-direction:column;gap:4px}
+.card-value-equation label{font-size:10px;color:#70644f;text-align:center}
+.card-value-equation select,.value-picker-button{width:100%;min-width:0;min-height:42px;background:#fffaf1;border:1px solid #cbbd9a;border-radius:7px;color:#263b2b;font-weight:650;font-size:13px;text-align:center;padding:4px 3px}
+.value-picker-button{display:flex;justify-content:center;align-items:center;gap:5px;white-space:nowrap}
+.equation-symbol{color:#76694c;text-align:center;line-height:42px;font-weight:700}
+.value-picker-scroll{margin-top:9px;padding-top:2px}
+.value-card-choice{min-height:34px;border:1px solid #d6c9a8;border-radius:6px;background:#fffaf1;color:#28291f;font-size:14px;font-weight:650;padding:3px 1px}
+.value-card-choice.selected{border-color:#195b40;background:#dfebde;box-shadow:inset 0 0 0 1px #195b40}
+.value-card-choice:disabled{color:#908b80!important;background:#e3ded1;opacity:.55;cursor:not-allowed}
+.value-joker-row{grid-column:1/-1;display:flex;justify-content:center}
+.value-joker-row .value-card-choice{width:50%}
+.custom-value-editor .rule-option-help{margin-top:8px;background:#eee6d3;padding:8px;border-radius:6px}
+.playing-card .card-assigned-values{position:absolute;bottom:4%;left:0;right:0;text-align:center;font:700 17cqw/1 system-ui,sans-serif;color:#1b5140;letter-spacing:0;z-index:3;white-space:nowrap}
+.playing-card:has(.card-assigned-values) .card-big{top:53%;font-size:60cqw}
+.playing-card.rank-joker .card-corner b{font-size:19cqw;letter-spacing:-.04em}
+.playing-card.rank-joker .card-big{color:#1b5140;font-size:62cqw;top:54%}
+.human-hand.wide-hand{width:100%;max-width:100%;justify-content:flex-start;overflow-x:auto;overflow-y:visible;scrollbar-width:thin;overscroll-behavior-x:contain;gap:7px;padding:9px 8px 5px;touch-action:pan-x}
+.human-hand.wide-hand .playing-card:not(.mini){width:clamp(45px,13.5vw,67px)!important}
+.opponent-hand.wide-hand{max-width:100%;min-width:0;gap:0;overflow:hidden;padding:0 2px;justify-content:center}
+.opponent-hand.wide-hand .card-back{flex-shrink:1;min-width:12px;margin-left:clamp(-17px,-3vw,-7px)}
+.opponent-hand.wide-hand .card-back:first-child{margin-left:0}
+@media(max-width:350px){.deck-check-card{font-size:11px;gap:2px}.deck-check-card input{width:13px;height:13px}.deck-checklist-head .rules-reset{padding:5px 4px;font-size:9px}.card-value-equation select,.value-picker-button{font-size:11px}}
+@media(max-height:480px){.deck-checklist-scroll,.value-picker-scroll{max-height:140px}}

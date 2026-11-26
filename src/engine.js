@@ -14,7 +14,8 @@
     allowTrailWithOwnBuild: false, drawMode: false, sweepCancel: false,
     royalAces: false, royalBigLittle: false, pirateCaptures: false,
     pirateBuilds: false, buildAnything: false, winningScore: 21, difficulty: 'thoughtful',
-    playerCount: 2, deckSize: 52, handSize: 4, initialTableSize: 4,
+    playerCount: 2, deckSize: 52, deckMode:'legacy', deckCards:null, handSize: 4, initialTableSize: 4,
+    customizeCardValues:false, cardValueOverrides:null,
     dealMode: 'batch', remainderMode: 'equal', faceValues: 'standard', aceValue: 1,
     jokerCount: 0, jokerValue: 15, directCapture: true, additiveCapture: true,
     captureGroups: 'unlimited', forcedCapture: 'optional', captureExtent: 'choice',
@@ -996,6 +997,23 @@
     if(!Object.hasOwn(input,'dealMode')) r.dealMode=r.drawMode?'draw':'batch';
     if(r.dealMode==='batch'&&r.drawMode) r.dealMode='draw';
     r.drawMode=r.dealMode==='draw';
+    // Preserve the composition of existing Italian 40-card presets and saves.
+    // New deckMode='40' means A–10, not the old Italian pack.
+    if(r.deckMode==='legacy'||r.deckMode==null){
+      if(r.deckSize===40&&[0,1,2].includes(r.jokerCount)){
+        r.deckMode='custom';
+        r.deckCards=allCards().filter(c=>c.suit==='X'?Number(c.id.slice(1))<=r.jokerCount:c.rank<8||c.rank>10).map(c=>c.id);
+      }else if((r.deckSize===52||r.deckSize===54)&&[0,1,2].includes(r.jokerCount)){
+        if(r.deckSize===54||r.jokerCount===2)r.deckMode='54';
+        else if(r.jokerCount===1){r.deckMode='custom';r.deckCards=allCards().filter(c=>c.id!=='X2').map(c=>c.id);}
+        else r.deckMode='52';
+      }
+    }
+    if(['40','52','54','custom'].includes(r.deckMode)){
+      const deck=makeDeck(r);
+      r.deckSize=deck.length;r.jokerCount=deck.filter(c=>c.suit==='X').length;
+    }
+    if(r.customizeCardValues&&r.cardValueOverrides==null)r.cardValueOverrides=initialCardValues(r);
     return r;
   }
   function availableValues(rules) {
@@ -1008,17 +1026,29 @@
   }
   function validateRules(input={}) {
     const r=normalizeRules(input),errors=[],warnings=[],unavailable=[];
-    const allowed={playerCount:[2,4,'4team'],deckSize:[40,52],handSize:[3,4,6,8,12],initialTableSize:[0,3,4,8],
+    const allowed={playerCount:[2,4,'4team'],deckMode:['40','52','54','custom'],initialTableSize:[0,3,4,8],
       dealMode:['batch','draw','full','bid'],remainderMode:['equal','uneven','strict'],
-      faceValues:['standard','extended','italian'],aceValue:[1,11,14],jokerCount:[0,2,4,6],jokerValue:[15,20,25],
+      faceValues:['standard','extended','italian'],aceValue:[1,11,14],jokerCount:[0,1,2],jokerValue:Array.from({length:30},(_,i)=>i+1),
       captureGroups:['one','unlimited'],forcedCapture:['optional','faces','direct','all'],captureExtent:['choice','maximal','maximum'],
       buildRange:['all','9-13','10-13'],buildLimit:['1','2','unlimited'],pileAccess:['none','build','capture','both'],
       actionsPerTurn:['single','multiple'],handCardsPerTurn:['one','multiple'],scoreProfile:['cassino','wippen','diloti','kontsina','tablic','scopa'],matchDeals:[0,1,2,3,4,6],initialTableRule:['any','distinct-nonpoints','no-three-faces','no-three-kings'],residueOwner:['lastCapture','dealer']};
     for(const [k,options] of Object.entries(allowed))if(!options.includes(r[k]))errors.push('Invalid setting: '+k+'.');
     for(const [k,v] of Object.entries(DEFAULT_RULES))if(typeof v==='boolean'&&typeof r[k]!=='boolean')errors.push('Invalid switch: '+k+'.');
     if(!Number.isInteger(r.winningScore)||r.winningScore<1||!Number.isInteger(r.sweepPoints)||r.sweepPoints<0)errors.push('Score settings must be nonnegative whole numbers, with a positive winning score.');
-    const count=r.deckSize+r.jokerCount-r.initialTableSize,players=r.playerCount===2?2:4;
-    if(r.dealMode!=='full'&&count<players*r.handSize)errors.push('Not enough cards for all starting hands.');
+    const deck=makeDeck(r),players=r.playerCount===2?2:4,count=deck.length-r.initialTableSize;
+    const maxHand=Math.floor(deck.length/players);
+    if(r.deckMode==='custom'){
+      const valid=new Set(allCards().map(c=>c.id));
+      if(!Array.isArray(r.deckCards)||r.deckCards.some(id=>!valid.has(id))||new Set(r.deckCards).size!==r.deckCards.length)errors.push('Custom deck contains invalid or duplicate card IDs.');
+    }
+    if(r.customizeCardValues){
+      const keys=new Set(allCards().filter(c=>c.suit!=='X').map(c=>c.id).concat('Joker'));
+      const values=r.cardValueOverrides;
+      if(!values||typeof values!=='object'||Array.isArray(values)||Object.entries(values).some(([key,v])=>!keys.has(key)||!Array.isArray(v)||v.length>2||new Set(v).size!==v.length||v.some(n=>!Number.isInteger(n)||n<1||n>30)))errors.push('Custom card values must be one or two distinct integers from 1–30, or rank matching only.');
+    }
+    if(deck.length<players||count<players)errors.push('The deck must leave at least one hand card per player after the starting table.');
+    if(!Number.isInteger(r.handSize)||r.handSize<1||(r.dealMode!=='full'&&r.handSize>maxHand))errors.push('Cards per hand must be between 1 and '+maxHand+' for this deck.');
+    if(r.dealMode!=='full'&&count<players*r.handSize)errors.push('Not enough cards for all starting hands after placing the starting table.');
     if(r.dealMode==='batch'&&r.remainderMode==='strict'&&count%(players*r.handSize)!==0)errors.push('The stock cannot be exhausted in complete batches.');
     if(r.dealMode!=='draw'&&r.remainderMode!=='uneven'&&count%players!==0)errors.push('The remaining deck cannot be divided equally. Allow unequal hands or change table size.');
     if(!r.directCapture&&!r.additiveCapture)errors.push('Enable at least one loose-card capture method.');
@@ -1035,35 +1065,65 @@
     if(r.forcedCapture==='direct'&&!r.directCapture)warnings.push('Compulsory direct matching has no effect on loose cards when direct matching is off.');
     if(r.forcedCapture!=='optional'&&r.builds&&!r.buildAnything)warnings.push('Build obligations take precedence; only otherwise legal captures can be compulsory.');
     if(r.presetBlocker)unavailable.push(String(r.presetBlocker));
-    if(r.royal&&r.faceValues==='italian'&&r.deckSize!==40)errors.push('Italian face values require the 40-card deck (remove 8–10).');
-    if(r.initialTableRule==='distinct-nonpoints'&&r.initialTableSize>(r.deckSize===40?9:12))errors.push('Not enough distinct non-point ranks for the starting table.');
+    if(!r.customizeCardValues&&r.royal&&r.faceValues==='italian'&&deck.some(c=>c.suit!=='X'&&c.rank>=8&&c.rank<=10)&&deck.some(c=>c.suit!=='X'&&c.rank>=11))errors.push('Italian face values require removing 8–10 when face cards are included; use a custom deck.');
+    if(r.initialTableSize>openingCapacity(deck,r.initialTableRule))errors.push('The selected deck cannot satisfy the starting table restrictions.');
+    if(r.builds&&!availableValues(r).length)warnings.push('There are no numerical card values; building is unavailable in this deck.');
+    if(!r.directCapture&&!availableValues(r).length)errors.push('Rank-only cards cannot make additive captures when direct matching is off.');
     if(r.playerCount!==2)unavailable.push('Three- and four-player gameplay is not implemented.');
-    if(r.jokerCount)unavailable.push('Joker gameplay and artwork are not implemented.');
     if(r.dealMode==='bid')unavailable.push('Opening bidding is not implemented.');
     if(r.multiHandCapture||r.handCardsPerTurn==='multiple')unavailable.push('Multi-card hand actions are not implemented.');
     if(r.actionsPerTurn==='multiple'||(r.builds&&r.tableOnlyBuild))unavailable.push('Multi-action turns and table-only building are not implemented.');
     if(r.pileAccess==='capture'||r.pileAccess==='both'||(r.builds&&r.pileAccess==='build'))unavailable.push('Stealing from captured piles is not implemented.');
     return {rules:r,errors,warnings,unavailable,playable:!errors.length&&!unavailable.length};
   }
+  function allCards(){
+    return SUITS.flatMap(suit=>Array.from({length:13},(_,i)=>({id:suit+(i+1),suit,rank:i+1})))
+      .concat([{id:'X1',suit:'X',rank:14},{id:'X2',suit:'X',rank:14}]);
+  }
+  function cardKey(card){return card.suit==='X'?'Joker':card.id;}
   function cardName(card) {
-    return `${({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[card.rank] || card.rank}${({ S: '♠', H: '♥', D: '♦', C: '♣' })[card.suit]}`;
+    if(card.suit==='X')return 'Joker';
+    return String(({1:'A',11:'J',12:'Q',13:'K'})[card.rank]||card.rank)+({S:'♠',H:'♥',D:'♦',C:'♣'})[card.suit];
   }
-  function cardValue(card, rules) {
-    return card.rank <= 10 ? card.rank : rules.royal ? card.rank+(rules.faceValues==='extended'?1:rules.faceValues==='italian'?-3:0) : null;
-  }
-  // A few established/house variants let certain cards play at two values.
-  // Keep both possibilities until a move commits to a legal total.
-  function cardValues(card, rules) {
-    const base = cardValue(card, rules);
-    if (base === null) return [];
-    const values = [base];
-    if (card.rank === 1 && (rules.royalAces || Number(rules.aceValue)>1)) values.push(rules.royalAces?14:Number(rules.aceValue));
-    if (rules.royalBigLittle && card.id === 'S2') values.push(15);
-    if (rules.royalBigLittle && card.id === 'D10') values.push(16);
+  function standardCardValues(card,rules){
+    if(card.suit==='X')return [Number(rules.jokerValue)||15];
+    const base=card.rank<=10?card.rank:rules.royal?card.rank+(rules.faceValues==='extended'?1:rules.faceValues==='italian'?-3:0):null;
+    if(base===null)return [];
+    const values=[base];
+    if(card.rank===1&&(rules.royalAces||Number(rules.aceValue)>1))values.push(rules.royalAces?14:Number(rules.aceValue));
+    if(rules.royalBigLittle&&card.id==='S2')values.push(15);
+    if(rules.royalBigLittle&&card.id==='D10')values.push(16);
     return values;
   }
-  function maxBuildValue(rules) {
-    return Math.max(rules.royalBigLittle?(rules.deckSize===40?15:16):0,rules.royalAces?14:Number(rules.aceValue)||1,rules.royal?(rules.faceValues==='extended'?14:rules.faceValues==='italian'?10:13):(rules.deckSize===40?7:10));
+  function initialCardValues(rules){
+    const result={};
+    for(const c of allCards())result[cardKey(c)]=standardCardValues(c,rules);
+    return result;
+  }
+  function cardValues(card,rules){
+    const key=cardKey(card),map=rules.cardValueOverrides;
+    if(rules.customizeCardValues&&map&&Object.hasOwn(map,key)){
+      const vals=map[key];
+      return Array.isArray(vals)?vals.filter(v=>Number.isInteger(v)&&v>=1&&v<=30):[];
+    }
+    return standardCardValues(card,rules);
+  }
+  function cardValue(card,rules){return cardValues(card,rules)[0]??null;}
+  function maxBuildValue(rules){
+    if(!rules.customizeCardValues&&(rules.deckMode==='52'||rules.deckMode===undefined&&rules.deckSize!==40)&&!rules.jokerCount)
+      return Math.max(rules.royalBigLittle?16:0,rules.royalAces?14:Number(rules.aceValue)||1,rules.royal?(rules.faceValues==='extended'?14:rules.faceValues==='italian'?10:13):10);
+    return Math.max(0,...availableValues(rules));
+  }
+  function rankMatch(a,b,rules){
+    return a.rank===b.rank&&!cardValues(a,rules).length&&!cardValues(b,rules).length;
+  }
+  function openingCapacity(deck,rule){
+    if(rule==='distinct-nonpoints')return new Set(deck.filter(c=>c.rank!==1&&c.id!=='D10'&&c.id!=='S2').map(c=>c.rank)).size;
+    if(rule==='no-three-faces'||rule==='no-three-kings'){
+      const counts=new Map();for(const c of deck)counts.set(c.rank,(counts.get(c.rank)||0)+1);
+      return [...counts].reduce((n,[rank,count])=>n+((rule==='no-three-faces'&&rank>=11&&rank<=13||rule==='no-three-kings'&&rank===13)?Math.min(2,count):count),0);
+    }
+    return deck.length;
   }
   function hasValue(hand, value, rules) {
     return hand.some(c => cardValues(c, rules).includes(value));
@@ -1101,10 +1161,14 @@
     };
     return choose(0,0);
   }
-  function makeDeck(rules = DEFAULT_RULES) {
-    return SUITS.flatMap(suit => Array.from({ length: 13 }, (_, i) => ({
-      id: suit + (i + 1), suit, rank: i + 1
-    })).filter(c=>rules.deckSize!==40||c.rank<8||c.rank>10));
+  function makeDeck(rules=DEFAULT_RULES){
+    const mode=rules.deckMode,cards=allCards();
+    if(mode==='40')return cards.filter(c=>c.suit!=='X'&&c.rank<=10);
+    if(mode==='52')return cards.filter(c=>c.suit!=='X');
+    if(mode==='54')return cards;
+    if(mode==='custom'){const ids=new Set(Array.isArray(rules.deckCards)?rules.deckCards:[]);return cards.filter(c=>ids.has(c.id));}
+    // Compatibility for callers using the old deckSize/jokerCount API.
+    return cards.filter(c=>c.suit==='X'?Number(c.id.slice(1))<=(rules.jokerCount||0):rules.deckSize!==40||c.rank<8||c.rank>10);
   }
   function shuffle(array, random = Math.random) {
     const deck = [...array];
@@ -1141,7 +1205,7 @@
         while(state.stock.length){
           const c=state.stock.pop(),same=state.table.filter(e=>e.card.rank===c.rank).length;
           const bad=rule==='distinct-nonpoints'?(same>0||c.rank===1||c.id==='D10'||c.id==='S2'):
-            rule==='no-three-faces'?(c.rank>10&&same>=2):rule==='no-three-kings'?(c.rank===13&&same>=2):false;
+            rule==='no-three-faces'?(c.rank>=11&&c.rank<=13&&same>=2):rule==='no-three-kings'?(c.rank===13&&same>=2):false;
           if(bad){deferred.push(c);continue;}card=c;break;
         }
         if(!card)throw Error('Unable to deal a legal starting table.');
@@ -1240,8 +1304,8 @@
     }
     const playedValues = cardValues(card, rules);
     if (!playedValues.length) {
-      if (selection.length !== 1 || selection[0].type !== 'loose' || selection[0].card.rank !== card.rank) {
-        return { ok:false, reason:'A face card captures one equal-rank face card unless Royal Face Cards is enabled.' };
+      if (selection.length !== 1 || selection[0].type !== 'loose' || !rankMatch(selection[0].card,card,rules)) {
+        return { ok:false, reason:'A non-numerical face card or rank-only card captures one equal-rank card that is also rank-only.' };
       }
       return {ok:true};
     }
@@ -1257,7 +1321,7 @@
   function describeCustomCapture(selection,card,rules){
     const direct=rules.directCapture!==false,sum=rules.additiveCapture!==false;
     const played=cardValues(card,rules);
-    if(!played.length)return direct&&selection.length===1&&selection[0].type==='loose'&&selection[0].card.rank===card.rank
+    if(!played.length)return direct&&selection.length===1&&selection[0].type==='loose'&&rankMatch(selection[0].card,card,rules)
       ?{ok:true}:{ok:false,reason:'Non-numerical face cards require a direct rank match.'};
     for(const target of played){
       const fixed=selection.filter(e=>e.type==='build'&&!rules.additiveBuilds);
@@ -1288,7 +1352,7 @@
   function* rawCaptureMoves(state,card){
     const vals=cardValues(card,state.rules);
     if(!vals.length){
-      for(const item of state.table)if(item.type==='loose'&&item.card.rank===card.rank)yield {kind:'capture',cardId:card.id,targetIds:[item.id]};
+      for(const item of state.table)if(item.type==='loose'&&rankMatch(item.card,card,state.rules))yield {kind:'capture',cardId:card.id,targetIds:[item.id]};
       return;
     }
     const seen=new Set();
@@ -1303,7 +1367,7 @@
   }
   function capturePolicy(state,action,card,selected){
     const rules=state.rules;
-    if(action.kind==='trail'&&rules.forcedCapture&&rules.forcedCapture!=='optional'&&(rules.forcedCapture!=='faces'||card.rank>10)){
+    if(action.kind==='trail'&&rules.forcedCapture&&rules.forcedCapture!=='optional'&&(rules.forcedCapture!=='faces'||card.rank>=11&&card.rank<=13)){
       for(const move of rawCaptureMoves(state,card)){
         if(rules.forcedCapture==='direct'&&(move.targetIds.length!==1||!state.table.some(e=>e.id===move.targetIds[0]&&e.type==='loose')))continue;
         if(validateAction(state,move,true).ok)return 'This card has a compulsory legal capture.';
@@ -1431,7 +1495,7 @@
     if (!outcome.ok) return outcome;
     if(action.kind==='capture'&&state.rules.directPriority&&state.rules.directCapture!==false){
       const vals=cardValues(card,state.rules);
-      const matching=state.table.filter(x=>x.type==='loose'&&(vals.length?cardValues(x.card,state.rules).some(v=>vals.includes(v)):x.card.rank===card.rank));
+      const matching=state.table.filter(x=>x.type==='loose'&&(vals.length?cardValues(x.card,state.rules).some(v=>vals.includes(v)):rankMatch(x.card,card,state.rules)));
       if(matching.length&&(selected.length!==1||!matching.some(x=>x.id===selected[0].id)))return {ok:false,reason:'A direct matching card takes priority over sums.'};
     }
     const resultTable = action.kind === 'trail'
@@ -1579,7 +1643,7 @@
     return best.every(Boolean)?best.reduce((a,b)=>a+b,0):0;
   }
   function specialPoints(card,s){
-    return (card.id===s.big?s.bigPoints:0)+(card.id===s.little?s.littlePoints:0)+(card.rank===1?s.ace:card.rank>=11?s.face:card.rank===10&&card.id!==s.big?s.tens:0)+(s.perSpade&&card.suit==='S'?(card.rank===11?2:1):0);
+    return (card.id===s.big?s.bigPoints:0)+(card.id===s.little?s.littlePoints:0)+(card.rank===1?s.ace:card.rank>=11&&card.rank<=13?s.face:card.rank===10&&card.id!==s.big?s.tens:0)+(s.perSpade&&card.suit==='S'?(card.rank===11?2:1):0);
   }
   function scoreHand(state){
     const s=scoreSpec(state.rules),piles=state.players.map(p=>p.captured);
@@ -1590,7 +1654,7 @@
       const cards=counts[i]>counts[other]?s.cards:0;
       const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):suitCounts[i]>suitCounts[other]?s.suitPoints:0;
       const big=p.some(c=>c.id===s.big)?s.bigPoints:0,little=p.some(c=>c.id===s.little)?s.littlePoints:0;
-      const aces=p.filter(c=>c.rank===1).length*s.ace,faces=p.filter(c=>c.rank>=11).length*s.face;
+      const aces=p.filter(c=>c.rank===1).length*s.ace,faces=p.filter(c=>c.rank>=11&&c.rank<=13).length*s.face;
       const tens=p.filter(c=>c.rank===10&&c.id!==s.big).length*s.tens;
       const prime=primes[i]>primes[other]?s.prime:0;
       const net=state.rules.sweepCancel?Math.max(0,state.players[i].sweeps-state.players[other].sweeps):state.players[i].sweeps;
@@ -1649,7 +1713,7 @@
   function captureChoices(state, card, limit = 110) {
     const values = cardValues(card, state.rules);
     if (!values.length) {
-      return state.table.filter(e => e.type === 'loose' && e.card.rank === card.rank).map(e => ({ kind: 'capture', cardId: card.id, targetIds: [e.id] }));
+      return state.table.filter(e => e.type === 'loose' && rankMatch(e.card,card,state.rules)).map(e => ({ kind: 'capture', cardId: card.id, targetIds: [e.id] }));
     }
     const moves = [];
     const visited = new Set();
@@ -1816,7 +1880,7 @@
       if(!values.length){
         for(const item of loose){
           if(stop())return;
-          if(item.card.rank!==card.rank)continue;
+          if(!rankMatch(item.card,card,rules))continue;
           const move={kind:'capture',cardId:card.id,targetIds:[item.id]};
           if(validateAction(state,move).ok&&unique(move))yield move;
         }
@@ -1975,7 +2039,7 @@
       return {count:pile.length,spades,special,prime:0};
     }
     const a=tally(p.captured),b=tally(q.captured);
-    const remaining=Math.max(0,(rules.deckSize||52)-a.count-b.count),remainingSpades=Math.max(0,(rules.deckSize===40?10:13)-a.spades-b.spades);
+    const deck=makeDeck(rules),remaining=Math.max(0,deck.length-a.count-b.count),remainingSpades=Math.max(0,deck.filter(c=>c.suit===spec.suit).length-a.spades-b.spades);
     const majority=(diff,left,points)=>{
       if(diff>left)return points;
       if(diff< -left)return -points;
@@ -1990,6 +2054,7 @@
     // Possible loose sums and exact build values, for mobility, capture
     // potential and preserving flexible cards. A bitset avoids subset copies.
     let sums=1;
+    const highest=maxBuildValue(rules);
     const buildValues=new Set(),faces=new Set();
     let tableWorth=0;
     for(const item of state.table){
@@ -1997,7 +2062,7 @@
         const values=cardValues(item.card,rules);
         const old=sums;
         for(const v of values)sums|=old<<v;
-        sums&=0x1ffff;
+        sums&=0x7fffffff; // values 1–30; bit 0 represents an empty sum
         if(!values.length)faces.add(item.card.rank);
         tableWorth+=tacticalWorth(item.card);
         continue;
@@ -2010,7 +2075,7 @@
       let raiseable=false;
       if(item.groups.length===1&&rules.builds){
         raiseable=vals[enemy].some((values,i)=>values.some(v=>
-          v+item.value<=maxBuildValue(rules)&&
+          v+item.value<=highest&&
           (rules.buildAnything||vals[enemy].some((rest,j)=>i!==j&&rest.includes(v+item.value)))));
       }
       const security=secured?(stealable?.04:raiseable?.20:.43):-.14;
@@ -2223,7 +2288,7 @@
     }
     return {tested:count,completed,zeroScore,failures,validation};
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, allCards, cardKey, initialCardValues, standardCardValues, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,

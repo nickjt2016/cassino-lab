@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.7.0';
+  const APP_VERSION = '0.8.0';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -836,14 +836,15 @@
   function me() { return game.players[0]; }
   function opponent() { return game.players[1]; }
   function isRed(card) { return card.suit === 'D' || card.suit === 'H'; }
-  function prettySuit(card) { return { S: '♠', H: '♥', D: '♦', C: '♣' }[card.suit]; }
-  function prettyRank(card) { return ({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[card.rank] || card.rank; }
+  function prettySuit(card) { return { S: '♠', H: '♥', D: '♦', C: '♣', X:'✦' }[card.suit]; }
+  function prettyRank(card) { return card.suit==='X'?'Joker':(({1:'A',11:'J',12:'Q',13:'K'})[card.rank]||card.rank); }
   function suitClass(card) { return isRed(card) ? 'red' : 'black'; }
   function renderCard(card, small = false, selected = false) {
+    const activeRules=typeof game!=='undefined'&&game?.rules;
+    const valueText=activeRules&&(activeRules.customizeCardValues||card.suit==='X')?(E.cardValues(card,activeRules).join(' / ')||'Rank'):card.suit==='X'?'15':'';
     return `<span class="playing-card ${suitClass(card)} ${small ? 'mini' : ''} ${selected?'card-selected':''} ${card.rank === 10 ? 'ten-card' : ''} rank-${String(prettyRank(card)).toLowerCase()}" data-card-id="${card.id}" aria-label="${escapeHtml(E.cardName(card))}">
       <span class="card-corner"><b>${prettyRank(card)}</b><small>${prettySuit(card)}</small></span>
-      <span class="card-big">${prettyRank(card)}</span>
-    </span>`;
+      <span class="card-big">${card.suit==='X'?'✦':prettyRank(card)}</span>${valueText?`<span class="card-assigned-values">${escapeHtml(valueText)}</span>`:''}</span>`;
   }
   function renderBack() { return '<span class="card-back" aria-hidden="true"><span class="back-pattern"></span></span>'; }
   // Builds are numerical targets, even when a Royal rank (A/J/Q/K) supplies
@@ -1014,7 +1015,11 @@
     if (existingSettings) {
       const focused=typeof document!=='undefined'&&document.activeElement;
       const focusData=focused&&existingSettings.contains?.(focused)?{...focused.dataset}:null;
+      const deckScroll=existingSettings.querySelector?.('.deck-checklist-scroll');
+      if(deckScroll)deckChecklistScroll=deckScroll.scrollTop;
       existingSettings.innerHTML = renderSettings();
+      const newDeckScroll=existingSettings.querySelector?.('.deck-checklist-scroll');
+      if(newDeckScroll)newDeckScroll.scrollTop=deckChecklistScroll;
       restoreVariationsScroll();
       if(focusData&&Object.keys(focusData).length&&existingSettings.querySelectorAll){
         const next=[...existingSettings.querySelectorAll('[data-setting],[data-action]')].find(node=>
@@ -1040,6 +1045,7 @@
       restoreVariationsScroll();
       return;
     }
+    const oldHandScroll=app.querySelector?.('.human-hand')?.scrollLeft||0;
     const oldLayout=mode!=='selection'&&motionAllowed()?layoutPositions():null;
     const previousBanner=mode==='selection'?null:app.querySelector?.('.turn-banner[data-turn-visible="true"]');
     const previousTurn=previousBanner ? {text:previousBanner.textContent,
@@ -1073,7 +1079,7 @@
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
           <div class="opponent-area">
-            <div class="opponent-hand" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
+            <div class="opponent-hand${opponent().hand.length>5?' wide-hand':''}" style="--hand-count:${Math.max(1,opponent().hand.length)}" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
           </div>
           <div class="table-area">
             <div class="table-stage"><div class="table-cards" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
@@ -1083,7 +1089,7 @@
           ${controlsMarkup}
           <div class="human-area">
             <div class="player-caption sr-only"><b>Your hand</b></div>
-            <div class="human-hand">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
+            <div class="human-hand${me().hand.length>5?' wide-hand':''}">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
             <div class="your-score-tag">You · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
@@ -1099,6 +1105,7 @@
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
+    const currentHand=app.querySelector?.('.human-hand');if(currentHand)currentHand.scrollLeft=oldHandScroll;
     hidePendingDealCards();
     animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))===1);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
@@ -1131,6 +1138,7 @@
     tableOnlyBuild:['Table-only building','Planned: build without spending a card from hand.'],
   };
   let rulesSection='',rulesIssuesOpen=false,labResult=null,difficultyInfoOpen=false;
+  let valueCardKey='S1',valuePickerOpen=false,deckChecklistScroll=0;
   const RULE_HELP={
     handSize:'Cards dealt to each player at a time. In a full deal, all remaining cards are distributed at once.',
     initialTableSize:'Loose cards placed on the table before the first turn.',
@@ -1154,12 +1162,462 @@
     ignoreFinalSweep:'The final move of a deal does not score a sweep.',
     residueOwner:'Who receives the table cards left at deal end.'
   };
-  function helpFor(key){return RULE_HELP[key]||SETTING_INFO[key]?.[1]||'';}
+  const OPTION_HELP={
+  "deckMode": [
+    [
+      "40 (A–10)",
+      "All four suits, ace through ten. No face cards or jokers."
+    ],
+    [
+      "52",
+      "All four suits, ace through king. No jokers."
+    ],
+    [
+      "54",
+      "Standard 52 cards plus two visually identical jokers."
+    ],
+    [
+      "Custom",
+      "Choose any subset of all 54 physical cards. For an Italian deck, exclude 8–10 instead of the face cards."
+    ]
+  ],
+  "dealMode": [
+    [
+      "Repeated batches",
+      "Deal the selected number of cards to each player, then deal again after all hands are empty."
+    ],
+    [
+      "Draw replacement",
+      "After playing a hand card, draw one replacement while stock remains."
+    ],
+    [
+      "All cards at start",
+      "Deal every remaining card at the start. The cards-per-hand slider is ignored."
+    ]
+  ],
+  "remainderMode": [
+    [
+      "Smaller equal hands",
+      "The final batch may have fewer cards than the selected hand size, but all players must receive the same number."
+    ],
+    [
+      "Unequal hands",
+      "Distribute every remaining card even if one player receives an extra card. Skip a player whose hand is empty."
+    ],
+    [
+      "Full batches only",
+      "Every batch must contain exactly the selected hand size for each player. The validator blocks decks and starting tables that leave an incomplete batch."
+    ]
+  ],
+  "initialTableRule": [
+    [
+      "None",
+      "Any cards may appear on the starting table."
+    ],
+    [
+      "Distinct non-point cards",
+      "No repeated ranks, aces, 10♦ or 2♠. These are the ordinary Cassino point cards; rejected cards are returned to the stock."
+    ],
+    [
+      "No 3 equal face cards",
+      "At most two jacks, two queens and two kings may appear at the start."
+    ],
+    [
+      "No 3 kings",
+      "At most two kings may appear at the start; other ranks are unrestricted."
+    ]
+  ],
+  "faceMode": [
+    [
+      "Rank matching",
+      "J, Q and K have no numerical capture value. Each matches its own rank."
+    ],
+    [
+      "J=11, Q=12, K=13",
+      "Face cards can participate in numerical sums and builds."
+    ],
+    [
+      "J=12, Q=13, K=14",
+      "Alternative numerical face values, one higher than the preceding option."
+    ],
+    [
+      "J=8, Q=9, K=10",
+      "Italian values. Ordinary 8–10 must be excluded when face cards are included."
+    ]
+  ],
+  "aceMode": [
+    [
+      "1",
+      "Aces have numerical value 1 only."
+    ],
+    [
+      "1 or 11",
+      "An ace may be used at either 1 or 11."
+    ],
+    [
+      "1 or 14",
+      "An ace may be used at either 1 or 14."
+    ]
+  ],
+  "royalBigLittle": [
+    [
+      "Off",
+      "2♠ and 10♦ have their normal values, 2 and 10."
+    ],
+    [
+      "On",
+      "2♠ can additionally count as 15, and 10♦ as 16, if those cards are included."
+    ]
+  ],
+  "customizeCardValues": [
+    [
+      "Off",
+      "Use the standard face-card, ace and special-card settings. Custom assignments are remembered but ignored."
+    ],
+    [
+      "On",
+      "Use individual card assignments instead; the standard settings are greyed out. Both identical jokers share one assignment."
+    ]
+  ],
+  "customValues": [
+    [
+      "Card",
+      "Choose any included card in the four-suit rank grid. Excluded cards are greyed out. The single Joker row represents both identical copies."
+    ],
+    [
+      "Primary 1–30",
+      "The card may be used at the selected numerical value."
+    ],
+    [
+      "Rank only",
+      "The card has no numerical value. It can match only another rank-only card of the same rank."
+    ],
+    [
+      "Secondary 1–30",
+      "An optional alternative value. Use either value in a legal move, not both at once."
+    ],
+    [
+      "None",
+      "No additional numerical value."
+    ]
+  ],
+  "forcedCapture": [
+    [
+      "Optional",
+      "Capturing is not compulsory. Trailing remains an option if otherwise legal."
+    ],
+    [
+      "Face cards only",
+      "J, Q or K cannot be trailed when the played card has a legal capture."
+    ],
+    [
+      "Direct matches",
+      "A card cannot be trailed when it can legally take a single matching loose card."
+    ],
+    [
+      "Any legal match",
+      "A card with any otherwise legal capture cannot be trailed. Building is a separate action; build obligations take precedence."
+    ]
+  ],
+  "captureGroups": [
+    [
+      "One group",
+      "Take one matching group at the played card's value."
+    ],
+    [
+      "Multiple groups",
+      "Take several independent groups, each matching the same selected value."
+    ]
+  ],
+  "captureExtent": [
+    [
+      "Selective",
+      "Choose any legal capture selection."
+    ],
+    [
+      "Maximal",
+      "No further eligible group can be added to your selection."
+    ],
+    [
+      "Maximum cards",
+      "Take the greatest number of physical cards possible with the played card."
+    ]
+  ],
+  "buildRange": [
+    [
+      "All capturable",
+      "Use any numerical build value supported by the selected deck."
+    ],
+    [
+      "9–13",
+      "Restrict builds to available capture values from 9 through 13."
+    ],
+    [
+      "10–13",
+      "Restrict builds to available capture values from 10 through 13."
+    ]
+  ],
+  "independentBuilds": [
+    [
+      "One",
+      "You may own only one separate stack, regardless of its value. A multiple build made of equal-value groups counts as one stack."
+    ],
+    [
+      "Up to two",
+      "You may own at most two independent stacks of any values. Two separate 8-builds count as two; one multiple 8-build counts as one."
+    ],
+    [
+      "Unlimited",
+      "There is no fixed per-player stack limit. Equal-value stacks may coexist unless mandatory merging is enabled. Each stack may require its own capturing card."
+    ]
+  ],
+  "scoreMode": [
+    [
+      "Classic Cassino",
+      "Most cards 3; most spades 1; 10♦ 2; 2♠ 1; each ace 1."
+    ],
+    [
+      "Spade Cassino",
+      "As Classic, except each spade scores one point and J♠ an extra point, replacing the spade-majority award."
+    ],
+    [
+      "Wippen",
+      "Two points for each majority, with the Cassino special-card points."
+    ],
+    [
+      "Diloti",
+      "Most cards 4; 10♦ 2; 2♣ 1; each ace 1; no suit-majority award."
+    ],
+    [
+      "Kontsina",
+      "Most cards 2; most clubs 1; 10♦ 1; 2♣ 1."
+    ],
+    [
+      "Tablić / Tabinet",
+      "Most cards 3; 10♦ 2; 2♣ 1; each ace, face card and other ten 1."
+    ],
+    [
+      "Scopa",
+      "Most cards 1; most diamonds 1; 7♦ 1; primiera 1, based on the best card in each suit."
+    ]
+  ],
+  "residueOwner": [
+    [
+      "Last capturer",
+      "Award remaining table cards to the last player who captured; if no player captured, they are unclaimed."
+    ],
+    [
+      "Dealer",
+      "Award remaining table cards to the dealer, even if another player made the last capture."
+    ]
+  ],
+  "directCapture": [
+    [
+      "Off",
+      "Disable single loose-card matches. Matching builds remain capturable."
+    ],
+    [
+      "On",
+      "A played card may take one loose card of equal numerical value, or equal rank if both cards are rank-only."
+    ]
+  ],
+  "additiveCapture": [
+    [
+      "Off",
+      "Loose-card sums cannot be captured."
+    ],
+    [
+      "On",
+      "Capture a combination of loose cards whose values add to the played card's chosen value."
+    ]
+  ],
+  "additiveBuilds": [
+    [
+      "Off",
+      "An existing build must be captured at its own announced value."
+    ],
+    [
+      "On",
+      "Treat an existing build as one numerical unit in a capture sum. An 8 can capture a 6-build plus a loose 2 already on the table. No new build is created, and no extra card is played from hand."
+    ]
+  ],
+  "directPriority": [
+    [
+      "Off",
+      "A legal sum may be selected even if a direct loose-card match exists."
+    ],
+    [
+      "On",
+      "If the played card matches a loose card directly, take a matching loose card rather than an additive alternative."
+    ]
+  ],
+  "builds": [
+    [
+      "Off",
+      "Only capture and trail. Build-specific settings become inactive."
+    ],
+    [
+      "On",
+      "Create and capture numerical builds using the enabled construction rules."
+    ]
+  ],
+  "multipleBuilds": [
+    [
+      "Off",
+      "A build contains one group only."
+    ],
+    [
+      "On",
+      "Stack two or more groups with the same value as a multiple build."
+    ]
+  ],
+  "subtractiveBuilds": [
+    [
+      "Off",
+      "Building and build modifications use addition."
+    ],
+    [
+      "On",
+      "Two cards can create a build at their positive difference; a single build can also be lowered by subtracting a played card."
+    ]
+  ],
+  "singleCardBuild": [
+    [
+      "Off",
+      "A new build requires at least one table card."
+    ],
+    [
+      "On",
+      "Declare a hand card alone as a build, subject to build obligations."
+    ]
+  ],
+  "raiseOwnBuild": [
+    [
+      "Off",
+      "Do not change the announced value of your own build."
+    ],
+    [
+      "On",
+      "Change the value of your own single build with an eligible hand card."
+    ]
+  ],
+  "raiseOpponentBuild": [
+    [
+      "Off",
+      "Do not change an opponent's build value."
+    ],
+    [
+      "On",
+      "Modify an opponent's single build and take ownership under the ordinary rules."
+    ]
+  ],
+  "mergeSameValue": [
+    [
+      "Off",
+      "Two separate stacks of the same value may coexist, subject to each player's independent-build limit and capturing-card obligation."
+    ],
+    [
+      "On",
+      "A new build must include any existing stacks at the same value. This governs whether separate equal-value stacks can coexist; it is not a limit on the number of stacks. Requires multiple builds."
+    ]
+  ],
+  "absorbMatching": [
+    [
+      "Off",
+      "Loose cards matching the new build may remain separate."
+    ],
+    [
+      "On",
+      "Include loose cards directly matching the new build value. Requires multiple builds."
+    ]
+  ],
+  "buildObligation": [
+    [
+      "Off",
+      "Make builds without retaining a matching capture card. Unresolved builds may remain until the deal ends."
+    ],
+    [
+      "On",
+      "Reserve a distinct matching hand card for each independently owned build."
+    ]
+  ],
+  "pirateCaptures": [
+    [
+      "Off",
+      "Capture your own active build before making an unrelated capture."
+    ],
+    [
+      "On",
+      "Capture unrelated loose cards or builds while owning a build, subject to any obligation to retain a matching card."
+    ]
+  ],
+  "allowTrailWithOwnBuild": [
+    [
+      "Off",
+      "Do not trail while owning an active build."
+    ],
+    [
+      "On",
+      "Trail while owning a build, provided required capturing cards are retained."
+    ]
+  ],
+  "extraAfterSweep": [
+    [
+      "Off",
+      "The players alternate turns normally."
+    ],
+    [
+      "On",
+      "The opponent of a player who sweeps receives an extra turn, provided they have cards to play."
+    ]
+  ],
+  "sweepCancel": [
+    [
+      "Off",
+      "Each player scores all their eligible sweeps."
+    ],
+    [
+      "On",
+      "Cancel opposing sweeps one for one; only the excess sweeps score."
+    ]
+  ],
+  "ignoreOpeningSweep": [
+    [
+      "Off",
+      "The first move can score a sweep."
+    ],
+    [
+      "On",
+      "Clearing the table on the first move scores no sweep points."
+    ]
+  ],
+  "ignoreFinalSweep": [
+    [
+      "Off",
+      "The last move can score a sweep."
+    ],
+    [
+      "On",
+      "Clearing the table on the last move of the deal scores no sweep points."
+    ]
+  ]
+};
+  function helpFor(key,options=[]){
+    if(OPTION_HELP[key])return OPTION_HELP[key];
+    if(key==='handSize')return [['1 to '+handMaximum(),'Choose a whole number of cards per player. Maximum = deck size divided by player count, rounded down. Starting table cards can impose a tighter legal limit; the compatibility check catches that.'],['All cards at start','The slider has no effect in this dealing mode.']];
+    if(key==='jokerValue')return options.map(n=>[String(n),'Both identical jokers have numerical capture and build value '+n+'.']);
+    if(key==='initialTableSize')return options.map(([n,label])=>[label,n===0?'The table starts empty.':'Place '+n+' loose cards on the table before the first turn.']);
+    if(key==='sweepPoints')return options.map(n=>[String(n),n===0?'Sweeps earn no points.':'Each eligible sweep earns '+n+' point'+(n===1?'':'s')+'.']);
+    if(key==='winningScore')return options.map(([n,label])=>[label,'Win at the end of a deal when you have at least '+n+' points and lead the opponent.']);
+    if(key==='matchDeals')return options.map(([n,label])=>[label,n===0?'Continue until a player reaches the winning score and leads.':'Play exactly '+n+' deal'+(n===1?'':'s')+'; the higher cumulative score wins.']);
+    return [['Explanation',RULE_HELP[key]||SETTING_INFO[key]?.[1]||'']];
+  }
   function ruleInfo(key,title){
     return '<button type="button" class="var-info rules-info" data-action="info-setting" data-key="'+key+'" aria-label="Explain '+escapeHtml(title)+'" aria-expanded="'+(detailSetting===key)+'">ⓘ</button>';
   }
-  function ruleExplanation(key){
-    return detailSetting===key?'<p class="inline-setting-info">'+escapeHtml(helpFor(key))+'</p>':'';
+  function ruleExplanation(key,options=[]){
+    if(detailSetting!==key)return '';
+    return '<div class="inline-setting-info rule-option-help">'+helpFor(key,options).map(([label,description])=>'<p><b>'+escapeHtml(label)+'</b> — '+escapeHtml(description)+'</p>').join('')+'</div>';
   }
   function ruleSwitch(key,title,disabled=false,hint=''){
     disabled=disabled||!!draft.presetBlocker;
@@ -1183,7 +1641,7 @@
       (hint?'<small>'+escapeHtml(hint)+'</small>':'')+'</label>'+ruleInfo(key,title)+
       '<select id="rule-'+key+'" data-setting="'+key+'" aria-label="'+escapeHtml(title)+'" '+(disabled?'disabled':'')+'>'+
       options.map(option=>{const pair=Array.isArray(option)?option:[option,option];return '<option value="'+escapeHtml(pair[0])+'" '+(String(value)===String(pair[0])?'selected':'')+'>'+escapeHtml(pair[1])+'</option>';}).join('')+
-      '</select>'+ruleExplanation(key)+'</div>';
+      '</select>'+ruleExplanation(key,options)+'</div>';
   }
   function ruleGroup(title,content){
     return '<h4 class="rules-subheading">'+title+'</h4><div class="rules-group">'+content+'</div>';
@@ -1204,7 +1662,60 @@
   function faceLabel(){return !draft.royal?'Rank matching':draft.faceValues==='extended'?'J=12 · Q=13 · K=14':draft.faceValues==='italian'?'J=8 · Q=9 · K=10':'J=11 · Q=12 · K=13';}
   function dealLabel(){return draft.dealMode==='full'?'All cards at start':draft.dealMode==='draw'?draft.handSize+' cards · replace after play':draft.dealMode==='bid'?'Opening bid':draft.handSize+'-card batches';}
   function buildLabel(){return !draft.builds?'Disabled':(draft.multipleBuilds?'Single & multiple builds':'Single builds')+' · '+(draft.buildAnything?'No reserved card':'Reserved card required');}
-  function handSetting(){return ruleSelect('handSize','Cards per hand',[3,4,6,8,12],draft.dealMode==='full',draft.dealMode==='full'?'Entire deck dealt at start':'');}
+  function handMaximum(){
+    const players=draft.playerCount===2?2:4;
+    return Math.floor(E.makeDeck(draft).length/players);
+  }
+  function handSetting(){
+    const maximum=handMaximum(),n=Math.max(1,Math.min(maximum||1,draft.handSize||1)),disabled=draft.dealMode==='full'||maximum<1||!!draft.presetBlocker;
+    const ticks=Array.from({length:maximum},(_,i)=>'<span class="'+(i+1===n?'active':'')+'" data-hand-tick="'+(i+1)+'"></span>').join('');
+    return '<div class="rules-setting hand-slider-setting'+(disabled?' is-inactive':'')+'"><label class="rules-setting-label" for="rule-handSize"><span class="rules-label">Cards per hand</span>'+
+      (draft.dealMode==='full'?'<small>Entire deck dealt at start</small>':'')+'</label>'+ruleInfo('handSize','Cards per hand')+
+      '<output id="hand-size-output" for="rule-handSize">'+(maximum?n:'—')+'</output>'+
+      '<div class="hand-slider-control"><input id="rule-handSize" type="range" data-setting="handSize" min="1" max="'+Math.max(1,maximum)+'" step="1" value="'+n+'" '+(disabled?'disabled':'')+' aria-label="Cards per hand">'+
+      '<div class="hand-size-ticks" aria-hidden="true">'+ticks+'</div><div class="hand-size-bounds"><span>1</span><span>'+maximum+'</span></div></div>'+
+      ruleExplanation('handSize')+'</div>';
+  }
+  const rankOrder=Array.from({length:13},(_,i)=>i+1),suitOrder=['S','H','C','D'];
+  const suitGlyph={S:'♠',H:'♥',C:'♣',D:'♦'};
+  function rankLabel(rank){return ({1:'A',11:'J',12:'Q',13:'K'})[rank]||String(rank);}
+  function deckCardCheckbox(id,label,red,selected){
+    return '<label class="deck-check-card'+(red?' red-card':'')+'"><input type="checkbox" data-setting="deckCard" data-card-id="'+id+'" '+(selected.has(id)?'checked ':'')+(draft.presetBlocker?'disabled ':'')+'aria-label="Include '+escapeHtml(label)+'"><span>'+escapeHtml(label)+'</span></label>';
+  }
+  function renderDeckChecklist(){
+    if(draft.deckMode!=='custom')return '';
+    const selected=new Set(E.makeDeck(draft).map(c=>c.id)),disabled=draft.presetBlocker?'disabled':'';
+    return '<div class="deck-checklist"><div class="deck-checklist-head"><b>'+selected.size+' / 54 cards</b><button type="button" class="rules-reset" data-action="deck-all" '+disabled+'>Select all</button><button type="button" class="rules-reset" data-action="deck-none" '+disabled+'>Deselect all</button></div>'+
+      '<div class="deck-checklist-scroll" role="group" aria-label="Cards included in the deck"><div class="deck-grid">'+suitOrder.map(s=>'<b class="card-grid-suit'+(s==='H'||s==='D'?' red-card':'')+'">'+suitGlyph[s]+'</b>').join('')+
+      rankOrder.flatMap(rank=>suitOrder.map(s=>deckCardCheckbox(s+rank,rankLabel(rank)+suitGlyph[s],s==='H'||s==='D',selected))).join('')+
+      '<div class="deck-joker-row">'+deckCardCheckbox('X1','Joker (copy 1)',false,selected)+deckCardCheckbox('X2','Joker (copy 2)',false,selected)+'</div></div></div>'+
+      '<p class="rules-description">Jokers look identical during play; either physical copy can be included.</p></div>';
+  }
+  function currentValueCard(){
+    const deck=E.makeDeck(draft);
+    return deck.find(c=>E.cardKey(c)===valueCardKey)||deck[0]||null;
+  }
+  function renderValuePicker(card){
+    if(!valuePickerOpen)return '';
+    const included=new Set(E.makeDeck(draft).map(E.cardKey));
+    const current=card?E.cardKey(card):'';
+    const cell=(key,label,red)=>'<button type="button" class="value-card-choice'+(red?' red-card':'')+(current===key?' selected':'')+'" data-action="value-card" data-value="'+key+'" aria-pressed="'+(current===key)+'" '+(included.has(key)&&!draft.presetBlocker?'':'disabled')+'>'+label+'</button>';
+    return '<div class="value-picker-scroll"><div class="value-card-grid" role="group" aria-label="Select a card for value assignment">'+suitOrder.map(s=>'<b class="card-grid-suit'+(s==='H'||s==='D'?' red-card':'')+'">'+suitGlyph[s]+'</b>').join('')+
+      rankOrder.flatMap(rank=>suitOrder.map(s=>cell(s+rank,rankLabel(rank)+suitGlyph[s],s==='H'||s==='D'))).join('')+
+      '<div class="value-joker-row">'+cell('Joker','Joker',false)+'</div></div></div>';
+  }
+  function renderValueEditor(){
+    if(!draft.customizeCardValues)return '';
+    const card=currentValueCard(),key=card?E.cardKey(card):'',values=card?E.cardValues(card,draft):[];
+    const first=values[0]??'rank',second=values[1]??'none',disabled=!card||draft.presetBlocker;
+    const option=(v,label,current,off=false)=>'<option value="'+v+'" '+(String(v)===String(current)?'selected ':'')+(off?'disabled':'')+'>'+label+'</option>';
+    const numbers=Array.from({length:30},(_,i)=>i+1);
+    return '<div class="custom-value-editor"><div class="custom-value-heading"><b>Individual card values</b>'+ruleInfo('customValues','Individual card values')+'</div>'+
+      '<div class="card-value-equation"><div><label>Card</label><button type="button" class="value-picker-button" data-action="toggle-value-picker" aria-expanded="'+valuePickerOpen+'" '+(disabled?'disabled':'')+'>'+(card?escapeHtml(E.cardName(card)):'—')+' <span aria-hidden="true">▾</span></button></div><span class="equation-symbol">=</span>'+
+      '<div><label for="value-primary">Primary</label><select id="value-primary" data-setting="primaryValue" aria-label="Primary card value" '+(disabled?'disabled':'')+'>'+option('rank','Rank only',first)+numbers.map(n=>option(n,String(n),first)).join('')+'</select></div><span class="equation-symbol">,</span>'+
+      '<div><label for="value-secondary">Secondary</label><select id="value-secondary" data-setting="secondaryValue" aria-label="Secondary card value" '+(disabled||first==='rank'?'disabled':'')+'>'+option('none','None',second)+numbers.map(n=>option(n,String(n),second,n===first)).join('')+'</select></div></div>'+
+      ruleExplanation('customValues')+renderValuePicker(card)+'</div>';
+  }
   function targetSetting(){return ruleSelect('winningScore','Winning score',[11,16,21,31,41,50,51,61,100,101,121].map(n=>[n,n+' pts']),!!draft.matchDeals);}
   function forcedSetting(){return ruleSelect('forcedCapture','Compulsory captures',[['optional','Optional'],['faces','Face cards only'],['direct','Direct matches'],['all','Any legal match']]);}
   function renderPresetPicker(){
@@ -1216,10 +1727,10 @@
       (chosen?.partial?'<button type="button" class="rules-reset" data-action="use-partial-preset">Use available mechanics as Custom</button>':'')+'</div>':'')+'</div>';
   }
   function renderDifficulty(){
-    const levels=E.DIFFICULTY_INFO,chosen=levels.find(x=>x[0]===draft.difficulty)||levels[1];
+    const levels=E.DIFFICULTY_INFO;
     return '<div class="difficulty-heading"><h3>DIFFICULTY</h3><button type="button" class="var-info" data-action="difficulty-info" aria-label="Explain all CPU difficulty levels" aria-expanded="'+difficultyInfoOpen+'">ⓘ</button></div>'+
       '<div class="pill-row diff-row">'+levels.map(([key,title])=>'<button type="button" class="pill-choice '+(draft.difficulty===key?'selected':'')+'" data-action="setup-difficulty" data-value="'+key+'" aria-pressed="'+(draft.difficulty===key)+'">'+title+'</button>').join('')+'</div>'+
-      (difficultyInfoOpen?'<div class="difficulty-explanations">'+levels.map(([key,title,desc])=>'<div class="'+(key===draft.difficulty?'current':'')+'"><b>'+title+'</b><p>'+escapeHtml(desc)+'</p></div>').join('')+'<p class="difficulty-footnote">CPU uses its hand and public information, not the actual hidden human hand or future stock order. Search may stop early to keep the app responsive.</p></div>':'<p class="difficulty-summary">'+escapeHtml(chosen[2])+'</p>');
+      (difficultyInfoOpen?'<div class="difficulty-explanations">'+levels.map(([key,title,desc])=>'<div class="'+(key===draft.difficulty?'current':'')+'"><b>'+title+'</b><p>'+escapeHtml(desc)+'</p></div>').join('')+'<p class="difficulty-footnote">CPU uses its hand and public information, not the actual hidden human hand or future stock order. Search may stop early to keep the app responsive.</p></div>':'');
   }
   function rulesAccordion(key,title,summary,content){
     if(key==='lab'){
@@ -1241,13 +1752,17 @@
   function renderAllRules(){
     const building=draft.builds, multiple=building&&draft.multipleBuilds;
     const hasSums=draft.additiveCapture;
-    const deckContent='<div class="rules-group">'+ruleSelect('deckSize','Deck size',[[52,'52 cards'],[40,'40 cards']])+ruleSelect('initialTableSize','Starting table',[0,3,4,8].map(n=>[n,n+' cards']))+
+    const deckContent='<div class="rules-group">'+ruleSelect('deckMode','Deck size',[['40','40 (A–10)'],['52','52'],['54','54'],['custom','Custom']])+renderDeckChecklist()+ruleSelect('initialTableSize','Starting table',[0,3,4,8].map(n=>[n,n+' cards']))+
       ruleSelect('dealMode','Dealing method',[['batch','Repeated batches'],['draw','Draw replacement'],['full','All cards at start']])+handSetting()+
       ruleSelect('remainderMode','Final deal',[['equal','Smaller equal hands'],['uneven','Unequal hands'],...(draft.dealMode==='batch'?[['strict','Full batches only']]:[])],draft.dealMode==='draw',draft.dealMode==='draw'?'Not used in draw mode':'')+
       ruleSelect('initialTableRule','Starting table restrictions',[['any','None'],['distinct-nonpoints','Distinct non-point cards'],['no-three-faces','No 3 equal face cards'],['no-three-kings','No 3 kings']],!draft.initialTableSize)+'</div>';
-    const valuesContent='<div class="rules-group">'+ruleSelect('faceMode','Face cards',[['classic','Rank matching'],['royal','J=11, Q=12, K=13'],['extended','J=12, Q=13, K=14'],['italian','J=8, Q=9, K=10']])+
-      ruleSelect('aceMode','Ace values',[[1,'1'],[11,'1 or 11'],[14,'1 or 14']])+ruleSwitch('royalBigLittle','Special values for 2♠ / 10♦',false,draft.deckSize===40?'Only 2♠ remains in this deck':'2 or 15 · 10 or 16')+'</div>';
-    const captureContent=ruleGroup('What can be captured',ruleSwitch('directCapture','Direct matches',false,'8 takes 8')+ruleSwitch('additiveCapture','Matching sums',false,'8 takes 5 + 3')+ruleSwitch('additiveBuilds','Combine builds in sums',!building||!hasSums,'8 takes a 6-build + 2'))+
+    const includedIds=new Set(E.makeDeck(draft).map(c=>c.id));
+    const valueOverride=draft.customizeCardValues,hasSpecial=includedIds.has('S2')||includedIds.has('D10');
+    const valuesContent='<div class="rules-group">'+ruleSelect('faceMode','Face cards',[['classic','Rank matching'],['royal','J=11, Q=12, K=13'],['extended','J=12, Q=13, K=14'],['italian','J=8, Q=9, K=10']],valueOverride)+
+      ruleSelect('aceMode','Ace values',[[1,'1'],[11,'1 or 11'],[14,'1 or 14']],valueOverride)+ruleSwitch('royalBigLittle','Special values for 2♠ / 10♦',valueOverride||!hasSpecial,'2 or 15 · 10 or 16')+
+      (draft.jokerCount?ruleSelect('jokerValue','Joker value',Array.from({length:30},(_,i)=>i+1),valueOverride):'')+
+      ruleSwitch('customizeCardValues','Customize card values')+renderValueEditor()+'</div>';
+    const captureContent=ruleGroup('What can be captured',ruleSwitch('directCapture','Direct matches',false,'8 takes 8')+ruleSwitch('additiveCapture','Matching sums',false,'8 takes 5 + 3')+ruleSwitch('additiveBuilds','Use existing builds in capture sums',!building||!hasSums,'8 takes a 6-build + loose 2'))+
       ruleGroup('Capture requirements',forcedSetting()+ruleSwitch('directPriority','Direct matches take priority',!draft.directCapture)+ruleSelect('captureGroups','Groups per capture',[['one','One group'],['unlimited','Multiple groups']])+ruleSelect('captureExtent','Capture extent',[['choice','Selective'],['maximal','Maximal'],['maximum','Maximum cards']]));
     const buildContent='<div class="rules-group">'+ruleSwitch('builds','Allow building')+'</div>'+
       (!building?'<p class="rules-description">Enable building to edit its rules. Your build preferences are retained.</p>':'')+
@@ -1257,7 +1772,7 @@
       ruleGroup('Modifying builds',ruleSwitch('raiseOwnBuild','Modify own build value')+ruleSwitch('raiseOpponentBuild','Modify opponent build value')+
         ruleSwitch('mergeSameValue','Require same-value merging',!multiple)+ruleSwitch('absorbMatching','Absorb matching loose cards',!multiple))+
       ruleGroup('While owning a build',ruleSwitch('buildObligation','Keep a capturing card',false,'Reserve a distinct card for each stack')+
-        ruleSelect('independentBuilds','Independent builds',[['1','One'],['2','Up to two'],['unlimited','Unlimited']])+
+        ruleSelect('independentBuilds','Independent builds per player',[['1','One'],['2','Up to two'],['unlimited','Unlimited']])+
         ruleSwitch('pirateCaptures','Allow unrelated captures')+ruleSwitch('allowTrailWithOwnBuild','Allow trailing')):'');
     const turnContent='<p class="rules-description">Play one hand card per action. The opponent normally plays next.</p><div class="rules-group">'+
       ruleSwitch('extraAfterSweep','Extra turn after opponent sweep')+'</div>';
@@ -1269,7 +1784,7 @@
     const captureSummary=(draft.directCapture&&draft.additiveCapture?'Match & sum':draft.directCapture?'Direct only':draft.additiveCapture?'Sums only':'No loose-card capture')+' · '+(draft.forcedCapture==='optional'?'Optional':draft.forcedCapture==='direct'?'Direct matches required':draft.forcedCapture==='faces'?'Face matches required':'Legal captures required');
     return '<div class="all-rules-heading"><h3>RULES</h3><button type="button" class="rules-reset" data-action="reset-rules">Reset to Classic</button></div><div class="rules-accordions rules-single-page">'+
       rulesAccordion('deal','Deck & dealing',draft.deckSize+' cards · '+dealLabel()+' · '+draft.initialTableSize+' on table',deckContent)+
-      rulesAccordion('values','Card values',faceLabel()+' · Ace '+(ruleValue('aceMode')===1?'1':'1 or '+ruleValue('aceMode')),valuesContent)+
+      rulesAccordion('values','Card values',draft.customizeCardValues?'Individual card values':faceLabel()+' · Ace '+(ruleValue('aceMode')===1?'1':'1 or '+ruleValue('aceMode')),valuesContent)+
       rulesAccordion('capture','Capturing',captureSummary,captureContent)+
       rulesAccordion('build','Building',buildLabel(),buildContent)+
       rulesAccordion('turn','Turn order',draft.extraAfterSweep?'Extra turn after a sweep':'Alternating turns',turnContent)+
@@ -1281,7 +1796,7 @@
     if(/capture method|compulsory direct/i.test(message))return 'capture';
     if(/build|obligation/i.test(message))return 'build';
     if(/score|sweep/i.test(message))return 'score';
-    if(/Italian face/i.test(message))return 'values';
+    if(/Italian face|custom card values|numerical card values/i.test(message))return 'values';
     if(/hand|deck|stock|batch|cards for|divided|bid|joker|player/i.test(message))return 'deal';
     return '';
   }
@@ -1614,7 +2129,7 @@
   }
   // All setup entry points share a single draft and scrollable dialog.
   function openSettings(origin = screen) {
-    variationsScrollTop = 0; detailSetting = ''; settingsOrigin = origin; rulesSection=''; rulesIssuesOpen=false; labResult=null; difficultyInfoOpen=false;
+    variationsScrollTop = 0; detailSetting = ''; settingsOrigin = origin; rulesSection=''; rulesIssuesOpen=false; labResult=null; difficultyInfoOpen=false; valueCardKey='S1';valuePickerOpen=false;deckChecklistScroll=0;
     const difficulty = game.rules.difficulty || 'thoughtful';
     if (origin === 'newgame') {
       draftPreset = 'classic';
@@ -1622,10 +2137,10 @@
       customDraft = customRules ? {...customRules} : null;
     } else {
       draft = E.normalizeRules(game.rules);
-      draftPreset = Object.keys(E.PRESETS).find(key => {
+      draftPreset = Object.keys(E.PRESETS).sort((x,y)=>Number(E.PRESETS[y].name===draft.name)-Number(E.PRESETS[x].name===draft.name)).find(key => {
         const preset = E.rulesFor(key);
         return Object.keys(E.DEFAULT_RULES).every(prop =>
-          prop === 'name' || prop === 'difficulty' || preset[prop] === draft[prop]);
+          prop === 'name' || prop === 'difficulty' || JSON.stringify(preset[prop]) === JSON.stringify(draft[prop]));
       }) || 'custom';
       customDraft = draftPreset === 'custom' ? {...draft} : customRules ? {...customRules} : null;
     }
@@ -1634,7 +2149,7 @@
   function selectVariation(key) {
     if (!Object.hasOwn(E.PRESETS,key) && key !== 'custom') return;
     if (key === draftPreset) return;
-    labResult=null; rulesIssuesOpen=false;
+    labResult=null; rulesIssuesOpen=false;valuePickerOpen=false;deckChecklistScroll=0;
     const difficulty = draft.difficulty;
     if (draftPreset === 'custom') customDraft = {...draft};
     if (key === 'custom') {
@@ -1646,8 +2161,60 @@
     draftPreset = key;
     render('overlay');
   }
+  function commitDraftEdit(){
+    draft=E.normalizeRules(draft);
+    draftPreset='custom';draft.name='Custom Fishing';customDraft={...draft};
+    labResult=null;render('overlay');
+  }
+  function fitHandSize(){
+    draft=E.normalizeRules(draft);
+    draft.handSize=Math.max(1,Math.min(draft.handSize,handMaximum()||1));
+  }
+  function updateDeckCards(ids){
+    if(!draft||draft.presetBlocker||draft.deckMode!=='custom')return;
+    const wanted=new Set(ids);draft.deckCards=E.allCards().filter(c=>wanted.has(c.id)).map(c=>c.id);
+    fitHandSize();commitDraftEdit();
+  }
+  function updateOneDeckCard(id,checked){
+    if(!E.allCards().some(c=>c.id===id)||draft.deckMode!=='custom')return;
+    const ids=new Set(E.makeDeck(draft).map(c=>c.id));
+    if(checked)ids.add(id);else ids.delete(id);
+    updateDeckCards([...ids]);
+  }
+  function updateCardValue(which,value){
+    if(!draft||draft.presetBlocker||!draft.customizeCardValues)return;
+    const card=currentValueCard();if(!card)return;
+    const key=E.cardKey(card),old=E.cardValues(card,draft);
+    let vals;
+    if(which==='primaryValue'){
+      if(value==='rank')vals=[];
+      else{const n=Number(value);if(!Number.isInteger(n)||n<1||n>30)return;vals=[n,...old.slice(1).filter(v=>v!==n)];}
+    }else{
+      if(!old.length)return;
+      if(value==='none')vals=[old[0]];
+      else{const n=Number(value);if(!Number.isInteger(n)||n<1||n>30||n===old[0])return;vals=[old[0],n];}
+    }
+    draft.cardValueOverrides={...(draft.cardValueOverrides||E.initialCardValues(draft)),[key]:vals};
+    commitDraftEdit();
+  }
   function updateDraftSetting(prop,value){
     if(!draft||draft.presetBlocker)return;
+    if(prop==='deckMode'){
+      if(!['40','52','54','custom'].includes(value)||draft.deckMode===value)return;
+      if(value==='custom'&&!Array.isArray(draft.deckCards))draft.deckCards=E.makeDeck(draft).map(c=>c.id);
+      draft.deckMode=value;fitHandSize();valuePickerOpen=false;commitDraftEdit();return;
+    }
+    if(prop==='deckSize'){
+      // Legacy compatibility for programmatic callers of the old editor.
+      return updateDraftSetting('deckMode',String(value));
+    }
+    if(prop==='customizeCardValues'){
+      if(!!draft.customizeCardValues===!!value)return;
+      if(value&&!draft.cardValueOverrides)draft.cardValueOverrides=E.initialCardValues(draft);
+      draft.customizeCardValues=!!value;valuePickerOpen=false;commitDraftEdit();return;
+    }
+    if(draft.customizeCardValues&&['faceMode','aceMode','royalBigLittle','jokerValue'].includes(prop))return;
+    if(prop==='handSize'&&(!Number.isInteger(value)||value<1||value>handMaximum()))return;
     if(String(ruleValue(prop))===String(value))return;
     if(prop==='faceMode'){
       if(!['classic','royal','extended','italian'].includes(value))return;
@@ -1675,16 +2242,24 @@
     }
     // A parent switch temporarily deactivates its dependents, without deleting
     // the user's preferences. effectiveDraftRules is the only export path.
-    draftPreset='custom';draft.name='Custom Fishing';customDraft={...draft};
-    labResult=null;render('overlay');
+    commitDraftEdit();
   }
   app.addEventListener('change', ev => {
     const target = ev.target;
     if (!(target instanceof HTMLElement) || !target.dataset.setting || target.disabled || modal !== 'settings') return;
     const prop = target.dataset.setting;
     if(prop==='preset')return selectVariation(target.value);
+    if(prop==='deckCard')return updateOneDeckCard(target.dataset.cardId,target.checked);
+    if(prop==='primaryValue'||prop==='secondaryValue')return updateCardValue(prop,target.value);
     updateDraftSetting(prop,target.type === 'checkbox' ? target.checked :
       ['winningScore','sweepPoints','deckSize','handSize','initialTableSize','aceValue','aceMode','matchDeals','jokerCount','jokerValue','playerCount'].includes(prop)&&target.value!=='4team' ? Number(target.value) : target.value);
+  });
+  app.addEventListener('input',ev=>{
+    const target=ev.target;
+    if(modal!=='settings'||target?.dataset?.setting!=='handSize'||target.disabled)return;
+    const out=app.querySelector('#hand-size-output');
+    if(out)out.textContent=target.value;
+    for(const tick of app.querySelectorAll('[data-hand-tick]'))tick.classList.toggle('active',tick.dataset.handTick===target.value);
   });
   app.addEventListener('click', event => {
     const node = event.target.closest('[data-action]');
@@ -1700,6 +2275,9 @@
     if (action === 'setup-new-game') { sound('tap'); return openSettings('newgame'); }
     if (action === 'info-setting' && modal === 'settings') { detailSetting=detailSetting===node.dataset.key?'':node.dataset.key; render('overlay'); return; }
     if(action==='difficulty-info'&&modal==='settings'){difficultyInfoOpen=!difficultyInfoOpen;render('overlay');return;}
+    if(modal==='settings'&&(action==='deck-all'||action==='deck-none'))return updateDeckCards(action==='deck-all'?E.allCards().map(c=>c.id):[]);
+    if(modal==='settings'&&action==='toggle-value-picker'){if(draft.customizeCardValues&&E.makeDeck(draft).length){valuePickerOpen=!valuePickerOpen;render('overlay');}return;}
+    if(modal==='settings'&&action==='value-card'){if(draft.customizeCardValues&&E.makeDeck(draft).some(c=>E.cardKey(c)===node.dataset.value)){valueCardKey=node.dataset.value;valuePickerOpen=false;render('overlay');}return;}
     if(action==='use-partial-preset'&&modal==='settings'){
       const p=E.PRESET_CATALOG.find(x=>x.id===draftPreset);
       if(!p?.partial||!draft.presetBlocker)return;
@@ -1719,7 +2297,7 @@
     }
     if(action==='reset-rules'&&modal==='settings'){
       if(draftPreset==='custom')customDraft={...draft};
-      draft=E.rulesFor('classic',{difficulty:draft.difficulty});draftPreset='classic';rulesIssuesOpen=false;labResult=null;detailSetting='';render('overlay');return;
+      draft=E.rulesFor('classic',{difficulty:draft.difficulty});draftPreset='classic';rulesIssuesOpen=false;labResult=null;detailSetting='';valuePickerOpen=false;valueCardKey='S1';deckChecklistScroll=0;render('overlay');return;
     }
     if (action === 'run-rules-lab' && modal === 'settings'){
       if(!E.validateRules(effectiveDraftRules()).playable)return;
