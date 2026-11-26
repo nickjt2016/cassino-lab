@@ -1264,3 +1264,10 @@ html,body,#app{background:#005d0b;color:#fff}
 .opponent-hand.wide-hand .card-back:first-child{margin-left:0}
 @media(max-width:350px){.deck-check-card{font-size:11px;gap:2px}.deck-check-card input{width:13px;height:13px}.deck-checklist-head .rules-reset{padding:5px 4px;font-size:9px}.card-value-equation select,.value-picker-button{font-size:11px}}
 @media(max-height:480px){.deck-checklist-scroll,.value-picker-scroll{max-height:140px}}
+
+/* v0.8.3: slider value is also an editable numeric field. */
+.hand-slider-setting{grid-template-columns:minmax(0,1fr) 28px 52px}
+.hand-slider-setting .hand-size-number{width:52px;min-width:0;min-height:34px;padding:5px 2px;box-sizing:border-box;font:750 14px/1.2 system-ui,sans-serif;font-variant-numeric:tabular-nums;text-align:center;border:1px solid #d6c9a8;background:#f3ecda;border-radius:7px;color:#214d36;appearance:textfield;-moz-appearance:textfield}
+.hand-size-number::-webkit-inner-spin-button,.hand-size-number::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.hand-slider-setting .hand-size-number:focus{border-color:#195b40;outline:2px solid #195b4030;outline-offset:1px}
+.hand-slider-setting .hand-size-number:disabled{opacity:.45}

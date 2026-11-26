@@ -1324,7 +1324,7 @@
     if(!played.length)return direct&&selection.length===1&&selection[0].type==='loose'&&rankMatch(selection[0].card,card,rules)
       ?{ok:true}:{ok:false,reason:'Non-numerical face cards require a direct rank match.'};
     for(const target of played){
-      const fixed=selection.filter(e=>e.type==='build'&&!rules.additiveBuilds);
+      const fixed=selection.filter(e=>e.type==='build'&&(!rules.additiveBuilds||e.groups.length!==1));
       if(fixed.some(e=>e.value!==target))continue;
       const entries=selection.filter(e=>!fixed.includes(e));
       const choices=entries.map(e=>{
@@ -1358,7 +1358,7 @@
     const seen=new Set();
     for(const target of vals){
       const entries=state.table.map(x=>({id:x.id,values:x.type==='build'?
-        (x.value===target||state.rules.additiveBuilds&&x.value<target?[x.value]:[]):cardValues(x.card,state.rules).filter(v=>v<=target)})).filter(x=>x.values.length);
+        (x.value===target||state.rules.additiveBuilds&&x.groups.length===1&&x.value<target?[x.value]:[]):cardValues(x.card,state.rules).filter(v=>v<=target)})).filter(x=>x.values.length);
       for(const ids of hintSubsets(entries,target,[0],false)){
         const key=ids.slice().sort().join(',');if(seen.has(key))continue;seen.add(key);
         yield {kind:'capture',cardId:card.id,targetIds:ids};
@@ -1689,7 +1689,7 @@
   // All table-card subsets whose sum is value. Pruned by positive card values.
   function valueGroups(state, target, max = 160) {
     const matching = state.table.filter(e => e.type === 'build' && e.value === target).map(e => [e.id]);
-    const loose = state.table.filter(e => e.type === 'loose' && cardValues(e.card,state.rules).length || state.rules.additiveBuilds&&e.type==='build'&&e.value<target)
+    const loose = state.table.filter(e => e.type === 'loose' && cardValues(e.card,state.rules).length || state.rules.additiveBuilds&&e.type==='build'&&e.groups.length===1&&e.value<target)
       .map(e => ({id:e.id, vals:e.type==='build'?[e.value]:cardValues(e.card,state.rules)}));
     const seen = new Set(matching.map(group=>group.join(',')));
     const go = (start,total,chosen) => {
@@ -1887,7 +1887,7 @@
         continue;
       }
       for(const target of values){
-        const entries=[...builds.filter(b=>b.value===target||rules.additiveBuilds&&b.value<target).map(b=>({id:b.id,values:[b.value]})),
+        const entries=[...builds.filter(b=>b.value===target||rules.additiveBuilds&&b.groups.length===1&&b.value<target).map(b=>({id:b.id,values:[b.value]})),
           ...numericEntries(target)];
         for(const ids of hintSubsets(entries,target,[0],false,stop)){
           const move={kind:'capture',cardId:card.id,targetIds:ids};

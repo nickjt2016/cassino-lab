@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.2';
+  const APP_VERSION = '0.8.3';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1124,9 +1124,9 @@
     spadeScoring: ['Spade Scoring', 'Every spade captured earns one point, plus a bonus point for the Jack of spades, replacing the ordinary most-spades award.'],
     builds: ['Building', 'Allow single builds; with this switched off, players can only capture or trail.'],
     multipleBuilds: ['Multiple Builds', 'Allow two or more equal-valued combinations to be combined into a multiple build.'],
-    directCapture:['Direct matching','A table card can be captured by matching its rank or numerical value. Matching builds remain capturable.'],
-    additiveCapture:['Additive matching','Allow several table cards whose values add to the played card.'],
-    additiveBuilds:['Builds as capture units','A build can contribute its announced value to an arithmetic capture.'],
+    directCapture:['Allow single card captures','A table card can be captured by matching its rank or numerical value. Matching builds remain capturable.'],
+    additiveCapture:['Allow multiple card / sum captures','Allow several table cards whose values add to the played card.'],
+    additiveBuilds:['Allow single builds in sum captures','A build can contribute its announced value to an arithmetic capture.'],
     subtractiveBuilds:['Subtractive building','Two cards may create a build at their positive difference, or a single build may be lowered by the played card.'],
     singleCardBuild:['Single-card declaration','A hand card alone can be declared as a build, subject to the ordinary obligation.'],
     raiseOwnBuild:['Modify own builds','Permit changing the announced value of your own single build.'],
@@ -1414,31 +1414,31 @@
   "directCapture": [
     [
       "Off",
-      "Disable single table-card matches. Matching builds remain capturable."
+      "You cannot capture an individual table card just because it matches your played card. Matching builds can still be captured."
     ],
     [
       "On",
-      "A played card may take one table card of equal numerical value, or equal rank if both cards are rank-only."
+      "Example: play an 8 to capture an 8 on the table. Rank-only cards match by rank instead. Capturing several separate matching groups is governed by Groups per capture."
     ]
   ],
   "additiveCapture": [
     [
       "Off",
-      "Table-card sums cannot be captured."
+      "You cannot combine smaller values to make a matching sum. Individual matches and matching builds remain available if allowed."
     ],
     [
       "On",
-      "Capture a combination of table cards whose values add to the played card's chosen value."
+      "Example: play an 8 to capture a 5 and a 3 together. Their values add up to 8. Separate matching groups are governed by Groups per capture."
     ]
   ],
   "additiveBuilds": [
     [
       "Off",
-      "An existing build must be captured at its own announced value."
+      "All builds must be captured at their announced value. For example, a 6-build requires a 6, not an 8 plus a table 2."
     ],
     [
       "On",
-      "Treat an existing build as one numerical unit in a capture sum. An 8 can capture a 6-build plus a 2 already on the table. No new build is created, and no extra card is played from hand."
+      "Example: play an 8 to capture a single 6-build and a table 2 together. The single build acts as one card worth 6. Multiple builds still require an exact match to their announced value. No new build is created."
     ]
   ],
   "directPriority": [
@@ -1604,7 +1604,7 @@
 };
   function helpFor(key,options=[]){
     if(OPTION_HELP[key])return OPTION_HELP[key];
-    if(key==='handSize')return [['1 to '+handMaximum(),'Choose a whole number of cards per player. Maximum = deck size divided by player count, rounded down. Starting table cards can impose a tighter legal limit; the compatibility check catches that.'],['All cards at start','The slider has no effect in this dealing mode.']];
+    if(key==='handSize')return [['1 to '+handMaximum(),'Drag the stepped slider or type a whole number into the value box. Maximum = deck size divided by player count, rounded down. Starting table cards can impose a tighter legal limit; the compatibility check catches that.'],['All cards at start','The slider has no effect in this dealing mode.']];
     if(key==='jokerValue')return options.map(n=>[String(n),'Both identical jokers have numerical capture and build value '+n+'.']);
     if(key==='initialTableSize')return options.map(([n,label])=>[label,n===0?'The table starts empty.':'Place '+n+' table cards on the table before the first turn.']);
     if(key==='sweepPoints')return options.map(n=>[String(n),n===0?'Sweeps earn no points.':'Each eligible sweep earns '+n+' point'+(n===1?'':'s')+'.']);
@@ -1671,7 +1671,7 @@
     const ticks=Array.from({length:maximum},(_,i)=>'<span class="'+(i+1===n?'active':'')+'" data-hand-tick="'+(i+1)+'"></span>').join('');
     return '<div class="rules-setting hand-slider-setting'+(disabled?' is-inactive':'')+'"><label class="rules-setting-label" for="rule-handSize"><span class="rules-label">Cards per hand</span>'+
       (draft.dealMode==='full'?'<small>Entire deck dealt at start</small>':'')+'</label>'+ruleInfo('handSize','Cards per hand')+
-      '<output id="hand-size-output" for="rule-handSize">'+(maximum?n:'—')+'</output>'+
+      '<input id="hand-size-output" class="hand-size-number" type="number" inputmode="numeric" data-setting="handSizeText" min="1" max="'+Math.max(1,maximum)+'" step="1" value="'+(maximum?n:'')+'" '+(disabled?'disabled':'')+' aria-label="Type cards per hand">'+
       '<div class="hand-slider-control"><input id="rule-handSize" type="range" data-setting="handSize" min="1" max="'+Math.max(1,maximum)+'" step="1" value="'+n+'" '+(disabled?'disabled':'')+' aria-label="Cards per hand">'+
       '<div class="hand-size-ticks" aria-hidden="true">'+ticks+'</div><div class="hand-size-bounds"><span>1</span><span>'+maximum+'</span></div></div>'+
       ruleExplanation('handSize')+'</div>';
@@ -1762,7 +1762,7 @@
       ruleSelect('aceMode','Ace values',[[1,'1'],[11,'1 or 11'],[14,'1 or 14']],valueOverride)+ruleSwitch('royalBigLittle','Special values for 2♠ / 10♦',valueOverride||!hasSpecial,'2 or 15 · 10 or 16')+
       (draft.jokerCount?ruleSelect('jokerValue','Joker value',Array.from({length:30},(_,i)=>i+1),valueOverride):'')+
       ruleSwitch('customizeCardValues','Customize card values')+renderValueEditor()+'</div>';
-    const captureContent=ruleGroup('What can be captured',ruleSwitch('directCapture','Direct matches',false,'8 takes 8')+ruleSwitch('additiveCapture','Matching sums',false,'8 takes 5 + 3')+ruleSwitch('additiveBuilds','Use existing builds in capture sums',!building||!hasSums,'8 takes a 6-build + a 2 on the table'))+
+    const captureContent=ruleGroup('What can be captured',ruleSwitch('directCapture','Allow single card captures',false,'8 takes 8')+ruleSwitch('additiveCapture','Allow multiple card / sum captures',false,'8 takes 5 + 3')+ruleSwitch('additiveBuilds','Allow single builds in sum captures',!building||!hasSums,'8 takes a single 6-build + 2'))+
       ruleGroup('Capture requirements',forcedSetting()+ruleSwitch('directPriority','Direct matches take priority',!draft.directCapture)+ruleSelect('captureGroups','Groups per capture',[['one','One group'],['unlimited','Multiple groups']])+ruleSelect('captureExtent','Capture extent',[['choice','Selective'],['maximal','Maximal'],['maximum','Maximum cards']]));
     const buildContent='<div class="rules-group">'+ruleSwitch('builds','Allow building')+'</div>'+
       (!building?'<p class="rules-description">Enable building to edit its rules. Your build preferences are retained.</p>':'')+
@@ -2244,11 +2244,59 @@
     // the user's preferences. effectiveDraftRules is the only export path.
     commitDraftEdit();
   }
+  function normalizedHandSize(text,previous,maximum){
+    const value=String(text??'').trim();
+    if(!value||!Number.isFinite(Number(value)))return previous;
+    return Math.max(1,Math.min(Math.max(1,maximum),Math.round(Number(value))));
+  }
+  function syncHandSizeControls(value,fromText=false){
+    const out=app.querySelector('#hand-size-output'),range=app.querySelector('#rule-handSize');
+    if(out&&!fromText)out.value=String(value);
+    if(range&&fromText)range.value=String(value);
+    for(const tick of app.querySelectorAll('[data-hand-tick]'))tick.classList.toggle('active',Number(tick.dataset.handTick)===value);
+  }
+  function applyTypedHandSize(value){
+    if(!draft||draft.presetBlocker||draft.dealMode==='full'||handMaximum()<1||!Number.isInteger(value)||value<1||value>handMaximum()||draft.handSize===value)return false;
+    draft.handSize=value;draftPreset='custom';draft.name='Custom Fishing';customDraft={...draft};labResult=null;
+    // Updating just the affected elements keeps the numeric field focused
+    // and avoids replacing a tapped Start button during a blur event.
+    const picker=app.querySelector('#variation-picker');
+    if(picker)picker.value='custom';
+    const desc=app.querySelector('.preset-description');if(desc)desc.textContent='Your own combination of fishing-game mechanics.';
+    const summary=app.querySelector('#rules-area-deal .rules-page-heading small');
+    if(summary)summary.textContent=draft.deckSize+' cards · '+dealLabel()+' · '+draft.initialTableSize+' on table';
+    const status=app.querySelector('.rules-footer');
+    if(status){
+      // Keep the Start and Cancel buttons mounted. Replace just the status
+      // portion and recompute the Start disabled flag synchronously.
+      const template=document.createElement('template');template.innerHTML=rulesFooter();
+      const next=template.content.firstElementChild;
+      if(next){
+        for(const cls of ['.rules-status-line','.rules-issues']){
+          const before=status.querySelector(cls),after=next.querySelector(cls);
+          if(before&&after)before.replaceWith(after);
+          else if(before)before.remove();
+          else if(after)status.querySelector('.rules-status-line')?.after(after);
+        }
+        const start=status.querySelector('[data-action="apply-settings"]'),newStart=next.querySelector('[data-action="apply-settings"]');
+        if(start&&newStart)start.disabled=newStart.disabled;
+      }
+    }
+    const lab=app.querySelector('#rules-area-lab');if(lab)lab.innerHTML=renderLab();
+    const labSummary=app.querySelector('[data-action="rules-section"][data-value="lab"] small');if(labSummary)labSummary.textContent='Test your custom rules';
+    return true;
+  }
+  function finishHandSizeText(target){
+    if(!draft||draft.dealMode==='full'||handMaximum()<1)return;
+    const value=normalizedHandSize(target.value,draft.handSize,handMaximum());
+    applyTypedHandSize(value);syncHandSizeControls(value);target.value=String(value);
+  }
   app.addEventListener('change', ev => {
     const target = ev.target;
     if (!(target instanceof HTMLElement) || !target.dataset.setting || target.disabled || modal !== 'settings') return;
     const prop = target.dataset.setting;
     if(prop==='preset')return selectVariation(target.value);
+    if(prop==='handSizeText')return finishHandSizeText(target);
     if(prop==='deckCard')return updateOneDeckCard(target.dataset.cardId,target.checked);
     if(prop==='primaryValue'||prop==='secondaryValue')return updateCardValue(prop,target.value);
     updateDraftSetting(prop,target.type === 'checkbox' ? target.checked :
@@ -2256,10 +2304,22 @@
   });
   app.addEventListener('input',ev=>{
     const target=ev.target;
-    if(modal!=='settings'||target?.dataset?.setting!=='handSize'||target.disabled)return;
-    const out=app.querySelector('#hand-size-output');
-    if(out)out.textContent=target.value;
-    for(const tick of app.querySelectorAll('[data-hand-tick]'))tick.classList.toggle('active',tick.dataset.handTick===target.value);
+    if(modal!=='settings'||target?.disabled)return;
+    if(target?.dataset?.setting==='handSize'){
+      syncHandSizeControls(Number(target.value));return;
+    }
+    if(target?.dataset?.setting==='handSizeText'){
+      const value=Number(target.value);
+      if(target.value!==''&&Number.isInteger(value)&&value>=1&&value<=handMaximum()){
+        applyTypedHandSize(value);syncHandSizeControls(value,true);
+      }
+    }
+  });
+  app.addEventListener('keydown',ev=>{
+    const target=ev.target;
+    if(modal==='settings'&&target?.dataset?.setting==='handSizeText'&&ev.key==='Enter'){
+      ev.preventDefault();finishHandSizeText(target);target.blur();
+    }
   });
   app.addEventListener('click', event => {
     const node = event.target.closest('[data-action]');

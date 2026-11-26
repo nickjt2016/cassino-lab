@@ -222,3 +222,7 @@ Renamed the switches to **Builds must absorb matching table cards** and **Builds
 ### 0.8.2 — revised build labels
 
 The build requirements are now named **Builds must combine same-value table cards** and **Builds must combine same-value builds**. Their behavior remains unchanged.
+
+### 0.8.3 — typed hand size and capture terminology
+
+Cards per hand can be set with the slider or the editable integer box. Typing keeps the slider, deck summary, custom preset selection and compatibility status synchronized; out-of-range values are clamped on commit. The capture toggles now distinguish single card matches, sum captures and single builds used within a capture sum. Multiple builds must still match the played card exactly. Multi-group captures remain separately configurable.
