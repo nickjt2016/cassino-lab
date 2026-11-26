@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.1';
+  const APP_VERSION = '0.10.2';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -58,7 +58,7 @@
   let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
-  let prefs = { sound: true, animations: true, undo: true };
+  let prefs = { sound: true, animations: true, undo: true, cardLayout:'default' };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_STORE) || '{}') }; } catch (_) {}
   let audioContext = null;
   const app = document.getElementById('app');
@@ -1019,6 +1019,9 @@
     if(!shell)return false;
     shell.classList.toggle('animations-on',!!prefs.animations);
     shell.classList.toggle('animations-off',!prefs.animations);
+    const fitRows=cardLayoutPreference()==='fitRow';
+    shell.classList.toggle('fit-card-rows',fitRows);
+    if(fitRows){const hand=shell.querySelector('.human-hand');if(hand)hand.scrollLeft=0;}
     const actions=shell.querySelector('.header-actions');
     if(actions&&!!actions.querySelector('[data-action="undo"]')!==!!prefs.undo){
       // The toolbar markup has one canonical renderer. Reuse just its
@@ -1039,6 +1042,7 @@
     restoreVariationsScroll();
     return true;
   }
+  function fitRowGap(count){return count>18?1:count>10?2:count>5?3:6;}
   function render(mode = 'full') {
     if (!app) return;
     rememberVariationsScroll();
@@ -1108,7 +1112,7 @@
     const motion = lastMotion;
     lastMotion = '';
     app.innerHTML = `
-      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}">
+      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}${cardLayoutPreference()==='fitRow'?' fit-card-rows':''}">
         ${renderToolbar(active,opponent().score,multiToolbarLabel())}
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
@@ -1116,14 +1120,14 @@
             ${game.players.length>2?renderCpuSeats():`<div class="opponent-hand${opponent().hand.length>5?' wide-hand':''}" style="--hand-count:${Math.max(1,opponent().hand.length)}" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>`}
           </div>
           <div class="table-area">
-            <div class="table-stage"><div class="table-cards" aria-label="Table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
+            <div class="table-stage"><div class="table-cards" aria-label="Table cards" style="--fit-gap:${fitRowGap(game.table.filter(e=>e.type==='loose').length)}px">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
             <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
           </div>
           ${controlsMarkup}
           <div class="human-area">
             <div class="player-caption sr-only"><b>Your hand</b></div>
-            <div class="human-hand${me().hand.length>5?' wide-hand':''}">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
+            <div class="human-hand${me().hand.length>5?' wide-hand':''}" style="--fit-gap:${fitRowGap(me().hand.length)}px">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
             <div class="your-score-tag">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
@@ -1622,6 +1626,7 @@
 };
   function helpFor(key,options=[],rules=draft){
     if(key==='scoreMode')return E.scoreHelp(draft);
+    if(key==='cardLayout')return [['Scroll / wrap','Keep ordinary card sizes. Large hands scroll horizontally and table cards wrap into rows.'],['Fit in one row','Reduce card sizes as needed so your entire hand and the individual table cards each fit in one horizontal row without scrolling. Builds retain their own area. Very large groups may be small.']];
     if(key==='playerCount')return [2,3,4,5,6].map(n=>[n+' players','You and '+(n-1)+' computer '+(n===2?'opponent.':'players.')]);
     if(key==='teamMode')return playerTeamHelp(rules.playerCount);
     if(OPTION_HELP[key])return OPTION_HELP[key];
@@ -1826,13 +1831,117 @@
   }
   function targetSetting(){return ruleSelect('winningScore','Winning score',[11,16,21,31,41,50,51,61,100,101,121].map(n=>[n,n+' pts']),!!draft.matchDeals);}
   function forcedSetting(){const inactive=!E.ruleActivity(draft).forcedOptions.includes(draft.forcedCapture);return ruleSelect('forcedCapture','Compulsory captures',[['optional','Optional'],['faces','Face cards only'],['direct','Direct matches'],['all','Any legal match']],false,inactive?'Previous preference inactive; restores when available.':'');}
+  const VARIANT_STORE='fishing-lab-saved-variants-v1';
+  let savedVariants=readSavedVariants(),savedVariantSource=null,variantEditorMode='',variantNameText='',variantMessage='',variantMessageError=false;
+  function cloneVariantRules(rules){return JSON.parse(JSON.stringify(rules));}
+  function readSavedVariants(){
+    try{
+      const raw=JSON.parse(localStorage.getItem(VARIANT_STORE)||'[]');
+      if(!Array.isArray(raw))return [];
+      const ids=new Set(),names=new Set();
+      return raw.filter(v=>{
+        if(!v||typeof v.id!=='string'||!/^saved-\d+$/.test(v.id)||typeof v.name!=='string'||!v.name.trim()||v.name.length>60||!v.rules||typeof v.rules!=='object'||Array.isArray(v.rules)||ids.has(v.id)||names.has(v.name.trim().toLowerCase()))return false;
+        ids.add(v.id);names.add(v.name.trim().toLowerCase());return true;
+      }).map(v=>({id:v.id,name:v.name.trim(),rules:cloneVariantRules(v.rules)}));
+    }catch(_){return [];}
+  }
+  function writeSavedVariants(next){
+    try{localStorage.setItem(VARIANT_STORE,JSON.stringify(next));}
+    catch(_){return false;}
+    savedVariants=next;return true;
+  }
+  function savedVariant(id){return savedVariants.find(v=>v.id===id);}
+  function variantRulesMatch(left,right){
+    const a=E.activeRules(left),b=E.activeRules(right);
+    return Object.keys(E.DEFAULT_RULES).every(k=>k==='name'||k==='difficulty'||JSON.stringify(a[k])===JSON.stringify(b[k]));
+  }
+  function copySavedRules(entry){
+    return E.normalizeRules({...cloneVariantRules(entry.rules),name:entry.name,savedVariantId:entry.id});
+  }
+  function clearVariantEditor(){
+    variantEditorMode='';variantNameText='';variantMessage='';variantMessageError=false;
+  }
+  function beginVariantEditor(mode){
+    if(!draft||draft.presetBlocker)return;
+    const source=savedVariant(savedVariantSource);
+    if(mode==='update'&&!source)return;
+    clearVariantEditor();
+    variantEditorMode=mode;
+    variantNameText=mode==='update'?source.name:'';
+    render('overlay');
+  }
+  function markCustomDraft(){
+    draftPreset='custom';draft.name='Custom Fishing';
+    delete draft.savedVariantId;
+    customDraft=cloneVariantRules(draft);
+  }
+  function saveNamedVariant(name,replaceId=null){
+    if(!draft||draft.presetBlocker)return {ok:false,reason:'Choose a customizable rule configuration first.'};
+    const clean=String(name??'').trim();
+    if(!clean||clean.length>60)return {ok:false,reason:'Enter a variant name of 1–60 characters.'};
+    const old=replaceId?savedVariant(replaceId):null;
+    if(replaceId&&!old)return {ok:false,reason:'That saved variant no longer exists.'};
+    if(savedVariants.some(v=>v.id!==replaceId&&v.name.toLowerCase()===clean.toLowerCase()))return {ok:false,reason:'A saved variant already has that name. Choose another name or update that variant.'};
+    let id=old?.id;
+    if(!id){do{id='saved-'+Date.now()+String(Math.floor(Math.random()*1e6)).padStart(6,'0');}while(savedVariant(id));}
+    const rules=cloneVariantRules(E.normalizeRules(draft));
+    delete rules.savedVariantId;rules.name=clean;
+    const entry={id,name:clean,rules};
+    const next=old?savedVariants.map(v=>v.id===id?entry:v):[...savedVariants,entry];
+    if(!writeSavedVariants(next))return {ok:false,reason:'Could not save on this device. The previous variants are unchanged.'};
+    draft=copySavedRules(entry);draftPreset=id;savedVariantSource=id;
+    clearVariantEditor();variantMessage=(old?'Updated ':'Saved ')+clean+'.';
+    return {ok:true,id};
+  }
+  function removeNamedVariant(id){
+    const old=savedVariant(id);if(!old)return {ok:false,reason:'That saved variant no longer exists.'};
+    if(!writeSavedVariants(savedVariants.filter(v=>v.id!==id)))return {ok:false,reason:'Could not delete the variant. Your saved variants are unchanged.'};
+    if(draftPreset===id||savedVariantSource===id){
+      savedVariantSource=null;
+      markCustomDraft();
+    }
+    clearVariantEditor();variantMessage='Deleted '+old.name+'. Your current rules are still available.';
+    return {ok:true};
+  }
+  function renderVariantControls(){
+    const source=savedVariant(savedVariantSource),blocked=!!draft.presetBlocker;
+    const actions='<div class="saved-variant-actions"><button type="button" class="rules-reset" data-action="save-variant-as" '+(blocked?'disabled':'')+'>Save as new variant</button>'+
+      (source?'<button type="button" class="rules-reset" data-action="update-saved-variant">Update saved</button><button type="button" class="rules-reset variant-delete" data-action="delete-saved-variant">Delete saved</button>':'')+'</div>';
+    const editor=variantEditorMode?'<div class="variant-editor"><label for="variant-name">'+(variantEditorMode==='update'?'Update or rename saved variant':'Name your variant')+'</label>'+
+      '<input type="text" id="variant-name" data-setting="variantName" maxlength="60" autocomplete="off" placeholder="e.g. My Royal Cassino" value="'+escapeHtml(variantNameText)+'">'+
+      '<div class="saved-variant-actions"><button type="button" class="rules-reset" data-action="cancel-variant-save">Cancel</button><button type="button" class="rules-reset variant-save-primary" data-action="confirm-variant-save">'+(variantEditorMode==='update'?'Update':'Save')+'</button></div></div>':'';
+    return '<div class="saved-variant-controls">'+actions+
+      (source?'<p class="saved-variant-source">Saved variant: '+escapeHtml(source.name)+'</p>':'')+
+      editor+(variantMessage?'<p class="variant-message'+(variantMessageError?' variant-error':'')+'" role="'+(variantMessageError?'alert':'status')+'">'+escapeHtml(variantMessage)+'</p>':'')+'</div>';
+  }
+  function completeVariantEditor(){
+    if(!variantEditorMode)return;
+    const result=saveNamedVariant(variantNameText,variantEditorMode==='update'?savedVariantSource:null);
+    if(!result.ok){variantMessage=result.reason;variantMessageError=true;}
+    render('overlay');
+  }
+  function cardLayoutPreference(){
+    return typeof prefs!=='undefined'&&prefs.cardLayout==='fitRow'?'fitRow':'default';
+  }
+  function setCardLayout(value){
+    if(!['default','fitRow'].includes(value)||typeof prefs==='undefined')return;
+    prefs.cardLayout=value;savePrefs();render('overlay');
+  }
+  function renderCardLayoutSetting(){
+    const value=cardLayoutPreference();
+    return '<div class="card-layout-setup"><div class="rules-group"><div class="rules-setting rules-select"><label class="rules-setting-label" for="rule-cardLayout"><span class="rules-label">Card layout</span></label>'+
+      ruleInfo('cardLayout','Card layout')+'<select id="rule-cardLayout" data-setting="cardLayout" aria-label="Card layout">'+
+      [['default','Scroll / wrap'],['fitRow','Fit in one row']].map(([id,label])=>'<option value="'+id+'" '+(value===id?'selected':'')+'>'+label+'</option>').join('')+
+      '</select>'+ruleExplanation('cardLayout')+'</div></div></div>';
+  }
   function renderPresetPicker(){
-    const chosen=E.PRESET_CATALOG.find(p=>p.id===draftPreset),groups=[...new Set(E.PRESET_CATALOG.map(p=>p.group))];
+    const chosen=E.PRESET_CATALOG.find(p=>p.id===draftPreset),saved=savedVariant(draftPreset),groups=[...new Set(E.PRESET_CATALOG.map(p=>p.group))];
+    const savedOptions=savedVariants.length?'<optgroup label="Saved variants">'+savedVariants.map(v=>'<option value="'+escapeHtml(v.id)+'" '+(draftPreset===v.id?'selected':'')+'>'+escapeHtml(v.name)+'</option>').join('')+'</optgroup>':'';
     const options=groups.map(group=>'<optgroup label="'+escapeHtml(group)+'">'+E.PRESET_CATALOG.filter(p=>p.group===group).map(p=>'<option value="'+p.id+'" '+(draftPreset===p.id?'selected':'')+'>'+escapeHtml(p.name+(p.status==='preview'?' — preview':''))+'</option>').join('')+'</optgroup>').join('');
-    return '<div class="preset-picker"><label for="variation-picker" class="rules-main-label">Game variation</label><select id="variation-picker" data-setting="preset" aria-label="Game variation"><option value="custom" '+(draftPreset==='custom'?'selected':'')+'>Custom rules</option>'+options+'</select>'+
-      '<p class="preset-description">'+escapeHtml(chosen?chosen.note:'Your own combination of fishing-game mechanics.')+'</p>'+
+    return '<div class="preset-picker"><label for="variation-picker" class="rules-main-label">Game variation</label><select id="variation-picker" data-setting="preset" aria-label="Game variation"><option value="custom" '+(draftPreset==='custom'?'selected':'')+'>Custom rules</option>'+savedOptions+options+'</select>'+
+      '<p class="preset-description">'+escapeHtml(saved?'Saved on this device. Edit the rules and update or save a new copy.':chosen?chosen.note:'Your own combination of fishing-game mechanics.')+'</p>'+
       (draft.presetBlocker?'<div class="preset-preview-note" role="note"><b>Research preview — not playable yet</b><p>'+escapeHtml(draft.presetBlocker)+'</p>'+
-      (chosen?.partial?'<button type="button" class="rules-reset" data-action="use-partial-preset">Use available mechanics as Custom</button>':'')+'</div>':'')+'</div>';
+      (chosen?.partial?'<button type="button" class="rules-reset" data-action="use-partial-preset">Use available mechanics as Custom</button>':'')+'</div>':'')+renderVariantControls()+'</div>';
   }
   function renderDifficulty(){
     const levels=E.DIFFICULTY_INFO;
@@ -1877,7 +1986,7 @@
       ruleSwitch('additiveBuilding','Allow additive building',!building,'3 + 5 makes an 8-build')+
       ruleSwitch('subtractiveBuilds','Allow subtractive building',!building,'9 − 2 makes a 7-build')+
       ruleSwitch('multipleBuilds','Allow multi builds',!building,'Stack equal-value groups')+
-      ruleSwitch('singleCardBuild','Allow single hand card builds',!building)+
+      ruleSwitch('singleCardBuild','Allow single hand-card builds',!building)+
       ruleSwitch('negativeBuilds','Allow negative builds',!building||!draft.subtractiveBuilds,'3 − 7 = −4; captured by a 4')+
       ruleSwitch('colorArithmetic','Black adds, red subtracts',!building,'♠ ♣ add · ♥ ♦ subtract')+
       ruleSelect('buildRange','Allowed build values',[['all','All capturable'],['9-13','9–13'],['10-13','10–13'],['custom','Custom']],!building)+
@@ -1934,7 +2043,7 @@
   function renderSettings(){
     if(!draft)draft=E.normalizeRules(game.rules);
     return '<div class="dialog-head rules-header"><div><p class="rules-eyebrow">'+escapeHtml(playerHeader())+'</p><h2>'+(settingsOrigin==='newgame'?'New Game':'Game Setup')+'</h2></div><button type="button" data-action="close" class="icon-close" aria-label="Close">×</button></div>'+
-      '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderAllRules()+'</div>'+rulesFooter();
+      '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderCardLayoutSetting()+renderAllRules()+'</div>'+rulesFooter();
   }
 
   function renderMenu() {
@@ -1947,6 +2056,7 @@
         <button data-action="history" class="menu-row"><span>☷</span><b>Move history</b></button>
         <button data-action="toggle-sound" class="menu-row"><span>${prefs.sound ? '♫' : '♪'}</span><b>Sound effects</b><em>${prefs.sound ? 'On' : 'Off'}</em></button>
         <button data-action="toggle-animations" class="menu-row"><span>✦</span><b>Card animations</b><em>${prefs.animations ? 'On' : 'Off'}</em></button>
+        <button data-action="toggle-card-layout" class="menu-row"><span>▤</span><b>Card layout</b><em>${cardLayoutPreference()==='fitRow'?'Fit one row':'Scroll / wrap'}</em></button>
         <button data-action="toggle-undo" class="menu-row" aria-pressed="${prefs.undo}"><span>↶</span><b>Undo button</b><em>${prefs.undo ? 'On' : 'Off'}</em></button>
         <button data-action="new-match" class="menu-row danger-row"><span>↻</span><b>Start new match</b></button>
       </div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Back to table</button></div>`;
@@ -2272,6 +2382,7 @@
   // All setup entry points share a single draft and scrollable dialog.
   function openSettings(origin = screen) {
     variationsScrollTop = 0; detailSetting = ''; settingsOrigin = origin; rulesSection=''; rulesIssuesOpen=false; labResult=null; difficultyInfoOpen=false; valueCardKey='S1';valuePickerOpen=false;deckChecklistScroll=0;
+    savedVariantSource=null;clearVariantEditor();
     const difficulty = game.rules.difficulty || 'thoughtful';
     if (origin === 'newgame') {
       draftPreset = 'classic';
@@ -2279,24 +2390,34 @@
       customDraft = customRules ? {...customRules} : null;
     } else {
       draft = E.normalizeRules(game.rules);
-      draftPreset = Object.keys(E.PRESETS).sort((x,y)=>Number(E.PRESETS[y].name===draft.name)-Number(E.PRESETS[x].name===draft.name)).find(key => {
+      const saved=savedVariant(draft.savedVariantId);
+      if(saved&&variantRulesMatch(saved.rules,draft)){
+        draft=copySavedRules(saved);draft.difficulty=difficulty;draftPreset=saved.id;savedVariantSource=saved.id;
+      }else{
+      draftPreset = draft.savedVariantId?'custom':Object.keys(E.PRESETS).sort((x,y)=>Number(E.PRESETS[y].name===draft.name)-Number(E.PRESETS[x].name===draft.name)).find(key => {
         const preset=E.activeRules(E.rulesFor(key)),current=E.activeRules(draft);
         return Object.keys(E.DEFAULT_RULES).every(prop =>
           prop === 'name' || prop === 'difficulty' || JSON.stringify(preset[prop]) === JSON.stringify(current[prop]));
       }) || 'custom';
+      if(draftPreset==='custom'){savedVariantSource=saved?.id||null;delete draft.savedVariantId;}
+      }
       customDraft = draftPreset === 'custom' ? {...draft} : customRules ? {...customRules} : null;
     }
     modal = 'settings'; render('overlay');
   }
   function selectVariation(key) {
-    if (!Object.hasOwn(E.PRESETS,key) && key !== 'custom') return;
+    const saved=savedVariant(key);
+    if (!Object.hasOwn(E.PRESETS,key) && key !== 'custom'&&!saved) return;
     if (key === draftPreset) return;
+    savedVariantSource=saved?.id||null;clearVariantEditor();
     labResult=null; rulesIssuesOpen=false;valuePickerOpen=false;deckChecklistScroll=0;
     const difficulty = draft.difficulty;
     if (draftPreset === 'custom') customDraft = {...draft};
     if (key === 'custom') {
       // Restore custom edits, or inherit the previewed preset on first use.
-      draft = {...(customDraft || (draft.presetBlocker?E.rulesFor('classic'):draft)),name:'Custom Fishing',difficulty,presetBlocker:''};
+      draft = {...(customDraft || (draft.presetBlocker?E.rulesFor('classic'):draft)),name:'Custom Fishing',difficulty,presetBlocker:''};delete draft.savedVariantId;
+    } else if(saved) {
+      draft=copySavedRules(saved);
     } else {
       draft = E.rulesFor(key,{difficulty});
     }
@@ -2305,7 +2426,7 @@
   }
   function commitDraftEdit(){
     draft=E.normalizeRules(draft);fitBuildBounds();
-    draftPreset='custom';draft.name='Custom Fishing';customDraft={...draft};
+    markCustomDraft();
     labResult=null;render('overlay');
   }
   function fitHandSize(){
@@ -2416,7 +2537,7 @@
     draft.handSize=value;refreshNumericRuleEdit();return true;
   }
   function refreshNumericRuleEdit(){
-    draftPreset='custom';draft.name='Custom Fishing';customDraft={...draft};labResult=null;
+    markCustomDraft();labResult=null;
     // Updating just the affected elements keeps the numeric field focused
     // and avoids replacing a tapped Start button during a blur event.
     const picker=app.querySelector('#variation-picker');
@@ -2476,6 +2597,8 @@
     if (!(target instanceof HTMLElement) || !target.dataset.setting || target.disabled || modal !== 'settings') return;
     const prop = target.dataset.setting;
     if(prop==='preset')return selectVariation(target.value);
+    if(prop==='variantName'){variantNameText=target.value;return;}
+    if(prop==='cardLayout')return setCardLayout(target.value);
     if(prop==='handSizeText')return finishHandSizeText(target);
     if(prop==='buildBoundText')return finishBuildBound(target);
     if(prop==='buildBoundChoice')return applyBuildBound(target.dataset.bound,Number(target.value));
@@ -2487,6 +2610,7 @@
   app.addEventListener('input',ev=>{
     const target=ev.target;
     if(modal!=='settings'||target?.disabled)return;
+    if(target?.dataset?.setting==='variantName'){variantNameText=target.value;return;}
     if(target?.dataset?.setting==='playerCount'){
       // Preview every slider step without replacing the active range input.
       // The change event commits the configuration and revalidates dealing.
@@ -2523,7 +2647,8 @@
   app.addEventListener('keydown',ev=>{
     const target=ev.target;
     if(modal==='settings'&&ev.key==='Enter'){
-      if(target?.dataset?.setting==='handSizeText'){ev.preventDefault();finishHandSizeText(target);target.blur();}
+      if(target?.dataset?.setting==='variantName'){ev.preventDefault();variantNameText=target.value;completeVariantEditor();}
+      else if(target?.dataset?.setting==='handSizeText'){ev.preventDefault();finishHandSizeText(target);target.blur();}
       else if(target?.dataset?.setting==='buildBoundText'){ev.preventDefault();finishBuildBound(target);target.blur();}
     }
   });
@@ -2539,6 +2664,20 @@
     if (action === 'confirm-exit') { exitGameToMenu(); return; }
     if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); if(game.turn!==0 && game.phase==='playing') botTurn(); else {if(game.phase!=='playing')modal='round';render();} return; }
     if (action === 'setup-new-game') { sound('tap'); return openSettings('newgame'); }
+    if(modal==='settings'&&action==='save-variant-as')return beginVariantEditor('new');
+    if(modal==='settings'&&action==='update-saved-variant')return beginVariantEditor('update');
+    if(modal==='settings'&&action==='cancel-variant-save'){clearVariantEditor();render('overlay');return;}
+    if(modal==='settings'&&action==='confirm-variant-save'){
+      const field=app.querySelector('#variant-name');if(field)variantNameText=field.value;
+      return completeVariantEditor();
+    }
+    if(modal==='settings'&&action==='delete-saved-variant'){
+      const entry=savedVariant(savedVariantSource);
+      if(!entry||!confirm('Delete saved variant "'+entry.name+'"? Your current game and rules will not be deleted.'))return;
+      const result=removeNamedVariant(entry.id);
+      if(!result.ok){variantMessage=result.reason;variantMessageError=true;}
+      render('overlay');return;
+    }
     if (action === 'info-setting' && modal === 'settings') { detailSetting=detailSetting===node.dataset.key?'':node.dataset.key; render('overlay'); return; }
     if(action==='difficulty-info'&&modal==='settings'){difficultyInfoOpen=!difficultyInfoOpen;render('overlay');return;}
     if(modal==='settings'&&(action==='deck-all'||action==='deck-none'))return updateDeckCards(action==='deck-all'?E.allCards().map(c=>c.id):[]);
@@ -2548,7 +2687,7 @@
       const p=E.PRESET_CATALOG.find(x=>x.id===draftPreset);
       if(!p?.partial||!draft.presetBlocker)return;
       draft=E.normalizeRules({...draft,presetBlocker:'',name:'Custom Fishing'});
-      draftPreset='custom';customDraft={...draft};labResult=null;rulesIssuesOpen=false;render('overlay');return;
+      savedVariantSource=null;clearVariantEditor();markCustomDraft();labResult=null;rulesIssuesOpen=false;render('overlay');return;
     }
     if (action === 'rules-section' && modal === 'settings'){
       rulesSection=rulesSection==='lab'?'':'lab';render('overlay');return;
@@ -2563,6 +2702,7 @@
     }
     if(action==='reset-rules'&&modal==='settings'){
       if(draftPreset==='custom')customDraft={...draft};
+      savedVariantSource=null;clearVariantEditor();
       draft=E.rulesFor('classic',{difficulty:draft.difficulty});draftPreset='classic';rulesIssuesOpen=false;labResult=null;detailSetting='';valuePickerOpen=false;valueCardKey='S1';deckChecklistScroll=0;render('overlay');return;
     }
     if (action === 'run-rules-lab' && modal === 'settings'){
@@ -2581,13 +2721,16 @@
     if (action === 'rules' || action === 'history') { modal = action; render('overlay'); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render('overlay'); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render('overlay'); return; }
+    if (action === 'toggle-card-layout') return setCardLayout(cardLayoutPreference()==='fitRow'?'default':'fitRow');
     if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render('overlay'); return; }
     if (action === 'close') { modal = ''; render('overlay'); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
     if (action === 'undo') return undo();
     if (action === 'apply-settings' && modal === 'settings') {
-      const nextRules={...effectiveDraftRules(),name:draftPreset==='custom'?'Custom Fishing':E.PRESETS[draftPreset].name};
+      const saved=savedVariant(draftPreset);
+      const nextRules={...effectiveDraftRules(),name:saved?saved.name:draftPreset==='custom'?'Custom Fishing':E.PRESETS[draftPreset].name};
+      if(saved)nextRules.savedVariantId=saved.id;else delete nextRules.savedVariantId;
       if(!E.validateRules(nextRules).playable)return;
       if (screen === 'game' && game.phase === 'playing' && !confirm('Start a new match with these rules?')) return;
       if (draftPreset==='custom') {customRules = {...draft,name:nextRules.name};saveCustomRules();}

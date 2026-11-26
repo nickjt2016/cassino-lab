@@ -1337,3 +1337,48 @@ html,body,#app{background:#005d0b;color:#fff}
 .dialog .multi-result-table th,.dialog .multi-result-table td{padding:7px 6px;white-space:nowrap}
 @media(max-width:360px){.multi-cpu-seats{gap:2px}.multi-seat-caption b{font-size:10px}.multi-seat-caption{font-size:9px}.multi-seat-meta{font-size:8px}}
 @media(max-height:480px) and (orientation:landscape){.multi-cpu-seat{flex-direction:row;gap:4px;padding:2px 3px}.multi-seat-caption{width:auto}.multiplayer-game .multi-seat-hand{height:26px;min-height:26px}.multi-seat-meta{font-size:8px;min-height:0}}
+
+/* v0.10.2 — named saved variants, device-level row fitting. */
+.saved-variant-controls{margin:8px 0 5px}
+.saved-variant-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.saved-variant-actions .rules-reset{min-height:34px;padding:7px 9px;font-size:11px}
+.saved-variant-actions .variant-delete{color:#963c34;border-color:#cda49c}
+.saved-variant-source{font-size:11px;line-height:1.4;color:#685c43;margin:5px 1px}
+.variant-editor{display:flex;flex-direction:column;gap:7px;padding:10px;margin-top:7px;border:1px solid #d8ccb0;border-radius:9px;background:#fffaf1}
+.variant-editor>label{font-size:12px;font-weight:700;color:#254e37}
+.variant-editor input{box-sizing:border-box;min-width:0;width:100%;min-height:42px;font:500 16px/1.2 system-ui,sans-serif;background:#fffef8;border:1px solid #cbbd9a;border-radius:7px;color:#263b2b;padding:8px}
+.variant-editor .saved-variant-actions{justify-content:flex-end}
+.variant-editor .variant-save-primary{background:#195b40;border-color:#195b40;color:#fffaf1;min-width:70px}
+.variant-message{font-size:11px;line-height:1.4;color:#245a3c;margin:5px 1px}
+.variant-message.variant-error{color:#98372c}
+.card-layout-setup{margin-top:10px}
+/* The normal layout is completely unchanged. When fitting is enabled,
+   flex items have zero minimum width and shrink equally in the actual
+   available lane, rather than scaling a group with incorrect hitboxes. */
+.shell.fit-card-rows .human-hand,
+.shell.fit-card-rows .human-hand.wide-hand{
+  width:100%;max-width:100%;box-sizing:border-box;min-width:0;
+  flex-direction:row!important;flex-wrap:nowrap!important;
+  align-items:center;justify-content:center;gap:var(--fit-gap,4px);
+  padding:9px 5px 5px;overflow:visible;touch-action:auto;
+}
+.shell.fit-card-rows .human-hand .hand-item{
+  flex:1 1 0;min-width:0;max-width:clamp(46px,15.1vw,67px);width:100%;padding:0;
+}
+.shell.fit-card-rows .human-hand .playing-card:not(.mini){
+  width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;
+}
+.shell.fit-card-rows .table-stage .table-cards{
+  flex-wrap:nowrap!important;gap:var(--fit-gap,4px);
+  align-items:center!important;align-content:center!important;
+  overflow:visible;padding-inline:2px;
+}
+.shell.fit-card-rows .table-stage .table-cards .table-item{
+  flex:1 1 0!important;min-width:0;max-width:64px;width:100%;padding:0;
+}
+.shell.fit-card-rows .table-stage .table-cards .table-item .playing-card:not(.mini){
+  width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;
+}
+@media(orientation:landscape) and (max-height:500px){
+  .shell.fit-card-rows .human-hand .hand-item{max-width:clamp(35px,6.1vw,53px)}
+}

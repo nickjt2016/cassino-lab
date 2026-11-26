@@ -7,7 +7,7 @@ function harness(){
  return new Function('E',"let game={rules:E.rulesFor()},draft=null,draftPreset='classic',customDraft=null,customRules=null;let variationsScrollTop=0,detailSetting='',settingsOrigin='home',screen='home',modal='';const render=()=>{},escapeHtml=String;"+markup+state+"return {open:openSettings,set:updateDraftSetting,html:renderSettings,info:k=>{detailSetting=k;},rules:()=>({...draft}),effective:effectiveDraftRules,deck:updateDeckCards};")(E);
 }
 test('Construction switches share one group, remain visible and disable with the master switch',()=>{
- const h=harness();h.open('newgame');const labels=['Allow building','Allow additive building','Allow subtractive building','Allow multi builds','Allow single hand card builds','Allowed build values'];
+ const h=harness();h.open('newgame');const labels=['Allow building','Allow additive building','Allow subtractive building','Allow multi builds','Allow single hand-card builds','Allowed build values'];
  const html=h.html();assert.ok(labels.every((label,i)=>html.includes(label)&&(!i||html.indexOf(label)>html.indexOf(labels[i-1]))));
  h.set('builds',false);for(const key of ['additiveBuilding','subtractiveBuilds','multipleBuilds','singleCardBuild','buildRange','raiseOwnBuild','raiseOpponentBuild','mergeSameValue','absorbMatching','buildObligation','independentBuilds','pirateCaptures','allowTrailWithOwnBuild'])assert.match(h.html(),new RegExp('data-setting="'+key+'"[^>]*disabled'));
  h.set('builds',true);assert.equal(h.rules().additiveBuilding,true);assert.equal(h.rules().multipleBuilds,true);
