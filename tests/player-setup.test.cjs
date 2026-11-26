@@ -6,7 +6,7 @@ function harness(){
  return new Function('E',"let game={rules:E.rulesFor()},draft=null,draftPreset='classic',customDraft=null,customRules=null;let variationsScrollTop=0,detailSetting='',settingsOrigin='home',screen='home',modal='';const render=()=>{},escapeHtml=String;"+markup+state+"return {open:openSettings,set:updateDraftSetting,choose:selectVariation,html:renderSettings,rules:()=>({...draft}),effective:effectiveDraftRules,teams:playerTeamOptions,diagram:seatingDiagram,maximum:handMaximum};")(E);
 }
 test('Team options follow the exact requested player counts',()=>{
- assert.deepEqual(E.teamModesFor(2),['freeForAll','pairs']);
+ assert.deepEqual(E.teamModesFor(2),['freeForAll']);
  assert.deepEqual(E.teamModesFor(3),['freeForAll']);
  assert.deepEqual(E.teamModesFor(4),['freeForAll','pairs']);
  assert.deepEqual(E.teamModesFor(5),['freeForAll']);
@@ -29,7 +29,7 @@ test('Setup appears before dealing; seats, dropdown and hand limit follow the se
    assert.match(html,/data-seat="0" data-team="none" data-seat-x="160\.00" data-seat-y="190\.00"/);
    assert.match(html,new RegExp('data-setting="handSize" min="1" max="'+Math.floor(52/n)+'"'));
    const select=html.match(/<select id="rule-teamMode"[\s\S]*?<\/select>/)[0];
-   assert.equal(select.includes('value="pairs"'),n%2===0);assert.equal(select.includes('value="triples"'),n===6);
+   assert.equal(select.includes('value="pairs"'),n>=4&&n%2===0);assert.equal(select.includes('value="triples"'),n===6);
  }
  h.set('teamMode','pairs');html=h.html();assert.match(html,/data-seat="3" data-team="0"/);assert.match(html,/Team 3/);
  h.set('teamMode','triples');html=h.html();assert.match(html,/data-seat="2" data-team="0"/);assert.doesNotMatch(html,/Team 3/);
@@ -43,18 +43,21 @@ test('Player count clamps hand-size preferences and validator uses actual seats'
  assert.ok(E.validateRules(E.rulesFor('classic',{playerCount:5,handSize:10})).errors.some(s=>/starting hands/.test(s)));
  assert.ok(E.validateRules(E.rulesFor('classic',{playerCount:5,teamMode:'pairs'})).errors.some(s=>/team arrangement/.test(s)));
 });
-test('Legacy partnerships migrate; only competitive two-player mode is playable',()=>{
+test('Legacy partnerships migrate; every competitive arrangement is playable',()=>{
  const legacy=E.normalizeRules({playerCount:'4team'});assert.equal(legacy.playerCount,4);assert.equal(legacy.teamMode,'pairs');
  assert.equal(E.rulesFor('partnership').teamMode,'pairs');
  assert.equal(E.rulesFor('fivePlayer').playerCount,5);
  for(let n=2;n<=6;n++)for(const mode of E.teamModesFor(n)){
-   const r=E.rulesFor('classic',{playerCount:n,teamMode:mode});
-   assert.equal(E.validateRules(r).playable,n===2&&mode==='freeForAll');
+   const r=E.rulesFor('classic',{playerCount:n,teamMode:mode,remainderMode:'uneven'});
+   assert.equal(E.validateRules(r).playable,true);
  }
+ assert.equal(E.validateRules(E.rulesFor('classic',{teamMode:'pairs'})).playable,false);
  const h=harness();h.open('newgame');h.set('teamMode','pairs');
- assert.match(h.html(),/One pair, no opposing team/);
- assert.match(h.html(),/data-action="apply-settings"[^>]*disabled/);
- h.set('teamMode','freeForAll');assert.doesNotMatch(h.html(),/data-action="apply-settings"[^>]*disabled/);
+ assert.equal(h.rules().teamMode,'freeForAll');
+ assert.doesNotMatch(h.html().match(/<select id="rule-teamMode"[\s\S]*?<\/select>/)[0],/value="pairs"/);
+ h.set('playerCount',4);h.set('teamMode','pairs');assert.equal(h.rules().teamMode,'pairs');
+ assert.doesNotMatch(h.html(),/data-action="apply-settings"[^>]*disabled/);
+ h.set('playerCount',2);assert.equal(h.rules().teamMode,'freeForAll');
 });
 test('A slider input handler updates preview before the change commits the new draft',()=>{
  assert.match(app,/target\?\.dataset\?\.setting==='playerCount'/);

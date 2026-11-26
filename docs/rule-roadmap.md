@@ -66,3 +66,7 @@ Run node --test tests/rules-audit.test.cjs or npm test. Tests cover dependencies
 - 1,296 setup compatibility combinations cross player count 2–6, all permitted team modes, deck type, opening table, deal method and remainder policy. These are static setup tests, not actual multi-player games. Two-player pairs and all three-to-six-player matches remain unplayable.
 
 See `tests/gameplay-matrix.test.cjs` for the seeded reproducible audit. Browser touch interaction, phone layout, and full multiplayer gameplay are not certified by these tests.
+
+## Multiplayer implementation (v0.10.0)
+
+Actual 2–6-seat CPU gameplay is now available, including pairs at four/six seats and triples at six. Team totals are computed from pooled captures. Build ownership and reserve cards remain individual; shared house ownership and protection (Seep and some regional games) are deferred. The two-player-only statements above describe earlier releases, not the current engine. Hard/Expert use public-information sampling and team-aware search; for multiple competing sides their coalition model is approximate. No exact-endgame claim is made when hidden cards are distributed across multiple opponents. Player-to-player networking, hot-seat human play, additional physical packs, distinguishable jokers, and other catalog blockers remain deferred. Scopone references: https://www.pagat.com/fishing/scopone.html and https://www.pagat.com/fishing/casino.html. Five-player unequal-final-deal Cassino is a house-rule profile rather than a claim of historical fidelity.

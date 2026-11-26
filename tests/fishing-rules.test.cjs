@@ -4,7 +4,7 @@ const E=require('../src/engine.js');
 test('static compatibility separates conflicts and planned capabilities',()=>{
   assert.equal(E.validateRules(E.rulesFor()).playable,true);
   assert.ok(E.validateRules(E.rulesFor('classic',{multiHandCapture:true})).errors.length);
-  assert.ok(E.validateRules(E.rulesFor('classic',{playerCount:4})).unavailable.length);
+  assert.equal(E.validateRules(E.rulesFor('classic',{playerCount:4})).playable,true);
   assert.ok(E.validateRules(E.rulesFor('classic',{handSize:8,initialTableSize:0,remainderMode:'strict'})).errors.length);
   assert.equal(E.validateRules(E.rulesFor('classic',{deckSize:40,builds:true,buildRange:'9-13'})).playable,false);
 });

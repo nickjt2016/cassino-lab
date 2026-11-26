@@ -1324,6 +1324,27 @@ html,body,#app{background:#005d0b;color:#fff}
 @media(max-width:320px){.setup-seat-legend.polar-seat-legend{gap:6px;font-size:10px}}
 .inactive-rule-note{color:#776b53}
 
+/* Multiplayer keeps the human hand and shared playfield; each CPU has its
+   own compact hand, color, active-turn indicator and flight destination. */
+.multiplayer-game .opponent-area{width:100%;box-sizing:border-box;padding:4px 6px;min-height:0}
+.multi-cpu-seats{display:flex;justify-content:center;align-items:stretch;gap:4px;width:100%;max-width:760px;margin:0 auto}
+.multi-cpu-seat{flex:1 1 0;min-width:0;padding:5px 2px 3px;border:1px solid #ffffff35;border-top:3px solid var(--seat-color);border-radius:7px;background:#102e268c;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:3px;color:#fff;box-sizing:border-box}
+.multi-cpu-seat.current-seat{background:#ffffff20;border-color:#efd187;box-shadow:0 0 0 1px #efd187}
+.multi-seat-caption{display:flex;flex-direction:column;text-align:center;line-height:1.1;gap:2px;white-space:nowrap;min-height:25px;width:100%;font-size:10px}
+.multi-seat-caption b{font-size:11px}.multi-seat-caption span{color:#f6deb0;font-variant-numeric:tabular-nums}
+.multiplayer-game .multi-seat-hand{display:flex;justify-content:center;align-items:center;width:100%;min-width:0;max-width:100%;gap:0;min-height:28px;height:32px;overflow:hidden;margin:0;padding:0}
+.multiplayer-game .multi-seat-hand .card-back{flex:0 1 18px;min-width:8px;width:18px;height:26px;margin-left:-5px;box-sizing:border-box}
+.multiplayer-game .multi-seat-hand .card-back:first-child{margin-left:0}
+.multi-seat-meta{font-size:9px;line-height:1.2;text-align:center;min-height:22px;overflow-wrap:normal;color:#ede4ca}
+.multi-results-scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:6px;margin:10px 0}
+.multi-results-scores>div{background:#f5f0df;border:1px solid #d2c49f;border-top:4px solid var(--side-color);border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 3px;min-width:0;text-align:center}
+.multi-results-scores b{font-size:23px;color:#142719}.multi-results-scores small,.multi-results-scores span{font-size:10px;line-height:1.3;color:#4e492b}
+.multi-score-scroll{max-width:100%;overflow-x:auto}
+.dialog .multi-result-table{min-width:max-content;font-size:12px}
+.dialog .multi-result-table th,.dialog .multi-result-table td{padding:7px 6px;white-space:nowrap}
+@media(max-width:360px){.multi-cpu-seats{gap:2px}.multi-seat-caption b{font-size:10px}.multi-seat-caption{font-size:9px}.multi-seat-meta{font-size:8px}}
+@media(max-height:480px) and (orientation:landscape){.multi-cpu-seat{flex-direction:row;gap:4px;padding:2px 3px}.multi-seat-caption{width:auto}.multiplayer-game .multi-seat-hand{height:26px;min-height:26px}.multi-seat-meta{font-size:8px;min-height:0}}
+
 </style></head><body><div id="app"></div>
 <script>/* Fishing Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -1409,13 +1430,12 @@ html,body,#app{background:#005d0b;color:#fff}
   "partnership": {
     "name": "Partnership Cassino",
     "playerCount": 4,
-    "teamMode": "pairs",
-    "presetBlocker": "Four-player partnerships are not implemented."
+    "teamMode": "pairs"
   },
   "fivePlayer": {
-    "name": "Five-player Cassino",
+    "name": "Five-player Cassino (unequal final deal)",
     "playerCount": 5,
-    "presetBlocker": "Five-player gameplay and dealing are not implemented."
+    "remainderMode": "uneven"
   },
   "twentyOne": {
     "name": "Twenty-one Point Cassino",
@@ -1593,8 +1613,7 @@ html,body,#app{background:#005d0b;color:#fff}
     "winningScore": 11,
     "playerCount": 4,
     "teamMode": "pairs",
-    "dealMode": "full",
-    "presetBlocker": "Four-player partnerships are not implemented."
+    "dealMode": "full"
   },
   "scoponeScientifico": {
     "name": "Scopone Scientifico",
@@ -1615,8 +1634,7 @@ html,body,#app{background:#005d0b;color:#fff}
     "playerCount": 4,
     "teamMode": "pairs",
     "dealMode": "full",
-    "initialTableSize": 0,
-    "presetBlocker": "Four-player partnerships are not implemented."
+    "initialTableSize": 0
   },
   "chkobba": {
     "name": "Chkobba",
@@ -1914,16 +1932,16 @@ html,body,#app{background:#005d0b;color:#fff}
     "id": "partnership",
     "name": "Partnership Cassino",
     "group": "Small variations",
-    "note": "Two partnerships of two players.",
-    "status": "preview",
+    "note": "Four-player Cassino, partners opposite, combined captures and scores; builds remain individually owned.",
+    "status": "playable",
     "partial": false
   },
   {
     "id": "fivePlayer",
-    "name": "Five-player Cassino",
+    "name": "Five-player Cassino (unequal final deal)",
     "group": "Small variations",
-    "note": "Five individual players.",
-    "status": "preview",
+    "note": "Five individual players using Classic rules and a smaller unequal final deal.",
+    "status": "playable",
     "partial": false
   },
   {
@@ -2074,16 +2092,16 @@ html,body,#app{background:#005d0b;color:#fff}
     "id": "scopone",
     "name": "Scopone",
     "group": "Major variations",
-    "note": "Nine-card partnership Scopa.",
-    "status": "preview",
+    "note": "Four players in pairs, nine cards each and four on the table; Scopa scoring.",
+    "status": "playable",
     "partial": false
   },
   {
     "id": "scoponeScientifico",
     "name": "Scopone Scientifico",
     "group": "Major variations",
-    "note": "All cards dealt to two partnerships.",
-    "status": "preview",
+    "note": "Four players in pairs, ten cards each, empty opening table; no final sweep points.",
+    "status": "playable",
     "partial": false
   },
   {
@@ -2415,7 +2433,6 @@ html,body,#app{background:#005d0b;color:#fff}
     "partial": false
   }
 ]);
-
   const DIFFICULTY_INFO = Object.freeze([
   [
     "casual",
@@ -2448,7 +2465,7 @@ html,body,#app{background:#005d0b;color:#fff}
   // alternating team membership puts partners as far apart as possible.
   function teamModesFor(count){
     if(![2,3,4,5,6].includes(count))return [];
-    return ['freeForAll',...(count%2===0?['pairs']:[]),...(count===6?['triples']:[])];
+    return ['freeForAll',...(count>=4&&count%2===0?['pairs']:[]),...(count===6?['triples']:[])];
   }
   function seatAssignments(count,mode='freeForAll'){
     if(!teamModesFor(count).includes(mode))return [];
@@ -2456,6 +2473,25 @@ html,body,#app{background:#005d0b;color:#fff}
     const teams=count/teamSize;
     return Array.from({length:count},(_,seat)=>({seat,human:seat===0,team:mode==='freeForAll'?null:seat%teams}));
   }
+  // Scores belong to sides: one side per player in free-for-all, or one
+  // side per alternating partnership/triple. Each seat's score mirrors
+  // its side score for saved-state and legacy two-player compatibility.
+  function sideFor(rules,seat){
+    const n=rules.playerCount||2,mode=rules.teamMode||'freeForAll';
+    return mode==='freeForAll'?seat:seat%(n/(mode==='pairs'?2:3));
+  }
+  function scoringSides(state){
+    const n=state.players.length,mode=state.rules.teamMode||'freeForAll';
+    const count=mode==='freeForAll'?n:n/(mode==='pairs'?2:3);
+    return Array.from({length:count},(_,id)=>{
+      const members=state.players.map((_,i)=>i).filter(i=>sideFor(state.rules,i)===id);
+      return {id,members,name:mode==='freeForAll'?state.players[members[0]].name:id===0?'Your team':'Team '+(id+1),
+        score:state.players[members[0]].score||0,
+        captured:members.flatMap(i=>state.players[i].captured),
+        sweeps:members.reduce((sum,i)=>sum+state.players[i].sweeps,0)};
+    });
+  }
+  function sameSide(rules,a,b){return sideFor(rules,a)===sideFor(rules,b);}
   function normalizeRules(input={}) {
     const r={...DEFAULT_RULES,...input};
     // Migrate legacy partnership presets without changing the number of seats.
@@ -2577,7 +2613,6 @@ html,body,#app{background:#005d0b;color:#fff}
     if(!Number.isInteger(r.winningScore)||r.winningScore<1||!Number.isInteger(r.sweepPoints)||r.sweepPoints<0)errors.push('Score settings must be nonnegative whole numbers, with a positive winning score.');
     const validPlayerCount=[2,3,4,5,6].includes(r.playerCount);
     if(validPlayerCount&&!teamModesFor(r.playerCount).includes(r.teamMode))errors.push('The selected team arrangement is not available for this player count.');
-    if(r.playerCount===2&&r.teamMode==='pairs')errors.push('Two-player pairs form a single team with no opponent. Select Free for all to start.');
     const deck=makeDeck(r),players=validPlayerCount?r.playerCount:2,count=deck.length-r.initialTableSize;
     const maxHand=Math.floor(deck.length/players);
     if(r.deckMode==='custom'){
@@ -2635,7 +2670,6 @@ html,body,#app{background:#005d0b;color:#fff}
       if(spec.prime&&!SUITS.every(suit=>deck.some(c=>c.suit===suit)))missing.push('primiera');
       if(missing.length)warnings.push('Some scoring categories are unavailable with this deck: '+missing.join(', ')+'.');
     }
-    if(validPlayerCount&&r.playerCount>2)unavailable.push('Multiplayer gameplay for 3–6 players is not implemented yet. Player Setup is a preview.');
     if(r.dealMode==='bid')unavailable.push('Opening bidding is not implemented.');
     if(r.multiHandCapture||r.handCardsPerTurn==='multiple')unavailable.push('Multi-card hand actions are not implemented.');
     if(r.actionsPerTurn==='multiple'||(r.builds&&r.tableOnlyBuild))unavailable.push('Multi-action turns and table-only building are not implemented.');
@@ -2744,16 +2778,18 @@ html,body,#app{background:#005d0b;color:#fff}
     }
     return deck;
   }
-  function makeState(rules = rulesFor(), dealer = 1, scores = [0, 0], round = 1, random = Math.random) {
+  function makeState(rules = rulesFor(), dealer = null, scores = [], round = 1, random = Math.random) {
     rules=normalizeRules(rules);
     const validation=validateRules(rules);
     if(!validation.playable)throw new Error([...validation.errors,...validation.unavailable].join(' '));
+    const n=rules.playerCount;
+    dealer=dealer==null?n-1:((dealer%n)+n)%n;
     const state = {
-      rules: { ...rules }, players: [
-        { name: 'You', hand: [], captured: [], sweeps: 0, score: scores[0] },
-        { name: 'Computer', hand: [], captured: [], sweeps: 0, score: scores[1] }
-      ], table: [], stock: shuffle(makeDeck(rules), random),
-      dealer, turn: 1 - dealer, lastCapture: null, nextId: 1, extraTurnFor: null, lastActor: null, unclaimed: [],
+      rules: { ...rules }, players: Array.from({length:n},(_,i)=>({
+        name:i===0?'You':n===2?'Computer':'CPU '+i,
+        hand:[],captured:[],sweeps:0,score:scores[i]||0
+      })), table: [], stock: shuffle(makeDeck(rules), random),
+      dealer, turn: (dealer+1)%n, lastCapture: null, nextId: 1, extraTurnFor: null, lastActor: null, unclaimed: [],
       round, phase: 'playing', result: null, lastAction: 'New hand dealt.',
       log: [], moveNumber: 0
     };
@@ -2761,7 +2797,7 @@ html,body,#app{background:#005d0b;color:#fff}
     return state;
   }
   function newMatch(rules = rulesFor(), random = Math.random) {
-    return makeState(rules, 1, [0, 0], 1, random);
+    return makeState(rules, null, [], 1, random);
   }
   function drawCards(state, initial = false) {
     if (initial) {
@@ -2779,9 +2815,9 @@ html,body,#app{background:#005d0b;color:#fff}
       }
       state.stock.unshift(...deferred);
     }
-    const count=state.rules.dealMode==='full'?state.stock.length:Math.min(state.stock.length,2*(state.rules.handSize||4));
+    const count=state.rules.dealMode==='full'?state.stock.length:Math.min(state.stock.length,state.players.length*(state.rules.handSize||4));
     // Alternate from the nondealer, including a legal smaller/unequal final batch.
-    for(let i=0;i<count;i++)state.players[(1-state.dealer+i)%2].hand.push(state.stock.pop());
+    for(let i=0;i<count;i++)state.players[(state.dealer+1+i)%state.players.length].hand.push(state.stock.pop());
   }
   function cardsInElement(element) {
     return element.type === 'loose' ? [element.card] : element.groups.flat();
@@ -3235,7 +3271,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if (!checked.ok) return { ok: false, reason: checked.reason };
     const playerIndex = state.turn;
     const player = state.players[playerIndex];
-    const opponent = state.players[1 - playerIndex];
+    const count=state.players.length;
     player.hand = player.hand.filter(c => c.id !== action.cardId);
     const played = checked.card;
     let description, swept=false;
@@ -3248,7 +3284,7 @@ html,body,#app{background:#005d0b;color:#fff}
       player.captured.push(...won);
       state.lastCapture = playerIndex;
       swept = state.table.length === 0;
-      const scoredSweep=swept&&!(state.rules.ignoreOpeningSweep&&state.moveNumber===0)&&!(state.rules.ignoreFinalSweep&&!state.stock.length&&!player.hand.length&&!opponent.hand.length);
+      const scoredSweep=swept&&!(state.rules.ignoreOpeningSweep&&state.moveNumber===0)&&!(state.rules.ignoreFinalSweep&&!state.stock.length&&state.players.every(p=>!p.hand.length));
       if (scoredSweep) player.sweeps += 1;
       description = `${player.name} captured ${won.length - 1} table card${won.length === 2 ? '' : 's'} with ${cardName(played)}${scoredSweep ? ' — sweep!' : '.'}`;
     } else {
@@ -3262,11 +3298,10 @@ html,body,#app{background:#005d0b;color:#fff}
     state.log.push(description);
     if (state.log.length > 35) state.log.shift();
     state.lastActor=playerIndex;
-    state.turn = 1 - playerIndex;
-    if(state.rules.extraAfterSweep){
-      if(swept)state.extraTurnFor=state.turn;
-      else if(state.extraTurnFor===playerIndex){state.turn=playerIndex;state.extraTurnFor=null;}
-    }
+    state.turn = (playerIndex+1)%count;
+    const repeat=state.rules.extraAfterSweep&&!swept&&state.extraTurnFor===playerIndex;
+    if(repeat)state.extraTurnFor=null;
+    else if(state.extraTurnFor===playerIndex)state.extraTurnFor=null;
     // Draw Cassino: the player who just played immediately replenishes their hand.
     // Ordinary Cassino waits until both four-card hands have been played.
     if ((state.rules.drawMode || state.rules.dealMode==='draw') && state.stock.length && player.hand.length < (state.rules.handSize||4)) {
@@ -3274,7 +3309,7 @@ html,body,#app{background:#005d0b;color:#fff}
       state.lastAction += ' Replacement card drawn.';
     }
 
-    if (!player.hand.length && !opponent.hand.length) {
+    if (state.players.every(p=>!p.hand.length)) {
       if (state.stock.length) {
         drawCards(state);
         state.lastAction += ' New cards dealt.';
@@ -3282,9 +3317,11 @@ html,body,#app{background:#005d0b;color:#fff}
         finishHand(state);
       }
     }
-    if(state.phase==='playing'&&!state.players[state.turn].hand.length){
-      if(state.extraTurnFor===state.turn)state.extraTurnFor=null;
-      state.turn=1-state.turn;
+    if(state.phase==='playing'){
+      if(repeat&&player.hand.length)state.turn=playerIndex;
+      for(let i=0;i<count&&!state.players[state.turn].hand.length;i++)state.turn=(state.turn+1)%count;
+      if(state.rules.extraAfterSweep&&swept)state.extraTurnFor=state.turn;
+      if(state.extraTurnFor!=null&&!state.players[state.extraTurnFor].hand.length)state.extraTurnFor=null;
     }
     return { ok: true, description };
   }
@@ -3345,21 +3382,22 @@ html,body,#app{background:#005d0b;color:#fff}
     return (card.id===s.big?s.bigPoints:0)+(card.id===s.little?s.littlePoints:0)+(card.rank===1?s.ace:card.rank>=11&&card.rank<=13?s.face:card.rank===10&&card.id!==s.big?s.tens:0)+(s.perSpade&&card.suit==='S'?(card.rank===11?2:1):0);
   }
   function scoreHand(state){
-    const s=scoreSpec(state.rules),piles=state.players.map(p=>p.captured);
+    const s=scoreSpec(state.rules),sides=scoringSides(state),piles=sides.map(p=>p.captured);
     const counts=piles.map(p=>p.length),spades=piles.map(p=>p.filter(c=>c.suit==='S').length);
     const suitCounts=piles.map(p=>p.filter(c=>c.suit===s.suit).length),primes=piles.map(p=>primeValue(p,s));
-    return [0,1].map(i=>{
-      const p=piles[i],other=1-i;
-      const cards=counts[i]>counts[other]?s.cards:0;
-      const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):s.overSpades?Math.max(0,spades[i]-s.overSpades):suitCounts[i]>suitCounts[other]?s.suitPoints:0;
+    const leads=(values,i)=>values.every((v,j)=>j===i||values[i]>v);
+    return sides.map((side,i)=>{
+      const p=piles[i];
+      const cards=leads(counts,i)?s.cards:0;
+      const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):s.overSpades?Math.max(0,spades[i]-s.overSpades):leads(suitCounts,i)?s.suitPoints:0;
       const big=p.some(c=>c.id===s.big)?s.bigPoints:0,little=p.some(c=>c.id===s.little)?s.littlePoints:0;
       const aces=p.filter(c=>c.rank===1).length*s.ace,faces=p.filter(c=>c.rank>=11&&c.rank<=13).length*s.face;
       const tens=p.filter(c=>c.rank===10&&c.id!==s.big).length*s.tens;
-      const prime=primes[i]>primes[other]?s.prime:0,last=state.lastCapture===i?s.last:0;
-      const net=state.rules.sweepCancel?Math.max(0,state.players[i].sweeps-state.players[other].sweeps):state.players[i].sweeps;
+      const prime=leads(primes,i)?s.prime:0,last=state.lastCapture!==null&&sideFor(state.rules,state.lastCapture)===i?s.last:0;
+      const net=state.rules.sweepCancel?Math.max(0,side.sweeps-sides.reduce((n,p,j)=>n+(j===i?0:p.sweeps),0)):side.sweeps;
       const sweeps=net*state.rules.sweepPoints;
       return {cards,spades:spadesPoints,big,little,aces,sweeps,total:cards+spadesPoints+big+little+aces+sweeps+faces+tens+prime+last,
-        cardCount:counts[i],spadeCount:spades[i],sweepCount:state.players[i].sweeps,
+        cardCount:counts[i],spadeCount:spades[i],sweepCount:side.sweeps,
         ...(s.face?{faces}:{}),...(s.tens?{tens}:{}),...(s.prime?{prime}:{}),...(s.last?{last}:{})};
     });
   }
@@ -3373,17 +3411,19 @@ html,body,#app{background:#005d0b;color:#fff}
       state.lastAction+=' No player captured; table residue is unclaimed.';
     }
     state.table=[];
-    const totals=scoreHand(state);
-    totals.forEach((row,i)=>{state.players[i].score+=row.total;});
-    const scores=state.players.map(p=>p.score),fixed=Number(state.rules.matchDeals)||0;
+    const totals=scoreHand(state),sides=scoringSides(state);
+    const scores=sides.map((side,i)=>side.score+totals[i].total),fixed=Number(state.rules.matchDeals)||0;
+    for(let i=0;i<state.players.length;i++)state.players[i].score=scores[sideFor(state.rules,i)];
     const reached=fixed?state.round>=fixed:scores.some(s=>s>=state.rules.winningScore);
-    const winner=reached&&scores[0]!==scores[1]?(scores[0]>scores[1]?0:1):null;
+    const best=Math.max(...scores),leaders=scores.flatMap((v,i)=>v===best?[i]:[]);
+    const winner=reached&&leaders.length===1?leaders[0]:null;
     state.phase=reached&&(fixed||winner!==null)?'gameOver':'roundOver';
-    state.result={points:totals,scores,winner,finishedRound:state.round,categories:scoreCategories(state.rules)};
+    state.result={points:totals,scores,winner,finishedRound:state.round,categories:scoreCategories(state.rules),
+      ...(state.players.length>2?{sides:sides.map(({id,members,name})=>({id,members,name}))}:{})};
   }
   function nextHand(state, random = Math.random) {
     if (state.phase !== 'roundOver') return null;
-    return makeState(state.rules, 1 - state.dealer, state.players.map(p => p.score), state.round + 1, random);
+    return makeState(state.rules, (state.dealer+1)%state.players.length, state.players.map(p => p.score), state.round + 1, random);
   }
   // All table-card subsets whose sum is value. Pruned by positive card values.
   function valueGroups(state, target, max = 160) {
@@ -3501,7 +3541,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if (move.kind === 'build') {
       const chosen = state.table.filter(e => move.targetIds.includes(e.id));
       const consumed = chosen.flatMap(cardsInElement);
-      const risk = 1.2 + Math.max(0, state.players[1 - state.turn].hand.length - 2) * 0.3;
+      const risk = 1.2 + Math.max(0,...state.players.filter((p,i)=>!sameSide(state.rules,i,state.turn)).map(p=>p.hand.length-2)) * 0.3;
       return 1.5 + consumed.length * 0.6 + (consumed.some(c => c.id === 'D10') ? 1.5 : 0) - risk;
     }
     const v = cardValue(card, state.rules) || 11;
@@ -3666,35 +3706,39 @@ html,body,#app{background:#005d0b;color:#fff}
   // obligations constrain the opponent's hand; reserve distinct cards.
   // With an exhausted stock the remaining unseen cards determine the hand.
   function samplePublicPosition(view,random=Math.random){
-    const root=view.turn,other=1-root;
+    const root=view.turn,n=view.players.length;
     const known=new Set([
       ...view.players[root].hand,
       ...view.players.flatMap(p=>p.captured),
       ...view.table.flatMap(cardsInElement)
     ].map(c=>c.id));
     const pool=shuffle(makeDeck(view.rules).filter(c=>!known.has(c.id)),random);
-    const count=view.players[other].handCount;
-    const obligations=view.rules.buildAnything?[]:view.table.filter(b=>b.type==='build'&&b.owner===other)
-      .map(b=>({value:b.value,choices:pool.map((c,i)=>cardValues(c,view.rules).includes(b.value)?i:-1).filter(i=>i>=0)}))
+    const obligations=view.rules.buildAnything?[]:view.table.filter(b=>b.type==='build'&&b.owner!==root)
+      .map(b=>({owner:b.owner,value:b.value,choices:pool.map((c,i)=>cardValues(c,view.rules).includes(b.value)?i:-1).filter(i=>i>=0)}))
       .sort((a,b)=>a.choices.length-b.choices.length);
-    const reserved=new Set();
+    const hidden=Array.from({length:n},()=>[]),reserved=new Set();
     function reserve(i){
       if(i===obligations.length)return true;
-      for(const index of obligations[i].choices){
+      const ob=obligations[i];
+      if(hidden[ob.owner].length>=view.players[ob.owner].handCount)return false;
+      for(const index of ob.choices){
         if(reserved.has(index))continue;
-        reserved.add(index);
+        reserved.add(index);hidden[ob.owner].push(pool[index]);
         if(reserve(i+1))return true;
-        reserved.delete(index);
+        reserved.delete(index);hidden[ob.owner].pop();
       }
       return false;
     }
-    if(obligations.length>count||!reserve(0))return null;
-    const hidden=[...reserved].map(i=>pool[i]);
+    if(!reserve(0))return null;
     const remaining=pool.filter((_,i)=>!reserved.has(i));
-    hidden.push(...remaining.splice(0,count-hidden.length));
-    if(hidden.length!==count||remaining.length<view.stockCount)return null;
+    for(let i=0;i<n;i++)if(i!==root){
+      const count=view.players[i].handCount;
+      hidden[i].push(...remaining.splice(0,count-hidden[i].length));
+      if(hidden[i].length!==count)return null;
+    }
+    if(remaining.length<view.stockCount)return null;
     const players=view.players.map((p,i)=>({name:p.name,score:p.score||0,sweeps:p.sweeps||0,
-      captured:p.captured.slice(),hand:(i===root?p.hand:hidden).slice()}));
+      captured:p.captured.slice(),hand:(i===root?p.hand:hidden[i]).slice()}));
     return {rules:view.rules,players,table:view.table.slice(),stock:remaining.slice(0,view.stockCount),
       turn:root,lastCapture:view.lastCapture,extraTurnFor:view.extraTurnFor,lastActor:view.lastActor,nextId:view.nextId,moveNumber:view.moveNumber,
       dealer:view.dealer,round:view.round,phase:view.phase,result:null,lastAction:'',log:[]};
@@ -3725,7 +3769,30 @@ html,body,#app{background:#005d0b;color:#fff}
       stock:state.stock.slice(),table:state.table.slice(),log:[]};
   }
   const tacticalWorth=c=>.11+(c.rank===1?1:0)+(c.id==='D10'?2:0)+(c.id==='S2'?1:0)+(c.suit==='S'?.14:0);
+  function multiplayerValue(state,root){
+    const sides=scoringSides(state),side=sideFor(state.rules,root),spec=scoreSpec(state.rules);
+    const rivals=sides.filter(s=>s.id!==side);
+    if(state.phase!=='playing'){
+      const margin=sides[side].score-Math.max(...rivals.map(s=>s.score));
+      const winner=state.result?.winner;
+      return margin+(state.phase==='gameOver'&&winner!=null?(winner===side?100:-100):0);
+    }
+    const points=scoreHand(state),n=state.players.length;
+    const values=sides.map((s,i)=>s.score+points[i].total+.055*s.captured.length);
+    const handValues=state.players.map(p=>p.hand.map(c=>cardValues(c,state.rules)));
+    const matches=(i,v)=>handValues[i].some(vals=>vals.includes(v));
+    for(const item of state.table)if(item.type==='build'){
+      const own=sideFor(state.rules,item.owner);
+      const worth=cardsInElement(item).reduce((sum,c)=>sum+tacticalWorth(c),0);
+      const secure=matches(item.owner,item.value);
+      const threatened=state.players.some((p,i)=>sideFor(state.rules,i)!==own&&matches(i,item.value));
+      values[own]+=worth*(secure?(threatened?.05:.35):-.1);
+    }
+    if(state.lastCapture!==null)values[sideFor(state.rules,state.lastCapture)]+=.08*state.table.flatMap(cardsInElement).length/(1+state.stock.length*.1);
+    return values[side]-Math.max(...values.filter((_,i)=>i!==side));
+  }
   function strategicValue(state,root){
+    if(state.players.length>2)return multiplayerValue(state,root);
     const other=1-root,p=state.players[root],q=state.players[other],rules=state.rules;
     if(state.phase!=='playing'){
       const margin=p.score-q.score;
@@ -3822,7 +3889,7 @@ html,body,#app{background:#005d0b;color:#fff}
     const began=now(),deadline=began+timeMs;
     let nodes=0,rootTruncated=false,completedDepth=1,samplesUsed=0;
     const stopped=()=>nodes>=maxNodes||now()>=deadline;
-    const sampleCount=view.stockCount===0?1:expert?5:3;
+    const sampleCount=view.players.length===2&&view.stockCount===0?1:expert?5:3;
     const worlds=[];
     for(let i=0;i<sampleCount;i++){
       const world=samplePublicPosition(view,random);
@@ -3845,7 +3912,8 @@ html,body,#app{background:#005d0b;color:#fff}
       if(stop)rootTruncated=true;
       return stop;
     };
-    const risk=(view.players[root].score||0)>(view.players[1-root].score||0)&&
+    const rivalScore=Math.max(...view.players.filter((_,i)=>!sameSide(view.rules,i,root)).map(p=>p.score||0));
+    const risk=(view.players[root].score||0)>rivalScore&&
       (view.players[root].score||0)>view.rules.winningScore*.65?.12:0;
     const aggregate=values=>{
       const mean=values.reduce((a,b)=>a+b,0)/values.length;
@@ -3881,14 +3949,14 @@ html,body,#app{background:#005d0b;color:#fff}
     samplesUsed=rootSamples;
     if(typeof options.onProgress==='function')options.onProgress(best);
     const handLeft=view.players.reduce((n,p)=>n+p.handCount,0);
-    const perfect=view.stockCount===0&&worlds.length===1&&
+    const perfect=view.players.length===2&&view.stockCount===0&&worlds.length===1&&
       worlds[0].players[1-root].hand.length===view.players[1-root].handCount;
     const exhaustive=perfect&&!rootTruncated&&handLeft<=8&&roots.length<=100;
     const branchLimit=expert?120:90,beam=expert?8:6;
     function minimax(state,depth,alpha,beta){
       if(stopped())return null;
       if(depth===0||state.phase!=='playing')return strategicValue(state,root);
-      const maximize=state.turn===root,children=[],keys=new Set();
+      const maximize=sameSide(state.rules,state.turn,root),children=[],keys=new Set();
       function offer(move){
         const k=rootKey(move);
         if(keys.has(k))return;
@@ -3994,7 +4062,7 @@ html,body,#app{background:#005d0b;color:#fff}
     }
     return {tested:count,completed,zeroScore,failures,validation};
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, ruleActivity, activeRules, teamModesFor, seatAssignments, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, ruleActivity, activeRules, teamModesFor, seatAssignments, sideFor, scoringSides, sameSide, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
@@ -4016,7 +4084,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.9.1';
+  const APP_VERSION = '0.10.0';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -4130,12 +4198,16 @@ html,body,#app{background:#005d0b;color:#fff}
   let dealAnimation = Promise.resolve();
   let dealing = false;
   let turnInMotion = false;
-  function collectDeal(beforeHuman = [], beforeCpu = [], beforeTable = []) {
+  function collectDeal(beforeHuman = [], beforeCpu = [], beforeTable = [], beforeSeats = []) {
     const oldHuman = new Set(beforeHuman), oldCpu = new Set(beforeCpu), oldTable = new Set(beforeTable);
     const humanIds = game.players[0].hand.filter(c => !oldHuman.has(c.id)).map(c => c.id);
     const cpuIndices = game.players[1].hand.map((c,i) => !oldCpu.has(c.id) ? i : -1).filter(i => i >= 0);
     const tableIds = game.table.filter(e => e.type === 'loose' && !oldTable.has(e.card.id)).map(e => e.card.id);
     pendingDeal = { humanIds, cpuIndices, tableIds };
+    if(game.players.length>2)pendingDeal.cpuBySeat=game.players.slice(1).map((p,i)=>{
+      const old=new Set(beforeSeats[i+1]||[]);
+      return p.hand.flatMap((c,j)=>old.has(c.id)?[]:[j]);
+    });
   }
   function rememberStockOrigin() {
     const node = app.querySelector && app.querySelector('.draw-stock .stock-back');
@@ -4158,7 +4230,7 @@ html,body,#app{background:#005d0b;color:#fff}
       const rect = node.getBoundingClientRect();
       if (rect.width && rect.height) positions.set(key, {x:rect.left+rect.width/2,y:rect.top+rect.height/2});
     });
-    app.querySelectorAll('.opponent-hand .card-back').forEach((node,i)=>{
+    if(game.players.length===2)app.querySelectorAll('.opponent-hand .card-back').forEach((node,i)=>{
       const rect=node.getBoundingClientRect();
       if(rect.width && rect.height) positions.set('cpu-back:'+i,{x:rect.left+rect.width/2,y:rect.top+rect.height/2});
     });
@@ -4167,7 +4239,7 @@ html,body,#app{background:#005d0b;color:#fff}
   function animateLayout(previous, motion = '', byComputer = false) {
     if (!previous || !motionAllowed() || !app.querySelectorAll) return;
     const nodes = [...app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]'),
-      ...app.querySelectorAll('.opponent-hand .card-back')];
+      ...(game.players.length===2?app.querySelectorAll('.opponent-hand .card-back'):[])];
     // A retained card can still be sliding when the next tap occurs. The
     // caller has already measured its displayed position. Cancel the old
     // translation before measuring its new untransformed destination.
@@ -4216,6 +4288,14 @@ html,body,#app{background:#005d0b;color:#fff}
     }
     const human=(deal.humanIds||[]).map(id=>handCards.find(c=>c.dataset.cardId===id));
     const cpu=(deal.cpuIndices||[]).map(i=>backs[i]);
+    if(deal.cpuBySeat){
+      const seats=deal.cpuBySeat.map((indices,i)=>indices.map(j=>app.querySelectorAll('[data-cpu-seat="'+(i+1)+'"] .card-back')[j]));
+      for(let i=0;i<Math.max(human.length,...seats.map(s=>s.length));i++){
+        for(const seat of seats)if(seat[i])items.push({node:seat[i],faceUp:false});
+        if(human[i])items.push({node:human[i],faceUp:true});
+      }
+      return items;
+    }
     for(let i=0;i<Math.max(human.length,cpu.length);i++){
       if(cpu[i]) items.push({node:cpu[i],faceUp:false});
       if(human[i]) items.push({node:human[i],faceUp:true});
@@ -4312,7 +4392,7 @@ html,body,#app{background:#005d0b;color:#fff}
   // is not visually on turn until all move and replacement-deal flights end.
   function turnBannerText() {
     if (turnInMotion || dealing || game.phase !== 'playing') return '';
-    return game.turn === 0 ? 'Your turn' : "Opponent's turn";
+    return game.turn === 0 ? 'Your turn' : game.players.length===2?"Opponent's turn":game.players[game.turn].name+"’s turn";
   }
   function animateTurnMessage(previous) {
     if (!motionAllowed() || !app.querySelector) return;
@@ -4348,8 +4428,9 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   function takeMotionSnapshot(move, byComputer = false) {
     if (!motionAllowed() || !document.body || !app.querySelector) return null;
+    const actor=game.turn;
     const from = byComputer
-      ? app.querySelector('.opponent-hand .card-back:last-child')
+      ? app.querySelector(game.players.length>2?'[data-cpu-seat="'+actor+'"] .card-back:last-child':'.opponent-hand .card-back:last-child')
       : app.querySelector(`.hand-item[data-id="${move.cardId}"] .playing-card`);
     if (!from || !from.getBoundingClientRect) return null;
     const measured=new WeakMap();
@@ -4360,7 +4441,7 @@ html,body,#app{background:#005d0b;color:#fff}
       measured.set(node,result);
       return result;
     };
-    const playerCard = game.players[byComputer ? 1 : 0].hand.find(c => c.id === move.cardId);
+    const playerCard = game.players[actor].hand.find(c => c.id === move.cardId);
     if (!playerCard) return null;
     const tableNodes=[...app.querySelectorAll('[data-action="table"][data-id]')];
     const tableById=new Map(tableNodes.map(node=>[node.dataset.id,node]));
@@ -4385,14 +4466,14 @@ html,body,#app{background:#005d0b;color:#fff}
       })));
     const tableRects = move.kind==='capture'?[...app.querySelectorAll('.table-stage .playing-card')].map(rect):[];
     const looseCardRects = move.kind==='capture'?[...app.querySelectorAll('.table-cards .playing-card')].map(rect):[];
-    return {kind:move.kind,byComputer,tableRects,looseCardRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML},groups:groupRects,remainingCards};
+    return {kind:move.kind,byComputer,actor,tableRects,looseCardRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML},groups:groupRects,remainingCards};
   }
   function playMotion(snapshot, after) {
     if (!snapshot || !motionAllowed() || !document.body || !app.querySelector) { after(); return; }
     const generation = motionGeneration;
     const capture = snapshot.kind === 'capture';
     const destination = capture
-      ? app.querySelector(snapshot.byComputer ? '.opponent-tag' : '.your-score-tag')
+      ? app.querySelector(game.players.length>2&&snapshot.byComputer?'[data-seat-score="'+snapshot.actor+'"]':snapshot.byComputer ? '.opponent-tag' : '.your-score-tag')
       : app.querySelector(`[data-action="table"][data-id="${game.table[game.table.length-1]?.id}"]`) ||
         (snapshot.finalHand ? app.querySelector('.table-area') : null);
     if (!destination) { after(); return; }
@@ -4610,7 +4691,7 @@ html,body,#app{background:#005d0b;color:#fff}
       const all = capture ? leftoverGhosts : [...leftoverGhosts,...ghosts];
       if(!all.length) return;
       if(generation!==motionGeneration)return;
-      const pile=app.querySelector(snapshot.residueOwner===1 ? '.opponent-tag' : '.your-score-tag');
+      const pile=app.querySelector(game.players.length>2&&snapshot.residueOwner>0?'[data-seat-score="'+snapshot.residueOwner+'"]':snapshot.residueOwner===1 ? '.opponent-tag' : '.your-score-tag');
       if(!pile)return;
       // The turn banner remains limited to the two requested turn labels.
       const felt=app.querySelector('.table-area')?.getBoundingClientRect();
@@ -4870,10 +4951,10 @@ html,body,#app{background:#005d0b;color:#fff}
       if(groupOffset>0)groupStarts.add(groupOffset);
       groupOffset+=group.length;
     }
-    const ownerName = element.owner === 0 ? 'You' : 'Computer';
+    const ownerName = element.owner === 0 ? 'You' : (typeof game!=='undefined'&&game.players[element.owner]?.name)||'Computer';
     const panelValue = buildPanelValue(element.value,element.signedValue);
     const layers=cards.map((card,i)=>`<span class="build-layer${groupStarts.has(i)?' build-group-start':''}" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
-    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.signedValue??element.value} build${element.signedValue<0?' (capture value '+element.value+')':''} owned by ${element.owner === 0 ? 'you' : 'computer'}">
+    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.signedValue??element.value} build${element.signedValue<0?' (capture value '+element.value+')':''} owned by ${escapeHtml(ownerName)}">
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
   }
@@ -4909,18 +4990,39 @@ html,body,#app{background:#005d0b;color:#fff}
     } catch(error) { resetSelection(); toast=error.message; }
     render('selection');
   }
-  function renderToolbar(active, computerScore = 0) {
+  function renderToolbar(active, computerScore = 0, multiplayerLabel='') {
     return `<header class="header game-toolbar" aria-label="Game controls">
       <div class="toolbar-left">
         <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
         <button class="game-help" data-action="menu" aria-label="Open game menu">☰</button>
       </div>
-      <div class="opponent-tag" aria-label="Computer has ${computerScore} points">Computer · ${computerScore} pts</div>
+      <div class="opponent-tag" aria-label="${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer has ${computerScore} points`}">${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer · ${computerScore} pts`}</div>
       <div class="header-actions">
         <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
         ${prefs.undo?`<button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo" ${checkpoint?'':'disabled'}>↶</button>`:''}
       </div>
     </header>`;
+  }
+  function gameSeatColor(seat){
+    if(game.rules.teamMode==='freeForAll')return seat===0?'#346da8':'#777b73';
+    return ['#346da8','#ac4847','#367c55'][E.sideFor(game.rules,seat)];
+  }
+  function multiToolbarLabel(){
+    if(game.players.length===2)return '';
+    return game.players.length+' players · Hand '+game.round;
+  }
+  function renderCpuSeats(){
+    return '<div class="multi-cpu-seats" aria-label="Computer seats">'+game.players.slice(1).map((p,i)=>{
+      const seat=i+1,active=game.phase==='playing'&&game.turn===seat;
+      const team=game.rules.teamMode==='freeForAll'?'':E.sideFor(game.rules,seat)===0?'Your team':'Team '+(E.sideFor(game.rules,seat)+1);
+      return '<div class="multi-cpu-seat'+(active?' current-seat':'')+'" data-cpu-seat="'+seat+'" style="--seat-color:'+gameSeatColor(seat)+'" '+(active?'aria-current="true"':'')+'>'+
+        '<div class="multi-seat-caption" data-seat-score="'+seat+'"><b>'+escapeHtml(p.name)+'</b><span>'+p.score+' pts</span></div>'+
+        '<div class="opponent-hand multi-seat-hand" style="--hand-count:'+Math.max(1,p.hand.length)+'" aria-label="'+escapeHtml(p.name)+' has '+p.hand.length+' hidden cards">'+p.hand.map(()=>renderBack()).join('')+'</div>'+
+        '<div class="multi-seat-meta">'+p.hand.length+' cards'+(team?' · '+team:'')+'</div></div>';
+    }).join('')+'</div>';
+  }
+  function ownCapturedCards(){
+    return game.players.length>2?E.scoringSides(game)[E.sideFor(game.rules,0)].captured:me().captured;
   }
   function renderHome() {
     return `<main class="launch-screen">
@@ -4932,7 +5034,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <h1>Fishing Lab</h1><div class="gold-divider">◆</div><p>FISHING CARD GAMES</p>
         </div>
         <div class="launch-actions">
-          ${hasSavedMatch ? `<button class="launch-primary" data-action="resume-game"><b>Resume Game</b><small>vs Computer · ${escapeHtml(game.rules.name)} · Hand ${game.round}</small></button>` : ''}
+          ${hasSavedMatch ? `<button class="launch-primary" data-action="resume-game"><b>Resume Game</b><small>${game.players.length===2?'vs Computer':game.players.length+' players · vs CPUs'} · ${escapeHtml(game.rules.name)} · Hand ${game.round}</small></button>` : ''}
           <button class="launch-outlined" data-action="setup-new-game"><b>New Game</b></button>
           <button class="launch-outlined" disabled><b>Local Multiplayer</b><small>Coming later</small></button>
           <button class="launch-outlined" disabled><b>Online Multiplayer</b><small>Coming later</small></button>
@@ -4943,7 +5045,7 @@ html,body,#app{background:#005d0b;color:#fff}
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
         </div>
-        <p class="launch-foot">Single-player prototype · v${APP_VERSION} · Offline-ready</p>
+        <p class="launch-foot">Play against the CPU · v${APP_VERSION} · Offline-ready</p>
       </div>
       ${modal ? renderModal() : ''}
     </main>`;
@@ -4994,7 +5096,7 @@ html,body,#app{background:#005d0b;color:#fff}
       // The toolbar markup has one canonical renderer. Reuse just its
       // right-hand controls when the Undo preference changes.
       const template=document.createElement('template');
-      template.innerHTML=renderToolbar(isHumanTurn(),opponent().score);
+      template.innerHTML=renderToolbar(isHumanTurn(),opponent().score,multiToolbarLabel());
       actions.replaceChildren(...template.content.querySelector('.header-actions').children);
     }
     const overlay=app.querySelector('.overlay');
@@ -5078,12 +5180,12 @@ html,body,#app{background:#005d0b;color:#fff}
     const motion = lastMotion;
     lastMotion = '';
     app.innerHTML = `
-      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}">
-        ${renderToolbar(active,opponent().score)}
+      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}">
+        ${renderToolbar(active,opponent().score,multiToolbarLabel())}
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
           <div class="opponent-area">
-            <div class="opponent-hand${opponent().hand.length>5?' wide-hand':''}" style="--hand-count:${Math.max(1,opponent().hand.length)}" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
+            ${game.players.length>2?renderCpuSeats():`<div class="opponent-hand${opponent().hand.length>5?' wide-hand':''}" style="--hand-count:${Math.max(1,opponent().hand.length)}" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>`}
           </div>
           <div class="table-area">
             <div class="table-stage"><div class="table-cards" aria-label="Table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
@@ -5094,10 +5196,10 @@ html,body,#app{background:#005d0b;color:#fff}
           <div class="human-area">
             <div class="player-caption sr-only"><b>Your hand</b></div>
             <div class="human-hand${me().hand.length>5?' wide-hand':''}">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
-            <div class="your-score-tag">You · ${me().score} pts</div>
+            <div class="your-score-tag">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
-          <div class="game-stats"><span>Cards Captured <b>${me().captured.length}</b></span><span>Spades Captured <b>${me().captured.filter(c=>c.suit==='S').length}</b></span>
+          <div class="game-stats"><span>${game.rules.teamMode==='freeForAll'?'Cards Captured':'Team Cards'} <b>${ownCapturedCards().length}</b></span><span>${game.rules.teamMode==='freeForAll'?'Spades Captured':'Team Spades'} <b>${ownCapturedCards().filter(c=>c.suit==='S').length}</b></span>
             <span class="deck-stat"><span class="deck-stat-label">Cards in Deck</span><span class="deck-stat-content">
               <span class="draw-stock ${game.stock.length===0?'empty':''}" role="img" aria-label="Draw pile: ${game.stock.length} cards remaining">
                 <span class="stock-stack" aria-hidden="true"><span class="stock-back stock-bottom">${renderBack()}</span><span class="stock-back stock-middle">${renderBack()}</span><span class="stock-back stock-top">${renderBack()}</span></span>
@@ -5111,7 +5213,7 @@ html,body,#app{background:#005d0b;color:#fff}
     restoreVariationsScroll();
     const currentHand=app.querySelector?.('.human-hand');if(currentHand)currentHand.scrollLeft=oldHandScroll;
     hidePendingDealCards();
-    animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))===1);
+    animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))!==0);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
     animateTurnMessage(previousTurn);
   }
@@ -5566,7 +5668,7 @@ html,body,#app{background:#005d0b;color:#fff}
     ],
     [
       "On",
-      "Cancel opposing sweeps one for one; only the excess sweeps score."
+      "Cancel opposing sweeps one for one. With three or more sides, only sweeps exceeding all opposing sweeps combined score."
     ]
   ],
   "ignoreOpeningSweep": [
@@ -5592,14 +5694,14 @@ html,body,#app{background:#005d0b;color:#fff}
 };
   function helpFor(key,options=[]){
     if(key==='scoreMode')return E.scoreHelp(draft);
-    if(key==='playerCount')return [2,3,4,5,6].map(n=>[n+' players',n===2?'You and one computer opponent.':'You and '+(n-1)+' computer seats. Layout preview until multiplayer gameplay is implemented.']);
-    if(key==='teamMode')return options.map(([mode,label])=>[label,mode==='freeForAll'?'Every player competes independently.':mode==='pairs'?(draft.playerCount===2?'Both players are one pair; there is no opposing team. This layout cannot start a competitive game.':'Teams of two, seated opposite each other when possible. '+(draft.playerCount/2)+' teams compete.'):'Two teams of three. Teammates alternate around the table.']);
+    if(key==='playerCount')return [2,3,4,5,6].map(n=>[n+' players','You and '+(n-1)+' computer '+(n===2?'opponent.':'players.')]);
+    if(key==='teamMode')return options.map(([mode,label])=>[label,mode==='freeForAll'?'Every player competes independently.':mode==='pairs'?'Teams of two, seated opposite each other. '+(draft.playerCount/2)+' teams compete with shared captures and scores.':'Two teams of three with shared captures and scores. Teammates alternate around the table.']);
     if(OPTION_HELP[key])return OPTION_HELP[key];
     if(key==='handSize')return [['1 to '+handMaximum(),'Drag the stepped slider or type a whole number into the value box. Maximum = deck size divided by player count, rounded down. Starting table cards can impose a tighter legal limit; the compatibility check catches that.'],['All cards at start','The slider has no effect in this dealing mode.']];
     if(key==='jokerValue')return options.map(n=>[String(n),'Both identical jokers have numerical capture and build value '+n+'.']);
     if(key==='initialTableSize')return options.map(([n,label])=>[label,n===0?'The table starts empty.':'Place '+n+' table cards on the table before the first turn.']);
     if(key==='sweepPoints')return options.map(n=>[String(n),n===0?'Sweeps earn no points.':'Each eligible sweep earns '+n+' point'+(n===1?'':'s')+'.']);
-    if(key==='winningScore')return options.map(([n,label])=>[label,'Win at the end of a deal when you have at least '+n+' points and lead the opponent.']);
+    if(key==='winningScore')return options.map(([n,label])=>[label,'Win at the end of a deal when your side has at least '+n+' points and leads all opposing sides.']);
     if(key==='matchDeals')return options.map(([n,label])=>[label,n===0?'Continue until a player reaches the winning score and leads.':'Play exactly '+n+' deal'+(n===1?'':'s')+'; the higher cumulative score wins.']);
     return [['Explanation',RULE_HELP[key]||SETTING_INFO[key]?.[1]||'']];
   }
@@ -5680,7 +5782,7 @@ html,body,#app{background:#005d0b;color:#fff}
     return rules.playerCount+' players · '+TEAM_LABELS[rules.teamMode];
   }
   function playerHeader(rules=draft){
-    return 'FISHING LAB · '+rules.playerCount+' PLAYERS · '+(rules.playerCount===2&&rules.teamMode==='freeForAll'?'VS COMPUTER':'SETUP PREVIEW');
+    return 'FISHING LAB · '+rules.playerCount+' PLAYERS · VS '+(rules.playerCount===2?'COMPUTER':'CPUs');
   }
   function playerCountSetting(){
     const n=draft.playerCount,disabled=!!draft.presetBlocker;
@@ -5717,7 +5819,7 @@ html,body,#app{background:#005d0b;color:#fff}
     const legend=free?
       '<span style="color:#346da8">You</span><span style="color:#656961">Individual opponents</span>':
       Array.from({length:n/(mode==='pairs'?2:3)},(_,i)=>'<span style="color:'+colors[i]+'">'+(i===0?'Your team':'Team '+(i+1))+'</span>').join('');
-    const notice=n===2&&mode==='pairs'?'One pair, no opposing team. Select Free for all to play.':n>2?'Multiplayer seating preview only; see compatibility status below.':'';
+    const notice='';
     return '<div class="setup-table-figure"><svg viewBox="0 0 320 220" class="setup-table-svg" role="img" aria-labelledby="setup-table-title setup-table-desc">'+
       '<title id="setup-table-title">'+escapeHtml(playerSetupSummary(rules))+' seating</title><desc id="setup-table-desc">You sit at the south seat. '+escapeHtml(labels.join('; '))+'.</desc>'+
       groups+'</svg><div class="setup-seat-legend polar-seat-legend">'+legend+'</div><span class="sr-only">'+escapeHtml(notice)+'</span></div>';
@@ -5811,7 +5913,7 @@ html,body,#app{background:#005d0b;color:#fff}
         labResult.failures.slice(0,3).map(f=>'<p class="rule-error">Seed '+f.seed+': '+escapeHtml(f.reason)+'</p>').join('')+
         (labResult.failures.length?'<button type="button" class="action-btn" data-action="copy-lab-report">Copy diagnostic report</button>':'')+'</div>';
     }
-    return '<p class="rules-description">Test 10 seeded CPU-versus-CPU deals with the current rules. Failures retain the seed, board and move log. Passing is not proof of universal playability.</p>'+
+    return '<p class="rules-description">Test 10 seeded deals with every seat controlled by a CPU. Failures retain the seed, board and move log. Passing is not proof of universal playability.</p>'+
       '<button type="button" class="action-btn rules-test" data-action="run-rules-lab" '+(E.validateRules(effectiveDraftRules()).playable?'':'disabled')+'>Simulate 10 deals</button>'+results;
   }
   function renderAllRules(){
@@ -5845,7 +5947,7 @@ html,body,#app{background:#005d0b;color:#fff}
       ruleGroup('While owning a build',ruleSwitch('buildObligation','Keep a capturing card',!building,'Reserve a distinct card for each stack')+
         ruleSelect('independentBuilds','Independent builds per player',[['1','One'],['2','Up to two'],['unlimited','Unlimited']],!building)+
         ruleSwitch('pirateCaptures','Allow unrelated captures',!building)+ruleSwitch('allowTrailWithOwnBuild','Allow trailing',!building));
-    const turnContent='<p class="rules-description">Play one hand card per action. The opponent normally plays next.</p><div class="rules-group">'+
+    const turnContent='<p class="rules-description">Play one hand card per action. Play proceeds around the table, skipping players with empty hands.</p><div class="rules-group">'+
       ruleSwitch('extraAfterSweep','Extra turn after opponent sweep')+'</div>';
     const scoreContent='<div class="rules-group">'+ruleSelect('scoreMode','Scoring system',[['cassino','Classic Cassino'],['spade','Spade Cassino'],['wippen','Wippen'],['diloti','Diloti'],['kontsina','Kontsina'],['tablic','Tablić / Tabinet'],['scopa','Scopa'],['northeast','Connecticut / New York'],['swedish','Swedish Kasino'],['overspader','Överspader'],['hurrikan','Hurrikan']])+
       ruleSelect('matchDeals','Match length',[[0,'Target score'],[1,'1 deal'],[2,'2 deals'],[3,'3 deals'],[4,'4 deals'],[6,'6 deals']])+targetSetting()+
@@ -5917,15 +6019,38 @@ html,body,#app{background:#005d0b;color:#fff}
       <h3>Scoring</h3><div class="rules-points">${E.scoreCategories(game.rules).filter(([key])=>key!=='total').map(([,label])=>'<span>'+escapeHtml(label)+'</span><b>·</b>').join('')}</div>
       ${game.rules.spadeScoring ? '<p>Spade rules: every captured spade is worth 1, plus 1 extra for J♠.</p>' : ''}
       <h3>After the final deal</h3><p>${game.rules.residueOwner==='dealer'?'The dealer receives':'The player who made the last actual capture receives'} all cards still on the table. The scoring bonuses are calculated and added to the match totals. Tied majorities earn no points.</p>
-      <p class="source-note">Rules basis: <a href="https://www.pagat.com/fishing/casino.html" target="_blank" rel="noopener noreferrer">Pagat — Cassino</a>. House rules differ. This first release supports the two-player core and selected variations.</p>
+      <p class="source-note">Rules basis: <a href="https://www.pagat.com/fishing/casino.html" target="_blank" rel="noopener noreferrer">Pagat — Cassino</a>. House rules differ. The app supports two to six seats against CPUs, including pairs and triples. Teams pool captured cards and scores; builds and required reserve cards belong to the individual who made the build.</p>
       </div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Back to game</button></div>`;
   }
   function renderHistory() {
     return `<div class="dialog-head"><div><span class="eyebrow">MATCH JOURNAL</span><h2>Move history</h2><p>Latest actions in this hand.</p></div><button data-action="close" class="icon-close">×</button></div>
       <div class="dialog-content">${game.log.length ? `<ol class="move-log">${game.log.slice().reverse().map(line => `<li>${escapeHtml(line)}</li>`).join('')}</ol>` : '<p>No moves yet.</p>'}</div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Close</button></div>`;
   }
+  function renderMultiplayerRound(){
+    const r=game.result,p=r.points,scores=r.scores,ended=game.phase==='gameOver';
+    const sides=r.sides||E.scoringSides(game);
+    const team=game.rules.teamMode!=='freeForAll';
+    const label=i=>i===0?(team?'Your team':'You'):sides[i].name;
+    const max=Math.max(...p.map(row=>row.total)),leaders=p.flatMap((row,i)=>row.total===max?[i]:[]);
+    const lead=leaders.length===1?leaders[0]:null;
+    const categoryCell=(row,key,i)=>{
+      const v=row[key]??0,leading=p.every((other,j)=>j===i||v>(other[key]??0));
+      return '<td class="'+(leading?'round-leading':'')+'">'+(leading?'<strong>'+v+'</strong>':v)+'</td>';
+    };
+    const title=ended?(r.winner===null?'Match tied':r.winner===0?(team?'Your team wins!':'You win the match!'):label(r.winner)+' wins the match'):'Hand results';
+    return '<div class="dialog-head"><div><span class="eyebrow">HAND '+r.finishedRound+' COMPLETE</span><h2>'+escapeHtml(title)+'</h2><p>'+(ended?'Match complete. Play another?':'Scores are added. Continue to the next hand.')+'</p></div><button data-action="close" class="icon-close">×</button></div>'+
+      '<div class="dialog-content"><p class="hand-winner-message">'+(lead===null?'Hand tied':escapeHtml(label(lead))+' won this hand')+'</p>'+
+      '<div class="multi-results-scores">'+sides.map((side,i)=>'<div style="--side-color:'+gameSeatColor(side.members[0])+'"><small>'+escapeHtml(label(i))+'</small><b>'+scores[i]+'</b><span>+'+p[i].total+' this hand</span>'+
+        (team?'<small>'+escapeHtml(side.members.map(j=>game.players[j].name).join(' · '))+'</small>':'')+'</div>').join('')+'</div>'+
+      '<div class="multi-score-scroll"><table class="result-table multi-result-table"><thead><tr><th>Category</th>'+sides.map((s,i)=>'<th>'+escapeHtml(label(i))+'</th>').join('')+'</tr></thead><tbody>'+
+      (r.categories||E.scoreCategories(game.rules)).map(([key,name])=>'<tr class="'+(key==='total'?'totals-row':'')+'"><td>'+escapeHtml(name)+'</td>'+p.map((row,i)=>categoryCell(row,key,i)).join('')+'</tr>').join('')+
+      '<tr><td>Cards captured</td>'+p.map(row=>'<td>'+row.cardCount+'</td>').join('')+'</tr><tr><td>Spades captured</td>'+p.map(row=>'<td>'+row.spadeCount+'</td>').join('')+'</tr></tbody></table></div></div>'+
+      '<div class="dialog-actions">'+(prefs.undo?'<button data-action="undo" class="action-btn" '+(!checkpoint?'disabled':'')+'>Undo last turn</button>':'')+
+      '<button data-action="'+(ended?'new-match':'next-hand')+'" class="action-btn primary">'+(ended?'New match':'Next hand')+' →</button></div>';
+  }
   function renderRound() {
     if (!game.result) return '';
+    if(game.players.length>2)return renderMultiplayerRound();
     const p = game.result.points;
     const scores = game.result.scores;
     const winner = game.result.winner;
@@ -6054,22 +6179,22 @@ html,body,#app{background:#005d0b;color:#fff}
   // Start as soon as a committed position is known. A generation and move
   // number bind the result to exactly one turn, even across Undo or dealing.
   function prepareComputerTurn(){
-    if(screen!=='game'||game.phase!=='playing'||game.turn!==1)return null;
+    if(screen!=='game'||game.phase!=='playing'||game.turn===0)return null;
     if(preparedBotTurn?.state===game&&preparedBotTurn.generation===motionGeneration&&
-       preparedBotTurn.moveNumber===game.moveNumber)return preparedBotTurn;
+       preparedBotTurn.moveNumber===game.moveNumber&&preparedBotTurn.actor===game.turn)return preparedBotTurn;
     cancelComputerSearch();
-    const prepared={state:game,generation:motionGeneration,moveNumber:game.moveNumber,promise:null,error:null};
+    const prepared={state:game,generation:motionGeneration,moveNumber:game.moveNumber,actor:game.turn,promise:null,error:null};
     try{prepared.promise=requestAdvancedMove(game);}
     catch(error){prepared.error=error;prepared.promise=Promise.resolve(null);}
     preparedBotTurn=prepared;
     return prepared;
   }
   function botTurn() {
-    if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn !== 1) return;
+    if (screen !== 'game' || busy || game.phase !== 'playing' || game.turn === 0) return;
     busy = true;
     render();
-    const startedGame=game,generation=motionGeneration;
-    const stillCurrent=()=>screen==='game'&&busy&&game===startedGame&&generation===motionGeneration&&game.phase==='playing'&&game.turn===1;
+    const startedGame=game,generation=motionGeneration,actor=game.turn,startedMove=game.moveNumber;
+    const stillCurrent=()=>screen==='game'&&busy&&game===startedGame&&generation===motionGeneration&&game.phase==='playing'&&game.turn===actor&&game.moveNumber===startedMove;
     const fail=error=>{
       if(!stillCurrent())return;
       busy=false;turnInMotion=false;toast=`Computer move error: ${error.message}`;render();
@@ -6080,6 +6205,7 @@ html,body,#app{background:#005d0b;color:#fff}
       try{
         const stockBefore = game.stock.length;
         const preHuman=game.players[0].hand.map(c=>c.id),preCpu=game.players[1].hand.map(c=>c.id);
+    const preSeats=game.players.map(p=>p.hand.map(c=>c.id));
         const before = takeMotionSnapshot(move, true);
         rememberStockOrigin();
         const outcome = E.applyAction(game, move);
@@ -6087,12 +6213,13 @@ html,body,#app{background:#005d0b;color:#fff}
         turnInMotion = true;
         if (before) { before.finalHand = game.phase !== 'playing'; before.residueOwner=game.rules.residueOwner==='dealer'?game.dealer:game.lastCapture; }
         const cardsDealt = stockBefore - game.stock.length;
-        if(cardsDealt>0) collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
+        if(cardsDealt>0) collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id),preSeats);
         lastMotion = move.kind;
         sound(game.phase !== 'playing' ? 'score' : move.kind);
         persist(); render();
         playMotion(before, () => completeTurn(cardsDealt));
-      }catch(error){fail(error);}
+        if(game.players.length>2)prepareComputerTurn();
+      }catch(error){if(game===startedGame&&generation===motionGeneration){busy=false;turnInMotion=false;toast='Computer move error: '+error.message;render();}}
     };
     // Only the presentation pause starts after the player's animation.
     // Analysis was already running. At 600 ms, take the final result or the
@@ -6114,13 +6241,14 @@ html,body,#app{background:#005d0b;color:#fff}
     rememberStockOrigin();
     const stockBefore = game.stock.length;
     const preHuman=game.players[0].hand.map(c=>c.id),preCpu=game.players[1].hand.map(c=>c.id);
+    const preSeats=game.players.map(p=>p.hand.map(c=>c.id));
     checkpoint = JSON.stringify(game);
     const result = E.applyAction(game, action);
     if (!result.ok) { toast = result.reason; return render(); }
     turnInMotion = true;
     if (before) { before.finalHand = game.phase !== 'playing'; before.residueOwner=game.rules.residueOwner==='dealer'?game.dealer:game.lastCapture; }
     const cardsDealt = stockBefore - game.stock.length;
-    if(cardsDealt>0)collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id));
+    if(cardsDealt>0)collectDeal(preHuman,preCpu,game.table.filter(e=>e.type==='loose').map(e=>e.card.id),preSeats);
     lastMotion = action.kind;
     sound(game.phase !== 'playing' ? 'score' : (action.kind === 'capture' && result.description.includes('sweep') ? 'sweep' : action.kind));
     toast = '';
@@ -6143,7 +6271,7 @@ html,body,#app{background:#005d0b;color:#fff}
       persist();
       // Render only once at the real start of the next turn so the incoming
       // banner fade isn't immediately destroyed by a second render.
-      if (game.turn === 1 && game.phase === 'playing') botTurn();
+      if (game.turn !== 0 && game.phase === 'playing') botTurn();
       else render();
     };
     if (cardsDealt > 0) {
@@ -6180,7 +6308,7 @@ html,body,#app{background:#005d0b;color:#fff}
     Promise.resolve(dealAnimation).then(() => {
       if(screen!=='game'||generation!==motionGeneration)return;
       dealing=false;busy=false;turnInMotion=false;persist();
-      if(game.turn===1)botTurn();else render();
+      if(game.turn!==0)botTurn();else render();
     });
   }
   function startNewMatch(rules = game.rules, ask = true) {
@@ -6197,7 +6325,7 @@ html,body,#app{background:#005d0b;color:#fff}
     Promise.resolve(dealAnimation).then(() => {
       if(screen!=='game'||generation!==motionGeneration)return;
       dealing=false;busy=false;turnInMotion=false;persist();
-      if(game.turn===1)botTurn();else render();
+      if(game.turn!==0)botTurn();else render();
     });
   }
   // All setup entry points share a single draft and scrollable dialog.
@@ -6231,7 +6359,7 @@ html,body,#app{background:#005d0b;color:#fff}
     } else {
       draft = E.rulesFor(key,{difficulty});
     }
-    draft=E.normalizeRules(draft);fitBuildBounds();draftPreset = key;
+    draft=E.normalizeRules(draft);if(!E.teamModesFor(draft.playerCount).includes(draft.teamMode))draft.teamMode='freeForAll';fitBuildBounds();draftPreset = key;
     render('overlay');
   }
   function commitDraftEdit(){
@@ -6276,6 +6404,7 @@ html,body,#app{background:#005d0b;color:#fff}
       if(![2,3,4,5,6].includes(value)||draft.playerCount===value)return;
       draft.playerCount=value;
       if(!E.teamModesFor(value).includes(draft.teamMode))draft.teamMode='freeForAll';
+      if(draft.dealMode!=='draw'&&(E.makeDeck(draft).length-draft.initialTableSize)%value!==0)draft.remainderMode='uneven';
       rulesIssuesOpen=false;fitHandSize();commitDraftEdit();return;
     }
     if(prop==='teamMode'){
@@ -6463,7 +6592,7 @@ html,body,#app{background:#005d0b;color:#fff}
     }
     if (action === 'cancel-exit') { cancelExit(); return; }
     if (action === 'confirm-exit') { exitGameToMenu(); return; }
-    if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); if(game.turn===1 && game.phase==='playing') botTurn(); else {if(game.phase!=='playing')modal='round';render();} return; }
+    if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); if(game.turn!==0 && game.phase==='playing') botTurn(); else {if(game.phase!=='playing')modal='round';render();} return; }
     if (action === 'setup-new-game') { sound('tap'); return openSettings('newgame'); }
     if (action === 'info-setting' && modal === 'settings') { detailSetting=detailSetting===node.dataset.key?'':node.dataset.key; render('overlay'); return; }
     if(action==='difficulty-info'&&modal==='settings'){difficultyInfoOpen=!difficultyInfoOpen;render('overlay');return;}

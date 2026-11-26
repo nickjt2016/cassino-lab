@@ -1316,3 +1316,24 @@ html,body,#app{background:#005d0b;color:#fff}
 .setup-seat-legend.polar-seat-legend span{white-space:nowrap}
 @media(max-width:320px){.setup-seat-legend.polar-seat-legend{gap:6px;font-size:10px}}
 .inactive-rule-note{color:#776b53}
+
+/* Multiplayer keeps the human hand and shared playfield; each CPU has its
+   own compact hand, color, active-turn indicator and flight destination. */
+.multiplayer-game .opponent-area{width:100%;box-sizing:border-box;padding:4px 6px;min-height:0}
+.multi-cpu-seats{display:flex;justify-content:center;align-items:stretch;gap:4px;width:100%;max-width:760px;margin:0 auto}
+.multi-cpu-seat{flex:1 1 0;min-width:0;padding:5px 2px 3px;border:1px solid #ffffff35;border-top:3px solid var(--seat-color);border-radius:7px;background:#102e268c;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:3px;color:#fff;box-sizing:border-box}
+.multi-cpu-seat.current-seat{background:#ffffff20;border-color:#efd187;box-shadow:0 0 0 1px #efd187}
+.multi-seat-caption{display:flex;flex-direction:column;text-align:center;line-height:1.1;gap:2px;white-space:nowrap;min-height:25px;width:100%;font-size:10px}
+.multi-seat-caption b{font-size:11px}.multi-seat-caption span{color:#f6deb0;font-variant-numeric:tabular-nums}
+.multiplayer-game .multi-seat-hand{display:flex;justify-content:center;align-items:center;width:100%;min-width:0;max-width:100%;gap:0;min-height:28px;height:32px;overflow:hidden;margin:0;padding:0}
+.multiplayer-game .multi-seat-hand .card-back{flex:0 1 18px;min-width:8px;width:18px;height:26px;margin-left:-5px;box-sizing:border-box}
+.multiplayer-game .multi-seat-hand .card-back:first-child{margin-left:0}
+.multi-seat-meta{font-size:9px;line-height:1.2;text-align:center;min-height:22px;overflow-wrap:normal;color:#ede4ca}
+.multi-results-scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:6px;margin:10px 0}
+.multi-results-scores>div{background:#f5f0df;border:1px solid #d2c49f;border-top:4px solid var(--side-color);border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 3px;min-width:0;text-align:center}
+.multi-results-scores b{font-size:23px;color:#142719}.multi-results-scores small,.multi-results-scores span{font-size:10px;line-height:1.3;color:#4e492b}
+.multi-score-scroll{max-width:100%;overflow-x:auto}
+.dialog .multi-result-table{min-width:max-content;font-size:12px}
+.dialog .multi-result-table th,.dialog .multi-result-table td{padding:7px 6px;white-space:nowrap}
+@media(max-width:360px){.multi-cpu-seats{gap:2px}.multi-seat-caption b{font-size:10px}.multi-seat-caption{font-size:9px}.multi-seat-meta{font-size:8px}}
+@media(max-height:480px) and (orientation:landscape){.multi-cpu-seat{flex-direction:row;gap:4px;padding:2px 3px}.multi-seat-caption{width:auto}.multiplayer-game .multi-seat-hand{height:26px;min-height:26px}.multi-seat-meta{font-size:8px;min-height:0}}

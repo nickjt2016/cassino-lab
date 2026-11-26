@@ -82,13 +82,12 @@
   "partnership": {
     "name": "Partnership Cassino",
     "playerCount": 4,
-    "teamMode": "pairs",
-    "presetBlocker": "Four-player partnerships are not implemented."
+    "teamMode": "pairs"
   },
   "fivePlayer": {
-    "name": "Five-player Cassino",
+    "name": "Five-player Cassino (unequal final deal)",
     "playerCount": 5,
-    "presetBlocker": "Five-player gameplay and dealing are not implemented."
+    "remainderMode": "uneven"
   },
   "twentyOne": {
     "name": "Twenty-one Point Cassino",
@@ -266,8 +265,7 @@
     "winningScore": 11,
     "playerCount": 4,
     "teamMode": "pairs",
-    "dealMode": "full",
-    "presetBlocker": "Four-player partnerships are not implemented."
+    "dealMode": "full"
   },
   "scoponeScientifico": {
     "name": "Scopone Scientifico",
@@ -288,8 +286,7 @@
     "playerCount": 4,
     "teamMode": "pairs",
     "dealMode": "full",
-    "initialTableSize": 0,
-    "presetBlocker": "Four-player partnerships are not implemented."
+    "initialTableSize": 0
   },
   "chkobba": {
     "name": "Chkobba",
@@ -587,16 +584,16 @@
     "id": "partnership",
     "name": "Partnership Cassino",
     "group": "Small variations",
-    "note": "Two partnerships of two players.",
-    "status": "preview",
+    "note": "Four-player Cassino, partners opposite, combined captures and scores; builds remain individually owned.",
+    "status": "playable",
     "partial": false
   },
   {
     "id": "fivePlayer",
-    "name": "Five-player Cassino",
+    "name": "Five-player Cassino (unequal final deal)",
     "group": "Small variations",
-    "note": "Five individual players.",
-    "status": "preview",
+    "note": "Five individual players using Classic rules and a smaller unequal final deal.",
+    "status": "playable",
     "partial": false
   },
   {
@@ -747,16 +744,16 @@
     "id": "scopone",
     "name": "Scopone",
     "group": "Major variations",
-    "note": "Nine-card partnership Scopa.",
-    "status": "preview",
+    "note": "Four players in pairs, nine cards each and four on the table; Scopa scoring.",
+    "status": "playable",
     "partial": false
   },
   {
     "id": "scoponeScientifico",
     "name": "Scopone Scientifico",
     "group": "Major variations",
-    "note": "All cards dealt to two partnerships.",
-    "status": "preview",
+    "note": "Four players in pairs, ten cards each, empty opening table; no final sweep points.",
+    "status": "playable",
     "partial": false
   },
   {
@@ -1088,7 +1085,6 @@
     "partial": false
   }
 ]);
-
   const DIFFICULTY_INFO = Object.freeze([
   [
     "casual",
@@ -1121,7 +1117,7 @@
   // alternating team membership puts partners as far apart as possible.
   function teamModesFor(count){
     if(![2,3,4,5,6].includes(count))return [];
-    return ['freeForAll',...(count%2===0?['pairs']:[]),...(count===6?['triples']:[])];
+    return ['freeForAll',...(count>=4&&count%2===0?['pairs']:[]),...(count===6?['triples']:[])];
   }
   function seatAssignments(count,mode='freeForAll'){
     if(!teamModesFor(count).includes(mode))return [];
@@ -1129,6 +1125,25 @@
     const teams=count/teamSize;
     return Array.from({length:count},(_,seat)=>({seat,human:seat===0,team:mode==='freeForAll'?null:seat%teams}));
   }
+  // Scores belong to sides: one side per player in free-for-all, or one
+  // side per alternating partnership/triple. Each seat's score mirrors
+  // its side score for saved-state and legacy two-player compatibility.
+  function sideFor(rules,seat){
+    const n=rules.playerCount||2,mode=rules.teamMode||'freeForAll';
+    return mode==='freeForAll'?seat:seat%(n/(mode==='pairs'?2:3));
+  }
+  function scoringSides(state){
+    const n=state.players.length,mode=state.rules.teamMode||'freeForAll';
+    const count=mode==='freeForAll'?n:n/(mode==='pairs'?2:3);
+    return Array.from({length:count},(_,id)=>{
+      const members=state.players.map((_,i)=>i).filter(i=>sideFor(state.rules,i)===id);
+      return {id,members,name:mode==='freeForAll'?state.players[members[0]].name:id===0?'Your team':'Team '+(id+1),
+        score:state.players[members[0]].score||0,
+        captured:members.flatMap(i=>state.players[i].captured),
+        sweeps:members.reduce((sum,i)=>sum+state.players[i].sweeps,0)};
+    });
+  }
+  function sameSide(rules,a,b){return sideFor(rules,a)===sideFor(rules,b);}
   function normalizeRules(input={}) {
     const r={...DEFAULT_RULES,...input};
     // Migrate legacy partnership presets without changing the number of seats.
@@ -1250,7 +1265,6 @@
     if(!Number.isInteger(r.winningScore)||r.winningScore<1||!Number.isInteger(r.sweepPoints)||r.sweepPoints<0)errors.push('Score settings must be nonnegative whole numbers, with a positive winning score.');
     const validPlayerCount=[2,3,4,5,6].includes(r.playerCount);
     if(validPlayerCount&&!teamModesFor(r.playerCount).includes(r.teamMode))errors.push('The selected team arrangement is not available for this player count.');
-    if(r.playerCount===2&&r.teamMode==='pairs')errors.push('Two-player pairs form a single team with no opponent. Select Free for all to start.');
     const deck=makeDeck(r),players=validPlayerCount?r.playerCount:2,count=deck.length-r.initialTableSize;
     const maxHand=Math.floor(deck.length/players);
     if(r.deckMode==='custom'){
@@ -1308,7 +1322,6 @@
       if(spec.prime&&!SUITS.every(suit=>deck.some(c=>c.suit===suit)))missing.push('primiera');
       if(missing.length)warnings.push('Some scoring categories are unavailable with this deck: '+missing.join(', ')+'.');
     }
-    if(validPlayerCount&&r.playerCount>2)unavailable.push('Multiplayer gameplay for 3–6 players is not implemented yet. Player Setup is a preview.');
     if(r.dealMode==='bid')unavailable.push('Opening bidding is not implemented.');
     if(r.multiHandCapture||r.handCardsPerTurn==='multiple')unavailable.push('Multi-card hand actions are not implemented.');
     if(r.actionsPerTurn==='multiple'||(r.builds&&r.tableOnlyBuild))unavailable.push('Multi-action turns and table-only building are not implemented.');
@@ -1417,16 +1430,18 @@
     }
     return deck;
   }
-  function makeState(rules = rulesFor(), dealer = 1, scores = [0, 0], round = 1, random = Math.random) {
+  function makeState(rules = rulesFor(), dealer = null, scores = [], round = 1, random = Math.random) {
     rules=normalizeRules(rules);
     const validation=validateRules(rules);
     if(!validation.playable)throw new Error([...validation.errors,...validation.unavailable].join(' '));
+    const n=rules.playerCount;
+    dealer=dealer==null?n-1:((dealer%n)+n)%n;
     const state = {
-      rules: { ...rules }, players: [
-        { name: 'You', hand: [], captured: [], sweeps: 0, score: scores[0] },
-        { name: 'Computer', hand: [], captured: [], sweeps: 0, score: scores[1] }
-      ], table: [], stock: shuffle(makeDeck(rules), random),
-      dealer, turn: 1 - dealer, lastCapture: null, nextId: 1, extraTurnFor: null, lastActor: null, unclaimed: [],
+      rules: { ...rules }, players: Array.from({length:n},(_,i)=>({
+        name:i===0?'You':n===2?'Computer':'CPU '+i,
+        hand:[],captured:[],sweeps:0,score:scores[i]||0
+      })), table: [], stock: shuffle(makeDeck(rules), random),
+      dealer, turn: (dealer+1)%n, lastCapture: null, nextId: 1, extraTurnFor: null, lastActor: null, unclaimed: [],
       round, phase: 'playing', result: null, lastAction: 'New hand dealt.',
       log: [], moveNumber: 0
     };
@@ -1434,7 +1449,7 @@
     return state;
   }
   function newMatch(rules = rulesFor(), random = Math.random) {
-    return makeState(rules, 1, [0, 0], 1, random);
+    return makeState(rules, null, [], 1, random);
   }
   function drawCards(state, initial = false) {
     if (initial) {
@@ -1452,9 +1467,9 @@
       }
       state.stock.unshift(...deferred);
     }
-    const count=state.rules.dealMode==='full'?state.stock.length:Math.min(state.stock.length,2*(state.rules.handSize||4));
+    const count=state.rules.dealMode==='full'?state.stock.length:Math.min(state.stock.length,state.players.length*(state.rules.handSize||4));
     // Alternate from the nondealer, including a legal smaller/unequal final batch.
-    for(let i=0;i<count;i++)state.players[(1-state.dealer+i)%2].hand.push(state.stock.pop());
+    for(let i=0;i<count;i++)state.players[(state.dealer+1+i)%state.players.length].hand.push(state.stock.pop());
   }
   function cardsInElement(element) {
     return element.type === 'loose' ? [element.card] : element.groups.flat();
@@ -1908,7 +1923,7 @@
     if (!checked.ok) return { ok: false, reason: checked.reason };
     const playerIndex = state.turn;
     const player = state.players[playerIndex];
-    const opponent = state.players[1 - playerIndex];
+    const count=state.players.length;
     player.hand = player.hand.filter(c => c.id !== action.cardId);
     const played = checked.card;
     let description, swept=false;
@@ -1921,7 +1936,7 @@
       player.captured.push(...won);
       state.lastCapture = playerIndex;
       swept = state.table.length === 0;
-      const scoredSweep=swept&&!(state.rules.ignoreOpeningSweep&&state.moveNumber===0)&&!(state.rules.ignoreFinalSweep&&!state.stock.length&&!player.hand.length&&!opponent.hand.length);
+      const scoredSweep=swept&&!(state.rules.ignoreOpeningSweep&&state.moveNumber===0)&&!(state.rules.ignoreFinalSweep&&!state.stock.length&&state.players.every(p=>!p.hand.length));
       if (scoredSweep) player.sweeps += 1;
       description = `${player.name} captured ${won.length - 1} table card${won.length === 2 ? '' : 's'} with ${cardName(played)}${scoredSweep ? ' — sweep!' : '.'}`;
     } else {
@@ -1935,11 +1950,10 @@
     state.log.push(description);
     if (state.log.length > 35) state.log.shift();
     state.lastActor=playerIndex;
-    state.turn = 1 - playerIndex;
-    if(state.rules.extraAfterSweep){
-      if(swept)state.extraTurnFor=state.turn;
-      else if(state.extraTurnFor===playerIndex){state.turn=playerIndex;state.extraTurnFor=null;}
-    }
+    state.turn = (playerIndex+1)%count;
+    const repeat=state.rules.extraAfterSweep&&!swept&&state.extraTurnFor===playerIndex;
+    if(repeat)state.extraTurnFor=null;
+    else if(state.extraTurnFor===playerIndex)state.extraTurnFor=null;
     // Draw Cassino: the player who just played immediately replenishes their hand.
     // Ordinary Cassino waits until both four-card hands have been played.
     if ((state.rules.drawMode || state.rules.dealMode==='draw') && state.stock.length && player.hand.length < (state.rules.handSize||4)) {
@@ -1947,7 +1961,7 @@
       state.lastAction += ' Replacement card drawn.';
     }
 
-    if (!player.hand.length && !opponent.hand.length) {
+    if (state.players.every(p=>!p.hand.length)) {
       if (state.stock.length) {
         drawCards(state);
         state.lastAction += ' New cards dealt.';
@@ -1955,9 +1969,11 @@
         finishHand(state);
       }
     }
-    if(state.phase==='playing'&&!state.players[state.turn].hand.length){
-      if(state.extraTurnFor===state.turn)state.extraTurnFor=null;
-      state.turn=1-state.turn;
+    if(state.phase==='playing'){
+      if(repeat&&player.hand.length)state.turn=playerIndex;
+      for(let i=0;i<count&&!state.players[state.turn].hand.length;i++)state.turn=(state.turn+1)%count;
+      if(state.rules.extraAfterSweep&&swept)state.extraTurnFor=state.turn;
+      if(state.extraTurnFor!=null&&!state.players[state.extraTurnFor].hand.length)state.extraTurnFor=null;
     }
     return { ok: true, description };
   }
@@ -2018,21 +2034,22 @@
     return (card.id===s.big?s.bigPoints:0)+(card.id===s.little?s.littlePoints:0)+(card.rank===1?s.ace:card.rank>=11&&card.rank<=13?s.face:card.rank===10&&card.id!==s.big?s.tens:0)+(s.perSpade&&card.suit==='S'?(card.rank===11?2:1):0);
   }
   function scoreHand(state){
-    const s=scoreSpec(state.rules),piles=state.players.map(p=>p.captured);
+    const s=scoreSpec(state.rules),sides=scoringSides(state),piles=sides.map(p=>p.captured);
     const counts=piles.map(p=>p.length),spades=piles.map(p=>p.filter(c=>c.suit==='S').length);
     const suitCounts=piles.map(p=>p.filter(c=>c.suit===s.suit).length),primes=piles.map(p=>primeValue(p,s));
-    return [0,1].map(i=>{
-      const p=piles[i],other=1-i;
-      const cards=counts[i]>counts[other]?s.cards:0;
-      const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):s.overSpades?Math.max(0,spades[i]-s.overSpades):suitCounts[i]>suitCounts[other]?s.suitPoints:0;
+    const leads=(values,i)=>values.every((v,j)=>j===i||values[i]>v);
+    return sides.map((side,i)=>{
+      const p=piles[i];
+      const cards=leads(counts,i)?s.cards:0;
+      const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):s.overSpades?Math.max(0,spades[i]-s.overSpades):leads(suitCounts,i)?s.suitPoints:0;
       const big=p.some(c=>c.id===s.big)?s.bigPoints:0,little=p.some(c=>c.id===s.little)?s.littlePoints:0;
       const aces=p.filter(c=>c.rank===1).length*s.ace,faces=p.filter(c=>c.rank>=11&&c.rank<=13).length*s.face;
       const tens=p.filter(c=>c.rank===10&&c.id!==s.big).length*s.tens;
-      const prime=primes[i]>primes[other]?s.prime:0,last=state.lastCapture===i?s.last:0;
-      const net=state.rules.sweepCancel?Math.max(0,state.players[i].sweeps-state.players[other].sweeps):state.players[i].sweeps;
+      const prime=leads(primes,i)?s.prime:0,last=state.lastCapture!==null&&sideFor(state.rules,state.lastCapture)===i?s.last:0;
+      const net=state.rules.sweepCancel?Math.max(0,side.sweeps-sides.reduce((n,p,j)=>n+(j===i?0:p.sweeps),0)):side.sweeps;
       const sweeps=net*state.rules.sweepPoints;
       return {cards,spades:spadesPoints,big,little,aces,sweeps,total:cards+spadesPoints+big+little+aces+sweeps+faces+tens+prime+last,
-        cardCount:counts[i],spadeCount:spades[i],sweepCount:state.players[i].sweeps,
+        cardCount:counts[i],spadeCount:spades[i],sweepCount:side.sweeps,
         ...(s.face?{faces}:{}),...(s.tens?{tens}:{}),...(s.prime?{prime}:{}),...(s.last?{last}:{})};
     });
   }
@@ -2046,17 +2063,19 @@
       state.lastAction+=' No player captured; table residue is unclaimed.';
     }
     state.table=[];
-    const totals=scoreHand(state);
-    totals.forEach((row,i)=>{state.players[i].score+=row.total;});
-    const scores=state.players.map(p=>p.score),fixed=Number(state.rules.matchDeals)||0;
+    const totals=scoreHand(state),sides=scoringSides(state);
+    const scores=sides.map((side,i)=>side.score+totals[i].total),fixed=Number(state.rules.matchDeals)||0;
+    for(let i=0;i<state.players.length;i++)state.players[i].score=scores[sideFor(state.rules,i)];
     const reached=fixed?state.round>=fixed:scores.some(s=>s>=state.rules.winningScore);
-    const winner=reached&&scores[0]!==scores[1]?(scores[0]>scores[1]?0:1):null;
+    const best=Math.max(...scores),leaders=scores.flatMap((v,i)=>v===best?[i]:[]);
+    const winner=reached&&leaders.length===1?leaders[0]:null;
     state.phase=reached&&(fixed||winner!==null)?'gameOver':'roundOver';
-    state.result={points:totals,scores,winner,finishedRound:state.round,categories:scoreCategories(state.rules)};
+    state.result={points:totals,scores,winner,finishedRound:state.round,categories:scoreCategories(state.rules),
+      ...(state.players.length>2?{sides:sides.map(({id,members,name})=>({id,members,name}))}:{})};
   }
   function nextHand(state, random = Math.random) {
     if (state.phase !== 'roundOver') return null;
-    return makeState(state.rules, 1 - state.dealer, state.players.map(p => p.score), state.round + 1, random);
+    return makeState(state.rules, (state.dealer+1)%state.players.length, state.players.map(p => p.score), state.round + 1, random);
   }
   // All table-card subsets whose sum is value. Pruned by positive card values.
   function valueGroups(state, target, max = 160) {
@@ -2174,7 +2193,7 @@
     if (move.kind === 'build') {
       const chosen = state.table.filter(e => move.targetIds.includes(e.id));
       const consumed = chosen.flatMap(cardsInElement);
-      const risk = 1.2 + Math.max(0, state.players[1 - state.turn].hand.length - 2) * 0.3;
+      const risk = 1.2 + Math.max(0,...state.players.filter((p,i)=>!sameSide(state.rules,i,state.turn)).map(p=>p.hand.length-2)) * 0.3;
       return 1.5 + consumed.length * 0.6 + (consumed.some(c => c.id === 'D10') ? 1.5 : 0) - risk;
     }
     const v = cardValue(card, state.rules) || 11;
@@ -2339,35 +2358,39 @@
   // obligations constrain the opponent's hand; reserve distinct cards.
   // With an exhausted stock the remaining unseen cards determine the hand.
   function samplePublicPosition(view,random=Math.random){
-    const root=view.turn,other=1-root;
+    const root=view.turn,n=view.players.length;
     const known=new Set([
       ...view.players[root].hand,
       ...view.players.flatMap(p=>p.captured),
       ...view.table.flatMap(cardsInElement)
     ].map(c=>c.id));
     const pool=shuffle(makeDeck(view.rules).filter(c=>!known.has(c.id)),random);
-    const count=view.players[other].handCount;
-    const obligations=view.rules.buildAnything?[]:view.table.filter(b=>b.type==='build'&&b.owner===other)
-      .map(b=>({value:b.value,choices:pool.map((c,i)=>cardValues(c,view.rules).includes(b.value)?i:-1).filter(i=>i>=0)}))
+    const obligations=view.rules.buildAnything?[]:view.table.filter(b=>b.type==='build'&&b.owner!==root)
+      .map(b=>({owner:b.owner,value:b.value,choices:pool.map((c,i)=>cardValues(c,view.rules).includes(b.value)?i:-1).filter(i=>i>=0)}))
       .sort((a,b)=>a.choices.length-b.choices.length);
-    const reserved=new Set();
+    const hidden=Array.from({length:n},()=>[]),reserved=new Set();
     function reserve(i){
       if(i===obligations.length)return true;
-      for(const index of obligations[i].choices){
+      const ob=obligations[i];
+      if(hidden[ob.owner].length>=view.players[ob.owner].handCount)return false;
+      for(const index of ob.choices){
         if(reserved.has(index))continue;
-        reserved.add(index);
+        reserved.add(index);hidden[ob.owner].push(pool[index]);
         if(reserve(i+1))return true;
-        reserved.delete(index);
+        reserved.delete(index);hidden[ob.owner].pop();
       }
       return false;
     }
-    if(obligations.length>count||!reserve(0))return null;
-    const hidden=[...reserved].map(i=>pool[i]);
+    if(!reserve(0))return null;
     const remaining=pool.filter((_,i)=>!reserved.has(i));
-    hidden.push(...remaining.splice(0,count-hidden.length));
-    if(hidden.length!==count||remaining.length<view.stockCount)return null;
+    for(let i=0;i<n;i++)if(i!==root){
+      const count=view.players[i].handCount;
+      hidden[i].push(...remaining.splice(0,count-hidden[i].length));
+      if(hidden[i].length!==count)return null;
+    }
+    if(remaining.length<view.stockCount)return null;
     const players=view.players.map((p,i)=>({name:p.name,score:p.score||0,sweeps:p.sweeps||0,
-      captured:p.captured.slice(),hand:(i===root?p.hand:hidden).slice()}));
+      captured:p.captured.slice(),hand:(i===root?p.hand:hidden[i]).slice()}));
     return {rules:view.rules,players,table:view.table.slice(),stock:remaining.slice(0,view.stockCount),
       turn:root,lastCapture:view.lastCapture,extraTurnFor:view.extraTurnFor,lastActor:view.lastActor,nextId:view.nextId,moveNumber:view.moveNumber,
       dealer:view.dealer,round:view.round,phase:view.phase,result:null,lastAction:'',log:[]};
@@ -2398,7 +2421,30 @@
       stock:state.stock.slice(),table:state.table.slice(),log:[]};
   }
   const tacticalWorth=c=>.11+(c.rank===1?1:0)+(c.id==='D10'?2:0)+(c.id==='S2'?1:0)+(c.suit==='S'?.14:0);
+  function multiplayerValue(state,root){
+    const sides=scoringSides(state),side=sideFor(state.rules,root),spec=scoreSpec(state.rules);
+    const rivals=sides.filter(s=>s.id!==side);
+    if(state.phase!=='playing'){
+      const margin=sides[side].score-Math.max(...rivals.map(s=>s.score));
+      const winner=state.result?.winner;
+      return margin+(state.phase==='gameOver'&&winner!=null?(winner===side?100:-100):0);
+    }
+    const points=scoreHand(state),n=state.players.length;
+    const values=sides.map((s,i)=>s.score+points[i].total+.055*s.captured.length);
+    const handValues=state.players.map(p=>p.hand.map(c=>cardValues(c,state.rules)));
+    const matches=(i,v)=>handValues[i].some(vals=>vals.includes(v));
+    for(const item of state.table)if(item.type==='build'){
+      const own=sideFor(state.rules,item.owner);
+      const worth=cardsInElement(item).reduce((sum,c)=>sum+tacticalWorth(c),0);
+      const secure=matches(item.owner,item.value);
+      const threatened=state.players.some((p,i)=>sideFor(state.rules,i)!==own&&matches(i,item.value));
+      values[own]+=worth*(secure?(threatened?.05:.35):-.1);
+    }
+    if(state.lastCapture!==null)values[sideFor(state.rules,state.lastCapture)]+=.08*state.table.flatMap(cardsInElement).length/(1+state.stock.length*.1);
+    return values[side]-Math.max(...values.filter((_,i)=>i!==side));
+  }
   function strategicValue(state,root){
+    if(state.players.length>2)return multiplayerValue(state,root);
     const other=1-root,p=state.players[root],q=state.players[other],rules=state.rules;
     if(state.phase!=='playing'){
       const margin=p.score-q.score;
@@ -2495,7 +2541,7 @@
     const began=now(),deadline=began+timeMs;
     let nodes=0,rootTruncated=false,completedDepth=1,samplesUsed=0;
     const stopped=()=>nodes>=maxNodes||now()>=deadline;
-    const sampleCount=view.stockCount===0?1:expert?5:3;
+    const sampleCount=view.players.length===2&&view.stockCount===0?1:expert?5:3;
     const worlds=[];
     for(let i=0;i<sampleCount;i++){
       const world=samplePublicPosition(view,random);
@@ -2518,7 +2564,8 @@
       if(stop)rootTruncated=true;
       return stop;
     };
-    const risk=(view.players[root].score||0)>(view.players[1-root].score||0)&&
+    const rivalScore=Math.max(...view.players.filter((_,i)=>!sameSide(view.rules,i,root)).map(p=>p.score||0));
+    const risk=(view.players[root].score||0)>rivalScore&&
       (view.players[root].score||0)>view.rules.winningScore*.65?.12:0;
     const aggregate=values=>{
       const mean=values.reduce((a,b)=>a+b,0)/values.length;
@@ -2554,14 +2601,14 @@
     samplesUsed=rootSamples;
     if(typeof options.onProgress==='function')options.onProgress(best);
     const handLeft=view.players.reduce((n,p)=>n+p.handCount,0);
-    const perfect=view.stockCount===0&&worlds.length===1&&
+    const perfect=view.players.length===2&&view.stockCount===0&&worlds.length===1&&
       worlds[0].players[1-root].hand.length===view.players[1-root].handCount;
     const exhaustive=perfect&&!rootTruncated&&handLeft<=8&&roots.length<=100;
     const branchLimit=expert?120:90,beam=expert?8:6;
     function minimax(state,depth,alpha,beta){
       if(stopped())return null;
       if(depth===0||state.phase!=='playing')return strategicValue(state,root);
-      const maximize=state.turn===root,children=[],keys=new Set();
+      const maximize=sameSide(state.rules,state.turn,root),children=[],keys=new Set();
       function offer(move){
         const k=rootKey(move);
         if(keys.has(k))return;
@@ -2667,7 +2714,7 @@
     }
     return {tested:count,completed,zeroScore,failures,validation};
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, ruleActivity, activeRules, teamModesFor, seatAssignments, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, ruleActivity, activeRules, teamModesFor, seatAssignments, sideFor, scoringSides, sameSide, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,

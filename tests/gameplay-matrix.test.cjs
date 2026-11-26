@@ -14,14 +14,14 @@ function checkCompletedDeal(s,previous){
  assert.equal(s.stock.length,0);assert.equal(s.table.length,0);
  assert.ok(s.players.every(p=>p.hand.length===0));
  assert.equal(E.checkInvariants(s),null);
- for(let i=0;i<2;i++)assert.equal(s.players[i].score,previous[i]+s.result.points[i].total);
- assert.deepEqual(s.result.scores,s.players.map(p=>p.score));
+ for(let i=0;i<s.result.scores.length;i++)assert.equal(E.scoringSides(s)[i].score,previous[i]+s.result.points[i].total);
+ assert.deepEqual(s.result.scores,E.scoringSides(s).map(p=>p.score));
 }
 function runMatch(rules,seed,difficulty){
  const random=seeded(seed);
  let s=E.newMatch({...E.activeRules(rules),difficulty},random),moves=0,deals=0;
  const types={capture:0,build:0,trail:0};
- let previous=[0,0];
+ let previous=E.scoringSides(s).map(()=>0);
  for(;;){
   const count=E.makeDeck(s.rules).length;
   for(let i=0;s.phase==='playing'&&i<count;i++){
@@ -32,17 +32,17 @@ function runMatch(rules,seed,difficulty){
   if(s.phase==='gameOver'){
    if(s.rules.matchDeals)assert.equal(deals,s.rules.matchDeals);
    else{
-    assert.ok(s.result.winner===0||s.result.winner===1);
+    assert.ok(Number.isInteger(s.result.winner)&&s.result.winner>=0&&s.result.winner<s.result.scores.length);
     assert.ok(s.result.scores[s.result.winner]>=s.rules.winningScore);
-    assert.ok(s.result.scores[s.result.winner]>s.result.scores[1-s.result.winner]);
+    assert.ok(s.result.scores.every((v,i)=>i===s.result.winner||v<s.result.scores[s.result.winner]));
    }
    return {deals,moves,types};
   }
   assert.ok(deals<40,'Target-score match did not finish in 40 deals');
   previous=s.result.scores.slice();
   const next=E.nextHand(s,random);assert.ok(next);
-  assert.equal(next.round,s.round+1);assert.equal(next.dealer,1-s.dealer);
-  assert.deepEqual(next.players.map(p=>p.score),previous);
+  assert.equal(next.round,s.round+1);assert.equal(next.dealer,(s.dealer+1)%s.players.length);
+  assert.deepEqual(E.scoringSides(next).map(p=>p.score),previous);
   s=next;
  }
 }
@@ -104,15 +104,13 @@ test('Player counts, team arrangements, deck size and deal settings are validate
   const r=E.activeRules(E.rulesFor('classic',{deckMode,deckCards:ids,playerCount:n,teamMode,initialTableSize,dealMode,remainderMode,handSize:Math.max(1,Math.floor(size/n)-1)}));
   const v=E.validateRules(r);checks++;
   const available=size-initialTableSize;
-  const expected=n===2&&teamMode==='freeForAll'&&available>=n&&(dealMode==='full'||available>=n*r.handSize)&&
+  const expected=available>=n&&(dealMode==='full'||available>=n*r.handSize)&&
     (dealMode!=='batch'||remainderMode!=='strict'||available%(n*r.handSize)===0)&&
     (dealMode==='draw'||remainderMode==='uneven'||available%n===0);
   assert.equal(v.playable,expected,JSON.stringify({deckMode,n,teamMode,initialTableSize,dealMode,remainderMode,errors:v.errors}));
   if(v.playable)playable++;else blocked++;
-  if(n>2)assert.ok(v.unavailable.some(s=>s.includes('Multiplayer')));
-  if(n===2&&teamMode==='pairs')assert.ok(v.errors.some(s=>s.includes('single team')));
   const seats=E.seatAssignments(n,teamMode);assert.equal(seats.length,n);assert.equal(seats.filter(s=>s.human).length,1);assert.equal(seats[0].human,true);
  }
- assert.equal(checks,1296);
- console.log('Setup matrix (not multiplayer gameplay): '+JSON.stringify({checks,blocked,playable}));
+ assert.equal(checks,1152);
+ console.log('Setup matrix: '+JSON.stringify({checks,blocked,playable}));
 });

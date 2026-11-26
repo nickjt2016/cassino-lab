@@ -11,7 +11,7 @@ function harness(cardsDealt=0){
   const moveStart=app.indexOf('  function botTurn()');
   const moveEnd=app.indexOf('  function undo()',moveStart);
   return new Function(`
-    let game={turn:0,phase:'playing',stock:Array(8),players:[{hand:[]},{hand:[]}],table:[]};
+    let game={turn:0,moveNumber:0,rules:{residueOwner:'lastCapture'},phase:'playing',stock:Array(8),players:[{name:'You',hand:[]},{name:'Computer',hand:[]}],table:[]};
     let busy=false,turnInMotion=false,dealing=false,screen='game',modal='',toast='',
       motionGeneration=0,lastMotion='',pendingBot=null,checkpoint=null;
     let animationDone, timer, timerDelay, finishDeal, preparedBotTurn=null, activeBotSearch=null;
