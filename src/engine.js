@@ -1,4 +1,4 @@
-/* Cassino Lab — dependency-free, deterministic rules engine.
+/* Fishing Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
 (function (root, factory) {
   const api = factory();
@@ -13,7 +13,15 @@
     sweepPoints: 0, builds: true, multipleBuilds: true,
     allowTrailWithOwnBuild: false, drawMode: false, sweepCancel: false,
     royalAces: false, royalBigLittle: false, pirateCaptures: false,
-    pirateBuilds: false, buildAnything: false, winningScore: 21, difficulty: 'thoughtful'
+    pirateBuilds: false, buildAnything: false, winningScore: 21, difficulty: 'thoughtful',
+    playerCount: 2, deckSize: 52, handSize: 4, initialTableSize: 4,
+    dealMode: 'batch', remainderMode: 'equal', faceValues: 'standard', aceValue: 1,
+    jokerCount: 0, jokerValue: 15, directCapture: true, additiveCapture: true,
+    captureGroups: 'unlimited', forcedCapture: 'optional', captureExtent: 'choice',
+    additiveBuilds: false, multiHandCapture: false, subtractiveBuilds: false,
+    singleCardBuild: false, raiseOwnBuild: true, raiseOpponentBuild: true,
+    buildRange: 'all', buildLimit: 'unlimited', mergeSameValue: false, absorbMatching: false,
+    tableOnlyBuild: false, pileAccess: 'none', actionsPerTurn: 'single', handCardsPerTurn: 'one', extraAfterSweep: false
   });
   const PRESETS = Object.freeze({
     classic: { name: 'Classic Cassino', royal: false, spadeScoring: false, sweepPoints: 0, builds: true, multipleBuilds: true, allowTrailWithOwnBuild: false, winningScore: 21 },
@@ -23,13 +31,65 @@
   });
 
   function rulesFor(preset = 'classic', overrides = {}) {
-    return { ...DEFAULT_RULES, ...(PRESETS[preset] || PRESETS.classic), ...overrides };
+    return normalizeRules({ ...DEFAULT_RULES, ...(PRESETS[preset] || PRESETS.classic), ...overrides, dealMode:overrides.dealMode??(overrides.drawMode?'draw':'batch') });
+  }
+  function normalizeRules(input={}) {
+    const r={...DEFAULT_RULES,...input};
+    // Old saves use drawMode and royalAces; retain those flags as aliases.
+    if(!Object.hasOwn(input,'dealMode')) r.dealMode=r.drawMode?'draw':'batch';
+    if(r.dealMode==='batch'&&r.drawMode) r.dealMode='draw';
+    r.drawMode=r.dealMode==='draw';
+    return r;
+  }
+  function availableValues(rules) {
+    return [...new Set(makeDeck(rules).flatMap(c=>cardValues(c,rules)))].sort((a,b)=>a-b);
+  }
+  function buildTargets(rules) {
+    const values=availableValues(rules);
+    return rules.buildRange==='9-13'?values.filter(v=>v>=9&&v<=13):
+      rules.buildRange==='10-13'?values.filter(v=>v>=10&&v<=13):values;
+  }
+  function validateRules(input={}) {
+    const r=normalizeRules(input),errors=[],warnings=[],unavailable=[];
+    const allowed={playerCount:[2,4,'4team'],deckSize:[40,52],handSize:[3,4,6,8,12],initialTableSize:[0,3,4,8],
+      dealMode:['batch','draw','full','bid'],remainderMode:['equal','uneven','strict'],
+      faceValues:['standard','extended'],aceValue:[1,11,14],jokerCount:[0,2,4,6],jokerValue:[15,20,25],
+      captureGroups:['one','unlimited'],forcedCapture:['optional','direct','all'],captureExtent:['choice','maximal','maximum'],
+      buildRange:['all','9-13','10-13'],buildLimit:['1','2','unlimited'],pileAccess:['none','build','capture','both'],
+      actionsPerTurn:['single','multiple'],handCardsPerTurn:['one','multiple']};
+    for(const [k,options] of Object.entries(allowed))if(!options.includes(r[k]))errors.push('Invalid setting: '+k+'.');
+    for(const [k,v] of Object.entries(DEFAULT_RULES))if(typeof v==='boolean'&&typeof r[k]!=='boolean')errors.push('Invalid switch: '+k+'.');
+    if(!Number.isInteger(r.winningScore)||r.winningScore<1||!Number.isInteger(r.sweepPoints)||r.sweepPoints<0)errors.push('Score settings must be nonnegative whole numbers, with a positive winning score.');
+    const count=r.deckSize+r.jokerCount-r.initialTableSize,players=r.playerCount===2?2:4;
+    if(r.dealMode!=='full'&&count<players*r.handSize)errors.push('Not enough cards for all starting hands.');
+    if(r.dealMode==='batch'&&r.remainderMode==='strict'&&count%(players*r.handSize)!==0)errors.push('The stock cannot be exhausted in complete batches.');
+    if(r.dealMode!=='draw'&&r.remainderMode!=='uneven'&&count%players!==0)errors.push('The remaining deck cannot be divided equally. Allow unequal hands or change table size.');
+    if(!r.directCapture&&!r.additiveCapture)errors.push('Enable at least one loose-card capture method.');
+    if(r.multiHandCapture&&r.handCardsPerTurn==='one')errors.push('Multi-card captures require spending more than one hand card per turn.');
+    if(r.builds&&r.tableOnlyBuild&&r.actionsPerTurn==='single')errors.push('Table-only building requires multiple actions per turn.');
+    if(r.builds&&(r.mergeSameValue||r.absorbMatching)&&!r.multipleBuilds)errors.push('Mandatory merging and absorption require multiple builds.');
+    if(r.builds&&r.buildRange!=='all'){
+      const targets=buildTargets(r), min=r.buildRange==='9-13'?9:10;
+      if(!targets.length)errors.push('No cards can capture a build in the selected range.');
+      else if(targets.length<14-min)warnings.push('Only these build values are available: '+targets.join(', ')+'.');
+    }
+    if(!r.builds&&(r.tableOnlyBuild||r.subtractiveBuilds||r.additiveBuilds||r.mergeSameValue||r.absorbMatching))warnings.push('Build-specific rules are inactive while building is off.');
+    if(r.builds&&r.buildAnything)warnings.push('Unbacked builds are experimental; a stranded build may be collected at hand end.');
+    if(r.forcedCapture==='direct'&&!r.directCapture)warnings.push('Compulsory direct matching has no effect on loose cards when direct matching is off.');
+    if(r.forcedCapture!=='optional'&&r.builds&&!r.buildAnything)warnings.push('Build obligations take precedence; only otherwise legal captures can be compulsory.');
+    if(r.playerCount!==2)unavailable.push('Three- and four-player gameplay is not implemented.');
+    if(r.jokerCount)unavailable.push('Joker gameplay and artwork are not implemented.');
+    if(r.dealMode==='bid')unavailable.push('Opening bidding is not implemented.');
+    if(r.multiHandCapture||r.handCardsPerTurn==='multiple')unavailable.push('Multi-card hand actions are not implemented.');
+    if(r.actionsPerTurn==='multiple'||(r.builds&&r.tableOnlyBuild))unavailable.push('Multi-action turns and table-only building are not implemented.');
+    if(r.pileAccess==='capture'||r.pileAccess==='both'||(r.builds&&r.pileAccess==='build'))unavailable.push('Stealing from captured piles is not implemented.');
+    return {rules:r,errors,warnings,unavailable,playable:!errors.length&&!unavailable.length};
   }
   function cardName(card) {
     return `${({ 1: 'A', 11: 'J', 12: 'Q', 13: 'K' })[card.rank] || card.rank}${({ S: '♠', H: '♥', D: '♦', C: '♣' })[card.suit]}`;
   }
   function cardValue(card, rules) {
-    return card.rank <= 10 || rules.royal ? card.rank : null;
+    return card.rank <= 10 ? card.rank : rules.royal ? card.rank+(rules.faceValues==='extended'?1:0) : null;
   }
   // A few established/house variants let certain cards play at two values.
   // Keep both possibilities until a move commits to a legal total.
@@ -37,13 +97,13 @@
     const base = cardValue(card, rules);
     if (base === null) return [];
     const values = [base];
-    if (rules.royalAces && card.rank === 1) values.push(14);
+    if (card.rank === 1 && (rules.royalAces || Number(rules.aceValue)>1)) values.push(rules.royalAces?14:Number(rules.aceValue));
     if (rules.royalBigLittle && card.id === 'S2') values.push(15);
     if (rules.royalBigLittle && card.id === 'D10') values.push(16);
     return values;
   }
   function maxBuildValue(rules) {
-    return rules.royalBigLittle ? 16 : rules.royalAces ? 14 : rules.royal ? 13 : 10;
+    return Math.max(rules.royalBigLittle?(rules.deckSize===40?15:16):0,rules.royalAces?14:Number(rules.aceValue)||1,rules.royal?(rules.faceValues==='extended'?14:13):(rules.deckSize===40?7:10));
   }
   function hasValue(hand, value, rules) {
     return hand.some(c => cardValues(c, rules).includes(value));
@@ -81,10 +141,10 @@
     };
     return choose(0,0);
   }
-  function makeDeck() {
+  function makeDeck(rules = DEFAULT_RULES) {
     return SUITS.flatMap(suit => Array.from({ length: 13 }, (_, i) => ({
       id: suit + (i + 1), suit, rank: i + 1
-    })));
+    })).filter(c=>rules.deckSize!==40||c.rank<8||c.rank>10));
   }
   function shuffle(array, random = Math.random) {
     const deck = [...array];
@@ -95,12 +155,15 @@
     return deck;
   }
   function makeState(rules = rulesFor(), dealer = 1, scores = [0, 0], round = 1, random = Math.random) {
+    rules=normalizeRules(rules);
+    const validation=validateRules(rules);
+    if(!validation.playable)throw new Error([...validation.errors,...validation.unavailable].join(' '));
     const state = {
       rules: { ...rules }, players: [
         { name: 'You', hand: [], captured: [], sweeps: 0, score: scores[0] },
         { name: 'Computer', hand: [], captured: [], sweeps: 0, score: scores[1] }
-      ], table: [], stock: shuffle(makeDeck(), random),
-      dealer, turn: 1 - dealer, lastCapture: null, nextId: 1,
+      ], table: [], stock: shuffle(makeDeck(rules), random),
+      dealer, turn: 1 - dealer, lastCapture: null, nextId: 1, extraTurnFor: null, lastActor: null, unclaimed: [],
       round, phase: 'playing', result: null, lastAction: 'New hand dealt.',
       log: [], moveNumber: 0
     };
@@ -112,15 +175,13 @@
   }
   function drawCards(state, initial = false) {
     if (initial) {
-      for (let i = 0; i < 4; i++) state.table.push({
+      for (let i = 0; i < (state.rules.initialTableSize??4); i++) state.table.push({
         id: `t${state.nextId++}`, type: 'loose', card: state.stock.pop()
       });
     }
-    // Two-player: every deal after the first contains exactly four cards each.
-    for (let i = 0; i < 4; i++) {
-      state.players[0].hand.push(state.stock.pop());
-      state.players[1].hand.push(state.stock.pop());
-    }
+    const count=state.rules.dealMode==='full'?state.stock.length:Math.min(state.stock.length,2*(state.rules.handSize||4));
+    // Alternate from the nondealer, including a legal smaller/unequal final batch.
+    for(let i=0;i<count;i++)state.players[i%2].hand.push(state.stock.pop());
   }
   function cardsInElement(element) {
     return element.type === 'loose' ? [element.card] : element.groups.flat();
@@ -204,6 +265,9 @@
   }
   function describeCapture(selection, card, rules) {
     if (!selection.length) return { ok:false, reason:'Select at least one table card to capture.' };
+    if(rules.directCapture===false||rules.additiveCapture===false||rules.captureGroups==='one'||rules.additiveBuilds){
+      return describeCustomCapture(selection,card,rules);
+    }
     const playedValues = cardValues(card, rules);
     if (!playedValues.length) {
       if (selection.length !== 1 || selection[0].type !== 'loose' || selection[0].card.rank !== card.rank) {
@@ -220,6 +284,72 @@
     }
     return {ok:false, reason:'Selected cards must form matching groups at one legal value (builds must match exactly).'};
   }
+  function describeCustomCapture(selection,card,rules){
+    const direct=rules.directCapture!==false,sum=rules.additiveCapture!==false;
+    const played=cardValues(card,rules);
+    if(!played.length)return direct&&selection.length===1&&selection[0].type==='loose'&&selection[0].card.rank===card.rank
+      ?{ok:true}:{ok:false,reason:'Non-numerical face cards require a direct rank match.'};
+    for(const target of played){
+      const fixed=selection.filter(e=>e.type==='build'&&!rules.additiveBuilds);
+      if(fixed.some(e=>e.value!==target))continue;
+      const entries=selection.filter(e=>!fixed.includes(e));
+      const choices=entries.map(e=>{
+        const vals=e.type==='build'?[e.value]:cardValues(e.card,rules);
+        return vals.filter(v=>v<=target&&(e.type==='build'||direct||v!==target)&&(sum||v===target));
+      });
+      if(choices.some(x=>!x.length))continue;
+      const chosen=[];
+      function walk(i,total){
+        if(i===entries.length){
+          if(!chosen.length)return fixed.length>0&&(rules.captureGroups!=='one'||fixed.length===1);
+          const groups=findPartition(chosen,target,rules.captureGroups==='one'?'single':'any');
+          return !!groups&&(rules.captureGroups!=='one'||groups.length+fixed.length===1);
+        }
+        for(const v of choices[i]){
+          if(rules.captureGroups==='one'&&total+v>target)continue;
+          chosen.push({card:entries[i],v});const ok=walk(i+1,total+v);chosen.pop();if(ok)return true;
+        }
+        return false;
+      }
+      if(walk(0,0))return {ok:true,value:target};
+    }
+    return {ok:false,reason:'The selected cards do not satisfy the enabled capture methods or group limit.'};
+  }
+  function* rawCaptureMoves(state,card){
+    const vals=cardValues(card,state.rules);
+    if(!vals.length){
+      for(const item of state.table)if(item.type==='loose'&&item.card.rank===card.rank)yield {kind:'capture',cardId:card.id,targetIds:[item.id]};
+      return;
+    }
+    const seen=new Set();
+    for(const target of vals){
+      const entries=state.table.map(x=>({id:x.id,values:x.type==='build'?
+        (x.value===target||state.rules.additiveBuilds&&x.value<target?[x.value]:[]):cardValues(x.card,state.rules).filter(v=>v<=target)})).filter(x=>x.values.length);
+      for(const ids of hintSubsets(entries,target,[0],false)){
+        const key=ids.slice().sort().join(',');if(seen.has(key))continue;seen.add(key);
+        yield {kind:'capture',cardId:card.id,targetIds:ids};
+      }
+    }
+  }
+  function capturePolicy(state,action,card,selected){
+    const rules=state.rules;
+    if(action.kind==='trail'&&rules.forcedCapture&&rules.forcedCapture!=='optional'){
+      for(const move of rawCaptureMoves(state,card)){
+        if(rules.forcedCapture==='direct'&&(move.targetIds.length!==1||!state.table.some(e=>e.id===move.targetIds[0]&&e.type==='loose')))continue;
+        if(validateAction(state,move,true).ok)return 'This card has a compulsory legal capture.';
+      }
+    }
+    if(action.kind==='capture'&&rules.captureExtent&&rules.captureExtent!=='choice'){
+      const ids=new Set(action.targetIds),size=selected.reduce((n,e)=>n+cardsInElement(e).length,0);
+      for(const move of rawCaptureMoves(state,card)){
+        if(rules.captureExtent==='maximal'&&!(move.targetIds.length>ids.size&&[...ids].every(id=>move.targetIds.includes(id))))continue;
+        const candidateSize=state.table.filter(e=>move.targetIds.includes(e.id)).reduce((n,e)=>n+cardsInElement(e).length,0);
+        if(rules.captureExtent==='maximum'&&candidateSize<=size)continue;
+        if(validateAction(state,move,true).ok)return rules.captureExtent==='maximal'?'Include the remaining eligible capture group.':'Choose a legal capture taking the most cards.';
+      }
+    }
+    return null;
+  }
   function describeBuild(selection, card, remainingHand, rules, requestedValue, requestedMode) {
     if (!rules.builds) return { ok:false, reason:'Building is disabled.' };
     const playedValues = cardValues(card, rules);
@@ -227,6 +357,7 @@
     if (!Number.isInteger(requestedValue) || requestedValue < 1 || requestedValue > maxBuildValue(rules)) {
       return {ok:false, reason:'Choose a valid build value.'};
     }
+    if(rules.buildRange&&rules.buildRange!=='all'&&!buildTargets(rules).includes(requestedValue))return {ok:false,reason:'That build value is outside the permitted range.'};
     if (!rules.buildAnything && !hasValue(remainingHand, requestedValue, rules)) {
       return {ok:false,reason:`Keep a ${requestedValue} in hand to capture your build (or turn Build Obligation off).`};
     }
@@ -242,6 +373,10 @@
         return {ok:false,reason:'A raise-and-merge requires Multiple Builds.'};
       const lower=builds.filter(b=>b.value!==requestedValue);
       const matching=builds.filter(b=>b.value===requestedValue);
+      if(!lower.length&&rules.mergeSameValue){
+        const extra=findValuePartition([{card},...loose],requestedValue,'any',rules);
+        if(extra)return {ok:true,build:{value:requestedValue,groups:matching.flatMap(b=>b.groups).concat(extra),kind:'multiple',operation:'merge'}};
+      }
       if(lower.length!==1||!matching.length||lower[0].groups.length!==1||
         !playedValues.some(v=>lower[0].value+v===requestedValue))
         return {ok:false,reason:'Raise one single build and merge only matching-value builds.'};
@@ -252,9 +387,10 @@
     }
     if(requestedMode==='merge')return {ok:false,reason:'Select a single build to raise and a matching build to merge.'};
     if (!builds.length) {
-      if (!loose.length) return {ok:false,reason:'Select at least one table card to build.'};
-      const groups = findValuePartition([{card}, ...loose], requestedValue,
+      if (!loose.length && !rules.singleCardBuild) return {ok:false,reason:'Select at least one table card to build.'};
+      let groups = findValuePartition([{card}, ...loose], requestedValue,
         requestedMode === 'single' ? 'single' : requestedMode === 'multiple' ? 'multiple' : 'any', rules);
+      if(!groups&&rules.subtractiveBuilds&&loose.length===1&&requestedMode!=='multiple'&&playedValues.some(v=>cardValues(loose[0].card,rules).some(w=>Math.abs(w-v)===requestedValue)))groups=[[card,loose[0].card]];
       if (!groups) return {ok:false,reason:'Selected cards do not form the requested build.'};
       if (groups.length > 1 && !rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
       return {ok:true,build:{value:requestedValue,groups,kind:groups.length===1?'single':'multiple',operation:'create'}};
@@ -268,15 +404,15 @@
     }
     if (requestedMode === 'extend') return {ok:false,reason:'Extending preserves the build value.'};
     if (current.groups.length > 1) return {ok:false,reason:'A multiple build cannot be raised.'};
-    if (!playedValues.some(v => current.value + v === requestedValue)) {
-      return {ok:false,reason:'The card played must raise this build to its new value.'};
+    if (!playedValues.some(v => current.value + v === requestedValue || rules.subtractiveBuilds&&current.value-v===requestedValue)) {
+      return {ok:false,reason:'The played card must change this build to its new value.'};
     }
     const extraGroups = loose.length ? findValuePartition(loose, requestedValue, 'any', rules) : [];
     if (!extraGroups) return {ok:false,reason:'Loose cards must form extra complete groups when raising.'};
     if (extraGroups.length && !rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
-    return {ok:true,build:{value:requestedValue,groups:[current.groups[0].concat(card),...extraGroups],kind:extraGroups.length?'multiple':'single',operation:'raise'}};
+    return {ok:true,build:{value:requestedValue,groups:[current.groups[0].concat(card),...extraGroups],kind:extraGroups.length?'multiple':'single',operation:requestedValue<current.value?'lower':'raise'}};
   }
-  function validateAction(state, action) {
+  function validateAction(state, action, skipPolicies = false) {
     if (!state || state.phase !== 'playing') return { ok: false, reason: 'This hand has ended.' };
     if (!action || !['capture', 'trail', 'build'].includes(action.kind)) return { ok: false, reason: 'Unknown move.' };
     const player = state.turn;
@@ -310,6 +446,17 @@
         return {ok:false,reason:'Finish your current build first, or enable Pirate Builds.'};
       }
       outcome = describeBuild(selected, card, remainingHand, state.rules, action.value, action.mode);
+      if(outcome.ok){
+        const changed=selected.filter(e=>e.type==='build'&&e.value!==outcome.build.value);
+        if(changed.some(e=>e.owner===player?state.rules.raiseOwnBuild===false:state.rules.raiseOpponentBuild===false))
+          return {ok:false,reason:'Changing the value of that owner’s build is disabled.'};
+        if(state.rules.mergeSameValue&&remainingTable.some(e=>e.type==='build'&&e.value===outcome.build.value))
+          return {ok:false,reason:'Include the existing same-value build in this move.'};
+        if(state.rules.absorbMatching&&remainingTable.some(e=>e.type==='loose'&&cardValues(e.card,state.rules).includes(outcome.build.value)))
+          return {ok:false,reason:'Include loose cards matching the build value.'};
+        if(state.rules.buildLimit&&state.rules.buildLimit!=='unlimited'&&remainingTable.filter(e=>e.type==='build'&&e.owner===player).length+1>Number(state.rules.buildLimit))
+          return {ok:false,reason:'The independent build limit has been reached.'};
+      }
     }
     if (!outcome.ok) return outcome;
     const resultTable = action.kind === 'trail'
@@ -318,13 +465,14 @@
       : [...remainingTable, { id: 'preview', type: 'build', value: outcome.build.value, groups: outcome.build.groups, owner: player }];
     const obligation = ownBuildObligation(state, resultTable, remainingHand, player);
     if (obligation) return { ok: false, reason: obligation };
+    if(!skipPolicies){const policy=capturePolicy(state,action,card,selected);if(policy)return {ok:false,reason:policy};}
     return { ...outcome, card, selected, remainingTable };
   }
   // Label the resulting stack, never the rank of the card being played.
   // All currently legal builds have numerical targets. If a future rule
   // supports non-numerical face-rank builds, their target can be J, Q or K.
   function buildActionLabel(_card, value, build, _rules) {
-    const title = build.operation === 'raise' ? 'Raise to'
+    const title = build.operation === 'lower' ? 'Lower to' : build.operation === 'raise' ? 'Raise to'
       : build.kind === 'multiple' ? 'Multiple Build' : 'Build';
     return `${title} ${value}`;
   }
@@ -374,7 +522,7 @@
     const opponent = state.players[1 - playerIndex];
     player.hand = player.hand.filter(c => c.id !== action.cardId);
     const played = checked.card;
-    let description;
+    let description, swept=false;
     if (action.kind === 'trail') {
       state.table.push({ id: `t${state.nextId++}`, type: 'loose', card: played });
       description = `${player.name} trailed ${cardName(played)}.`;
@@ -383,23 +531,28 @@
       const won = [played, ...checked.selected.flatMap(cardsInElement)];
       player.captured.push(...won);
       state.lastCapture = playerIndex;
-      const swept = state.table.length === 0;
+      swept = state.table.length === 0;
       if (swept) player.sweeps += 1;
       description = `${player.name} captured ${won.length - 1} table card${won.length === 2 ? '' : 's'} with ${cardName(played)}${swept ? ' — sweep!' : '.'}`;
     } else {
       state.table = checked.remainingTable;
       state.table.push({ id: `t${state.nextId++}`, type: 'build', value: checked.build.value, groups: checked.build.groups, owner: playerIndex });
-      const op = { create: 'built', raise: 'raised a build to', extend: 'extended a build of', merge: 'merged builds of' }[checked.build.operation];
+      const op = { create: 'built', lower: 'lowered a build to', raise: 'raised a build to', extend: 'extended a build of', merge: 'merged builds of' }[checked.build.operation];
       description = `${player.name} ${op} ${checked.build.value} (${checked.build.kind}).`;
     }
     state.moveNumber++;
     state.lastAction = description;
     state.log.push(description);
     if (state.log.length > 35) state.log.shift();
+    state.lastActor=playerIndex;
     state.turn = 1 - playerIndex;
+    if(state.rules.extraAfterSweep){
+      if(swept)state.extraTurnFor=state.turn;
+      else if(state.extraTurnFor===playerIndex){state.turn=playerIndex;state.extraTurnFor=null;}
+    }
     // Draw Cassino: the player who just played immediately replenishes their hand.
     // Ordinary Cassino waits until both four-card hands have been played.
-    if (state.rules.drawMode && state.stock.length && player.hand.length < 4) {
+    if ((state.rules.drawMode || state.rules.dealMode==='draw') && state.stock.length && player.hand.length < (state.rules.handSize||4)) {
       player.hand.push(state.stock.pop());
       state.lastAction += ' Replacement card drawn.';
     }
@@ -411,6 +564,10 @@
       } else {
         finishHand(state);
       }
+    }
+    if(state.phase==='playing'&&!state.players[state.turn].hand.length){
+      if(state.extraTurnFor===state.turn)state.extraTurnFor=null;
+      state.turn=1-state.turn;
     }
     return { ok: true, description };
   }
@@ -443,6 +600,7 @@
     }
     if (state.table.length && state.lastCapture === null) {
       // Extremely unusual case: no capture all hand. Leave unclaimed cards out of scoring.
+      state.unclaimed=state.table.flatMap(cardsInElement);
       state.lastAction += ' No player captured; table residue is unclaimed.';
     }
     state.table = [];
@@ -462,8 +620,8 @@
   // All loose-card subsets whose sum is value. Pruned by positive card values.
   function valueGroups(state, target, max = 160) {
     const matching = state.table.filter(e => e.type === 'build' && e.value === target).map(e => [e.id]);
-    const loose = state.table.filter(e => e.type === 'loose' && cardValues(e.card,state.rules).length)
-      .map(e => ({id:e.id, vals:cardValues(e.card,state.rules)}));
+    const loose = state.table.filter(e => e.type === 'loose' && cardValues(e.card,state.rules).length || state.rules.additiveBuilds&&e.type==='build'&&e.value<target)
+      .map(e => ({id:e.id, vals:e.type==='build'?[e.value]:cardValues(e.card,state.rules)}));
     const seen = new Set(matching.map(group=>group.join(',')));
     const go = (start,total,chosen) => {
       if (matching.length >= max) return;
@@ -530,6 +688,7 @@
       for (let i = start; i < relevant.length; i++) collect(i + 1, [...picked, relevant[i].id], bound);
     };
     collect(0, [], 3);
+    if(state.rules.singleCardBuild)targetSets.push([]);
     for (const b of builds) {
       targetSets.push([b.id]);
       for (const l of relevant) targetSets.push([b.id, l.id]);
@@ -583,7 +742,7 @@
     if(state.rules.difficulty==='hard'||state.rules.difficulty==='expert')
       return analyzeComputerMove(publicPosition(state),{random}).move;
     const options = allComputerMoves(state);
-    if (!options.length) throw new Error('No legal moves for computer.');
+    if (!options.length) {const fallback=legalActions(state).next();if(!fallback.done)return fallback.value;throw new Error('No legal moves for computer.');}
     if (state.rules.difficulty === 'casual') {
       // Casual computer mostly captures, but not necessarily the best combination.
       const captures = options.filter(m => m.kind === 'capture');
@@ -657,7 +816,7 @@
         continue;
       }
       for(const target of values){
-        const entries=[...builds.filter(b=>b.value===target).map(b=>({id:b.id,values:[target]})),
+        const entries=[...builds.filter(b=>b.value===target||rules.additiveBuilds&&b.value<target).map(b=>({id:b.id,values:[b.value]})),
           ...numericEntries(target)];
         for(const ids of hintSubsets(entries,target,[0],false,stop)){
           const move={kind:'capture',cardId:card.id,targetIds:ids};
@@ -682,19 +841,21 @@
         if(stop())return;
         const entries=numericEntries(target);
         const values=played.filter(v=>v<=target);
-        if(!values.length)continue;
+        if(rules.singleCardBuild)yield* options([],target);
+        if(rules.subtractiveBuilds)for(const item of loose)yield* options([item.id],target);
+        if(!values.length&&!rules.subtractiveBuilds)continue;
         for(const ids of hintSubsets(entries,target,values,false,stop))yield* options(ids,target);
         for(const build of builds){
           if(stop())return;
           const extend=rules.multipleBuilds&&build.value===target;
-          const raise=build.groups.length===1&&values.some(v=>build.value+v===target);
+          const raise=build.groups.length===1&&played.some(v=>build.value+v===target||rules.subtractiveBuilds&&build.value-v===target);
           if(!extend&&!raise)continue;
-          const initial=extend?values:values.filter(v=>build.value+v===target);
+          const initial=extend?values:played.filter(v=>build.value+v===target||rules.subtractiveBuilds&&build.value-v===target).map(v=>build.value+v===target?v:-v);
           // When raising, matching existing builds can be included as
           // intact groups. They never contribute to the increase in value.
           const matching=raise&&rules.multipleBuilds?builds.filter(b=>b!==build&&b.value===target)
             .map(b=>({id:b.id,values:[target]})):[];
-          for(const extra of hintSubsets(entries,target,initial.map(v=>v+build.value),true,stop))
+          for(const extra of hintSubsets(entries,target,initial.map(v=>extend?v+build.value:target),true,stop))
             yield* options([build.id,...extra],target);
           if(matching.length){
             for(const extra of hintSubsets([...matching,...entries],target,[0],false,stop)){
@@ -722,7 +883,7 @@
       handCount:p.hand.length,...(i===root?{hand:p.hand}:{})
     }));
     return JSON.parse(JSON.stringify({rules:state.rules,players,table:state.table,
-      stockCount:state.stock.length,turn:root,lastCapture:state.lastCapture,
+      stockCount:state.stock.length,turn:root,lastCapture:state.lastCapture,extraTurnFor:state.extraTurnFor,lastActor:state.lastActor,
       nextId:state.nextId,moveNumber:state.moveNumber,dealer:state.dealer,
       round:state.round,phase:state.phase}));
   }
@@ -736,7 +897,7 @@
       ...view.players.flatMap(p=>p.captured),
       ...view.table.flatMap(cardsInElement)
     ].map(c=>c.id));
-    const pool=shuffle(makeDeck().filter(c=>!known.has(c.id)),random);
+    const pool=shuffle(makeDeck(view.rules).filter(c=>!known.has(c.id)),random);
     const count=view.players[other].handCount;
     const obligations=view.rules.buildAnything?[]:view.table.filter(b=>b.type==='build'&&b.owner===other)
       .map(b=>({value:b.value,choices:pool.map((c,i)=>cardValues(c,view.rules).includes(b.value)?i:-1).filter(i=>i>=0)}))
@@ -760,7 +921,7 @@
     const players=view.players.map((p,i)=>({name:p.name,score:p.score||0,sweeps:p.sweeps||0,
       captured:p.captured.slice(),hand:(i===root?p.hand:hidden).slice()}));
     return {rules:view.rules,players,table:view.table.slice(),stock:remaining.slice(0,view.stockCount),
-      turn:root,lastCapture:view.lastCapture,nextId:view.nextId,moveNumber:view.moveNumber,
+      turn:root,lastCapture:view.lastCapture,extraTurnFor:view.extraTurnFor,lastActor:view.lastActor,nextId:view.nextId,moveNumber:view.moveNumber,
       dealer:view.dealer,round:view.round,phase:view.phase,result:null,lastAction:'',log:[]};
   }
   // Cheap legal safety move: direct captures (including owned builds), then
@@ -778,6 +939,7 @@
       for(const item of state.table)offer({kind:'capture',cardId:card.id,targetIds:[item.id]});
     }
     if(best)return best;
+    const fallback=legalActions(state).next();if(!fallback.done)return fallback.value;
     // Corrupt/legacy states can lack a simple move; do not invent an illegal one.
     throw new Error('No simple legal move in the current position.');
   }
@@ -804,7 +966,7 @@
       return {count:pile.length,spades,special};
     }
     const a=tally(p.captured),b=tally(q.captured);
-    const remaining=Math.max(0,52-a.count-b.count),remainingSpades=Math.max(0,13-a.spades-b.spades);
+    const remaining=Math.max(0,(rules.deckSize||52)-a.count-b.count),remainingSpades=Math.max(0,(rules.deckSize===40?10:13)-a.spades-b.spades);
     const majority=(diff,left,points)=>{
       if(diff>left)return points;
       if(diff< -left)return -points;
@@ -1018,7 +1180,41 @@
     if (move.kind === 'capture') return `Capture ${move.targetIds.length} table group${move.targetIds.length === 1 ? '' : 's'} with ${cardName(state.players[state.turn].hand.find(c => c.id === move.cardId))}.`;
     return `${move.label || 'Build'} by combining your card with the selected table cards.`;
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, cardValues, makeDeck, makeState, newMatch,
+  function checkInvariants(state){
+    const expected=new Set(makeDeck(state.rules).map(c=>c.id));
+    const cards=[...state.stock,...state.players.flatMap(p=>[...p.hand,...p.captured]),...state.table.flatMap(cardsInElement),...(state.unclaimed||[])];
+    if(cards.length!==expected.size||new Set(cards.map(c=>c.id)).size!==expected.size||cards.some(c=>!expected.has(c.id)))return 'Card conservation failed.';
+    if(state.phase==='playing'){
+      if(!state.players[state.turn]?.hand.length)return 'Active player has no cards.';
+      for(let i=0;i<state.players.length;i++){const error=ownBuildObligation(state,state.table,state.players[i].hand,i);if(error)return error;}
+    }
+    return null;
+  }
+  function simulateRules(input,count=20,seed=1){
+    const validation=validateRules(input);
+    if(!validation.playable)return {tested:0,completed:0,failures:[],validation};
+    count=Math.max(1,Math.min(100,Math.floor(count)||20));let completed=0,zeroScore=0;
+    const failures=[];
+    for(let i=0;i<count;i++){
+      const start=seed+i;let n=start>>>0,state;
+      const random=()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};
+      try{
+        state=newMatch({...validation.rules,difficulty:'casual'},random);
+        const max=makeDeck(state.rules).length;
+        for(let step=0;state.phase==='playing'&&step<=max;step++){
+          const invariant=checkInvariants(state);if(invariant)throw Error(invariant);
+          const move=chooseComputerMove(state,random);
+          const result=applyAction(state,move);if(!result.ok)throw Error(result.reason);
+        }
+        if(state.phase==='playing')throw Error('Deal did not terminate within the card budget.');
+        const invariant=checkInvariants(state);if(invariant)throw Error(invariant);
+        if(state.result.points.every(p=>p.total===0))zeroScore++;
+        completed++;
+      }catch(error){failures.push({seed:start,reason:String(error.message||error),state:state?JSON.parse(JSON.stringify(state)):null});}
+    }
+    return {tested:count,completed,zeroScore,failures,validation};
+  }
+  return { SUITS, DEFAULT_RULES, PRESETS, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,

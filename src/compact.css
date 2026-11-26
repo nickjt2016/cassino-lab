@@ -1104,3 +1104,15 @@ html,body,#app{background:#005d0b;color:#fff}
   .unified-setup .diff-row {gap:3px;padding:4px;}
   .unified-setup .diff-row .pill-choice {font-size:clamp(9px,3.3vw,12px);padding-inline:1px;}
 }
+
+/* Fishing Lab identity and rules editor */
+.launch-logo-art{width:min(45vw,166px);aspect-ratio:1;margin:0 auto}
+.launch-brand h1{font-size:clamp(42px,11vw,72px);letter-spacing:-.04em;white-space:nowrap}
+.menu-brand{display:flex;align-items:center;gap:8px}
+.rules-panel[hidden],.rules-panel [hidden]{display:none!important}
+.fishing-tabs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;margin:8px 0}
+.fishing-tabs .pill-choice{white-space:normal;min-width:0;padding:8px 4px}
+.rule-status{padding:10px 12px;overflow-wrap:anywhere}
+.rule-status p,.rule-note{font-size:12px;line-height:1.45;margin:5px 0}
+.rule-error{color:#efaaa4}.rule-warning{color:#e9cc85}.rule-ok{color:#a6dfbb}.rule-note{opacity:.8}
+@media(max-height:690px){.launch-logo-art{width:min(34vw,116px)}.launch-brand h1{font-size:clamp(38px,10vw,55px)}}

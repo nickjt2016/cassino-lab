@@ -1,4 +1,4 @@
-/* Cassino Lab browser UI: all gameplay calls the shared rules engine. */
+/* Fishing Lab browser UI: all gameplay calls the shared rules engine. */
 (function () {
   'use strict';
   const E = globalThis.CassinoEngine;
@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.5.35';
+  const APP_VERSION = '0.6.0';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -808,6 +808,7 @@
     const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
     if (saved && saved.game && saved.game.players && saved.game.rules) {
       game = saved.game;
+      game.rules = E.normalizeRules(game.rules);
       checkpoint = saved.checkpoint || null;
       hasSavedMatch = true;
     }
@@ -815,7 +816,7 @@
   if (!game) game = E.newMatch();
   try {
     const stored = JSON.parse(localStorage.getItem(CUSTOM_STORE) || 'null');
-    if (stored && typeof stored === 'object') customRules = {...E.rulesFor('classic'),...stored};
+    if (stored && typeof stored === 'object') customRules = E.normalizeRules(stored);
   } catch (_) { /* Custom rules are optional. */ }
   function saveCustomRules() {
     try { localStorage.setItem(CUSTOM_STORE, JSON.stringify(customRules)); } catch (_) {}
@@ -921,13 +922,9 @@
       <div class="launch-scroll">
         <div class="launch-brand">
           <div class="launch-logo-art" aria-hidden="true">
-            <svg viewBox="0 0 290 174" xmlns="http://www.w3.org/2000/svg" role="img">
-              <g transform="translate(52 28) rotate(-15 48 66)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="9" y="28" font-size="25" fill="#151715" font-family="Georgia">2♠</text><text x="48" y="104" text-anchor="middle" font-size="76" fill="#151715" font-family="Georgia">2</text></g>
-              <g transform="translate(159 29) rotate(15 48 66)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="8" y="28" font-size="25" fill="#151715" font-family="Georgia">A♣</text><text x="48" y="104" text-anchor="middle" font-size="78" fill="#151715" font-family="Georgia">A</text></g>
-              <g transform="translate(104 16)"><rect width="96" height="132" rx="5" fill="#fffdf6" stroke="#102b14" stroke-width="2"/><text x="8" y="28" font-size="23" fill="#d01d19" font-family="Georgia">10♦</text><text x="48" y="104" text-anchor="middle" font-size="65" fill="#d01d19" font-family="Georgia">10</text></g>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Fishing Lab emblem"><rect width="192" height="192" rx="37" fill="#143c33"/><g transform="rotate(-17 72 95)"><rect x="31" y="26" width="80" height="132" rx="10" fill="#204f42" stroke="#d9b96b" stroke-width="3"/><path d="M71 54c-8 9-17 15-17 23a10 10 0 0 0 17 7l-3 9h6l-3-9a10 10 0 0 0 17-7c0-8-9-14-17-23Z" fill="#e4c680"/></g><g transform="rotate(12 115 97)"><rect x="70" y="24" width="91" height="140" rx="10" fill="#fff9ea" stroke="#d9b96b" stroke-width="3"/><path d="M85 35l6 9-6 9-6-9Z M145 135l6 9-6 9-6-9Z" fill="#aa3d36"/><path d="M80 95c15-20 38-22 52-8l18-12v40l-18-12c-14 14-37 12-52-8Z" fill="#24634f"/><path d="M109 82l7-14 10 17M108 107l8 13 10-17" fill="#24634f"/><circle cx="95" cy="92" r="4" fill="#f0ce78"/><path d="M104 94c7-5 17-5 24 0" fill="none" stroke="#f0ce78" stroke-width="2.8" stroke-linecap="round"/></g></svg>
           </div>
-          <h1>Cassino</h1><div class="gold-divider">◆</div><p>FISHING CARD GAMES · LAB</p>
+          <h1>Fishing Lab</h1><div class="gold-divider">◆</div><p>FISHING CARD GAMES</p>
         </div>
         <div class="launch-actions">
           ${hasSavedMatch ? `<button class="launch-primary" data-action="resume-game"><b>Resume Game</b><small>vs Computer · ${escapeHtml(game.rules.name)} · Hand ${game.round}</small></button>` : ''}
@@ -1046,7 +1043,7 @@
     // Never run a validator for an action the current selection cannot show.
     const capture = pickedTable.size ? actionReady('capture') : null;
     const trail = pickedTable.size ? null : actionReady('trail');
-    buildOptions = active && pickedCard && pickedTable.size ? E.contextualBuildOptions(game,pickedCard,currentSelection()) : [];
+    buildOptions = active && pickedCard && (pickedTable.size || game.rules.singleCardBuild) ? E.contextualBuildOptions(game,pickedCard,currentSelection()) : [];
     const canTrail = !!(trail && trail.ok && !pickedTable.size);
     const canCapture = !!(capture && capture.ok && pickedTable.size);
     const canBuild = buildOptions.length > 0;
@@ -1096,10 +1093,11 @@
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
     hidePendingDealCards();
-    animateLayout(oldLayout,motion,motion==='capture'&&game.turn===0);
+    animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))===1);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
     animateTurnMessage(previousTurn);
   }
+  let rulesTab='basic',rulesSection='deck',labResult=null;
   const SETTING_INFO = {
     royal: ['Face Cards', 'With Royal face cards on, Jacks, Queens and Kings have numerical values 11, 12 and 13 and may participate in sums and builds. Otherwise they capture matching face cards only.'],
     royalAces: ['Aces', 'Royal Aces may count as either 1 or 14 in captures and builds. The game chooses a legal value for the move.'],
@@ -1113,6 +1111,18 @@
     spadeScoring: ['Spade Scoring', 'Every spade captured earns one point, plus a bonus point for the Jack of spades, replacing the ordinary most-spades award.'],
     builds: ['Building', 'Allow single builds; with this switched off, players can only capture or trail.'],
     multipleBuilds: ['Multiple Builds', 'Allow two or more equal-valued combinations to be combined into a multiple build.'],
+    directCapture:['Direct matching','A loose card can be captured by matching its rank or numerical value. Matching builds remain capturable.'],
+    additiveCapture:['Additive matching','Allow several loose cards whose values add to the played card.'],
+    additiveBuilds:['Builds as capture units','A build can contribute its announced value to an arithmetic capture.'],
+    subtractiveBuilds:['Subtractive building','Two cards may create a build at their positive difference, or a single build may be lowered by the played card.'],
+    singleCardBuild:['Single-card declaration','A hand card alone can be declared as a build, subject to the ordinary obligation.'],
+    raiseOwnBuild:['Modify own builds','Permit changing the announced value of your own single build.'],
+    raiseOpponentBuild:['Modify opponent builds','Permit changing the announced value of the opponent’s single build.'],
+    mergeSameValue:['Mandatory merging','Include existing same-value builds in a new build.'],
+    absorbMatching:['Matching loose cards','Include loose cards matching the new build value.'],
+    extraAfterSweep:['Extra turn after a sweep','The opponent receives a second turn after a sweep, if they still have a card.'],
+    multiHandCapture:['Multiple hand cards','Planned: use multiple cards from hand for one capture.'],
+    tableOnlyBuild:['Table-only building','Planned: build without spending a card from hand.'],
   };
   function variationRow(key, title) {
     const expanded = detailSetting === key;
@@ -1123,40 +1133,114 @@
       ${expanded?`<p class="inline-setting-info">${escapeHtml(SETTING_INFO[key][1])}</p>`:''}
     </div>`;
   }
+  function ruleSelect(key,label,options){
+    return '<label class="setting-select"><b>'+label+'</b><select data-setting="'+key+'">'+options.map(option=>{
+      const pair=Array.isArray(option)?option:[option,option];
+      return '<option value="'+escapeHtml(pair[0])+'" '+(String(draft[key])===String(pair[0])?'selected':'')+'>'+escapeHtml(pair[1])+'</option>';
+    }).join('')+'</select></label>';
+  }
+  function choiceTabs(items,active,action){
+    return '<div class="pill-row fishing-tabs" role="group">'+items.map(([key,title])=>'<button type="button" class="pill-choice '+(key===active?'selected':'')+'" data-action="'+action+'" data-value="'+key+'" aria-pressed="'+(key===active)+'">'+title+'</button>').join('')+'</div>';
+  }
+  function ruleStatus(){
+    const v=E.validateRules(draft),out=[];
+    for(const message of v.errors)out.push('<p class="rule-error">Conflict: '+escapeHtml(message)+'</p>');
+    for(const message of v.unavailable)out.push('<p class="rule-error">Not implemented: '+escapeHtml(message)+'</p>');
+    for(const message of v.warnings)out.push('<p class="rule-warning">'+escapeHtml(message)+'</p>');
+    if(v.playable&&!out.length)out.push('<p class="rule-ok">No known static conflicts.</p>');
+    return '<h3>RULES COMPATIBILITY</h3><div class="variation-card rule-status" role="status">'+out.join('')+
+      '<p class="rule-note">Static checks do not prove every position is playable.</p></div>';
+  }
+  function renderLab(){
+    let results='';
+    if(labResult){
+      results='<div class="rule-status" role="status"><b>'+labResult.completed+' / '+labResult.tested+' deals completed</b>'+
+        '<p>'+labResult.failures.length+' failures · '+labResult.zeroScore+' scoreless deals</p>'+
+        labResult.failures.slice(0,3).map(f=>'<p class="rule-error">Seed '+f.seed+': '+escapeHtml(f.reason)+'</p>').join('')+
+        (labResult.failures.length?'<button type="button" class="action-btn" data-action="copy-lab-report">Copy diagnostic report</button>':'')+'</div>';
+    }
+    return '<h3>RULES LABORATORY</h3><p class="rule-note">Test seeded CPU-versus-CPU deals. Failures retain their seed, board and move log. Passing does not guarantee playability.</p><button class="action-btn" type="button" data-action="run-rules-lab" '+(E.validateRules(draft).playable?'':'disabled')+'>Simulate 10 deals</button>'+results;
+  }
   function renderSettings() {
     if (!draft) draft = { ...game.rules };
     const menu = [['classic','Original'],['royal','Royal'],['spade','Spade'],['royalSpade','Royal Spade'],['custom','Custom']];
     return `<div class="dialog-head"><div><h2>${settingsOrigin==='newgame'?'New Game':'Game Setup'}</h2></div><button data-action="close" class="icon-close" aria-label="Close">×</button></div>
       <div class="dialog-content variations-content unified-setup">
-        <h3>PLAYERS</h3><div class="pill-row"><button class="pill-choice selected" aria-pressed="true" type="button">2</button><button class="pill-choice" disabled>3 <small>soon</small></button><button class="pill-choice" disabled>4 <small>soon</small></button></div>
+        <h3>PLAYERS</h3><p class="rule-note">Single-player · versus computer</p>
         <h3>DIFFICULTY</h3><div class="pill-row diff-row">${[['casual','Easy'],['thoughtful','Medium'],['hard','Hard'],['expert','Expert']].map(([key,name])=>`<button class="pill-choice ${draft.difficulty===key?'selected':''}" data-action="setup-difficulty" data-value="${key}" aria-pressed="${draft.difficulty===key}">${name}</button>`).join('')}</div>
         <h3>VARIATION</h3><div class="pill-row preset-grid">${menu.map(([key,name])=>`<button class="pill-choice ${draftPreset===key?'selected':''}" data-action="preset-choice" data-value="${key}" aria-pressed="${draftPreset===key}">${name}</button>`).join('')}</div>
-        <h3>ROYAL OPTIONS</h3><div class="variation-card">
-          ${variationRow('royal','Face Cards')}
-          ${variationRow('royalAces','Aces')}
-          ${variationRow('royalBigLittle','2 and 10')}
+
+        ${choiceTabs([['basic','Basic Rules'],['advanced','Advanced Rules']],rulesTab,'rules-tab')}
+        <div class="rules-panel" ${rulesTab==='basic'?'':'hidden'}>
+          <h3>GAME SETUP</h3>
+          ${ruleSelect('playerCount','Players',[[2,'2 players'],[4,'4 players (planned)'],['4team','4 players, teams (planned)']])}
+          ${ruleSelect('handSize','Cards per hand',[3,4,6,8,12])}
+          ${ruleSelect('initialTableSize','Initial table cards',[0,3,4,8])}
+          <h3>CARD VALUES</h3><div class="variation-card">${variationRow('royal','Numerical Face Cards')}</div>
+          ${ruleSelect('faceValues','Face card values',[['standard','Jack 11 · Queen 12 · King 13'],['extended','Jack 12 · Queen 13 · King 14']])}
+          <h3>GAMEPLAY</h3><div class="variation-card">
+            ${variationRow('builds','Allow Building')}
+            ${variationRow('multipleBuilds','Multiple Builds')}
+            ${variationRow('buildObligation','Build Obligation')}
+          </div>
+          ${ruleSelect('forcedCapture','Compulsory captures',[['optional','Optional'],['direct','Direct matches'],['all','Any legal capture']])}
+          <h3>SCORING</h3><div class="variation-card">${variationRow('spadeScoring','Spade Scoring')}${variationRow('sweepCancel','Net Sweep Scoring')}</div>
+          ${ruleSelect('sweepPoints','Points per sweep',[0,1,10,50])}
+          ${ruleSelect('winningScore','Winning score',[11,21,31,50,51,61,100])}
         </div>
-        <h3>PIRATE OPTIONS</h3><div class="variation-card">
-          ${variationRow('pirateCaptures','Captures')}
-          ${variationRow('pirateBuilds','Builds')}
-          ${variationRow('allowTrailWithOwnBuild','Trails')}
+        <div class="rules-panel" ${rulesTab==='advanced'?'':'hidden'}>
+          ${choiceTabs([['deck','Deck'],['capture','Capture'],['build','Build'],['turns','Turns']],rulesSection,'rules-section')}
+          <div ${rulesSection==='deck'?'':'hidden'}>
+            <h3>DECK AND DEALING</h3>
+            ${ruleSelect('deckSize','Deck',[[52,'52 cards'],[40,'40 cards · no 8–10']])}
+            ${ruleSelect('aceValue','Additional ace value',[[1,'None'],[11,'11'],[14,'14']])}
+            <div class="variation-card">${variationRow('royalAces','Royal Aces')}${variationRow('royalBigLittle','Royal 2 and 10')}${variationRow('drawMode','Draw replacement after turn')}</div>
+            ${ruleSelect('dealMode','Dealing method',[['batch','Repeated batches'],['draw','Draw replacement'],['full','Entire deck'],['bid','Opening bid (planned)']])}
+            ${ruleSelect('remainderMode','Final batch',[['equal','Smaller equal hands'],['uneven','Unequal hands'],['strict','Complete batches only']])}
+            ${ruleSelect('jokerCount','Jokers (planned)',[0,2,4,6])}
+            ${ruleSelect('jokerValue','Joker value',[15,20,25])}
+          </div>
+          <div ${rulesSection==='capture'?'':'hidden'}>
+            <h3>CAPTURE METHODS</h3><div class="variation-card">
+              ${variationRow('directCapture','Direct matching')}
+              ${variationRow('additiveCapture','Additive matching')}
+              ${variationRow('additiveBuilds','Builds as additive capture units')}
+              ${variationRow('multiHandCapture','Multiple hand cards (planned)')}
+              ${variationRow('pirateCaptures','Unrelated captures while building')}
+            </div>
+            ${ruleSelect('captureGroups','Groups per capture',[['one','One'],['unlimited','Unlimited']])}
+            ${ruleSelect('captureExtent','Capture extent',[['choice','Selective'],['maximal','Maximal (no extra group)'],['maximum','Maximum number of cards']])}
+            ${ruleSelect('pileAccess','Captured-pile stealing (planned)',[['none','Disabled'],['build','Build only'],['capture','Capture only'],['both','Both']])}
+          </div>
+          <div ${rulesSection==='build'?'':'hidden'}>
+            <h3>BUILD CONSTRUCTION</h3><div class="variation-card">
+              ${variationRow('subtractiveBuilds','Subtractive building')}
+              ${variationRow('singleCardBuild','Single-card declarations')}
+              ${variationRow('tableOnlyBuild','Table-only building (planned)')}
+              ${variationRow('raiseOwnBuild','Modify own builds')}
+              ${variationRow('raiseOpponentBuild','Modify opponent builds')}
+              ${variationRow('mergeSameValue','Mandatory same-value merging')}
+              ${variationRow('absorbMatching','Absorb matching loose cards')}
+              ${variationRow('pirateBuilds','Start independent builds')}
+              ${variationRow('allowTrailWithOwnBuild','Trail while owning a build')}
+            </div>
+            ${ruleSelect('buildRange','Permitted build values',[['all','All capturable'],['9-13','9–13'],['10-13','10–13']])}
+            ${ruleSelect('buildLimit','Independent builds per player',[['1','One'],['2','Two'],['unlimited','Unlimited']])}
+          </div>
+          <div ${rulesSection==='turns'?'':'hidden'}>
+            <h3>TURN STRUCTURE</h3>
+            ${ruleSelect('actionsPerTurn','Actions per turn',[['single','One'],['multiple','Multiple (planned)']])}
+            ${ruleSelect('handCardsPerTurn','Hand cards expended',[['one','Exactly one'],['multiple','One or more (planned)']])}
+            <div class="variation-card">${variationRow('extraAfterSweep','Extra turn after opponent sweep')}</div>
+          </div>
+          ${renderLab()}
         </div>
-        <h3>OTHER OPTIONS</h3><div class="variation-card">
-          ${variationRow('drawMode','Draw')}
-          ${variationRow('sweepCancel','Sweep')}
-        </div>
-        <h3>CLASSIC SETTINGS</h3><div class="variation-card">
-          ${variationRow('builds','Allow Building')}
-          ${variationRow('multipleBuilds','Multiple Builds')}
-          ${variationRow('buildObligation','Build Obligation')}
-          ${variationRow('spadeScoring','Spade Scoring')}
-        </div>
-        <h3>MATCH SETTINGS</h3><label class="setting-select"><b>Winning score</b><select data-setting="winningScore">${[11,21,31,50,61].map(n=>`<option value="${n}" ${Number(draft.winningScore)===n?'selected':''}>${n} points</option>`).join('')}</select></label>
+        ${ruleStatus()}
         ${settingsOrigin==='game'?'<p class="setting-warning">Starting with these rules replaces the current match.</p>':''}
-      </div><div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="apply-settings" class="action-btn primary">Start Game</button></div>`;
+      </div><div class="dialog-actions"><button data-action="close" class="action-btn">Cancel</button><button data-action="apply-settings" class="action-btn primary" ${E.validateRules(draft).playable?'':'disabled'}>Start Game</button></div>`;
   }
   function renderMenu() {
-    return `<div class="dialog-head"><div><span class="eyebrow">CASSINO LAB</span><h2>Game menu</h2><p>Single-player · Hand ${game.round} · ${escapeHtml(game.rules.name)}</p></div><button data-action="close" class="icon-close" aria-label="Close menu">×</button></div>
+    return `<div class="dialog-head"><div><span class="eyebrow menu-brand"><img src="./icon.svg" alt="" width="26" height="26"> FISHING LAB</span><h2>Game menu</h2><p>Single-player · Hand ${game.round} · ${escapeHtml(game.rules.name)}</p></div><button data-action="close" class="icon-close" aria-label="Close menu">×</button></div>
       <div class="dialog-content menu-list">
         <button data-action="close" class="menu-row"><span>▶</span><b>Continue playing</b></button>
         <button data-action="home" class="menu-row"><span>⌂</span><b>Main menu</b></button>
@@ -1418,6 +1502,7 @@
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
     busy = false;
     game = JSON.parse(checkpoint);
+    game.rules=E.normalizeRules(game.rules);
     checkpoint = null;
     modal = '';
     toast = '';
@@ -1460,14 +1545,14 @@
   }
   // All setup entry points share a single draft and scrollable dialog.
   function openSettings(origin = screen) {
-    variationsScrollTop = 0; detailSetting = ''; settingsOrigin = origin;
+    variationsScrollTop = 0; detailSetting = ''; settingsOrigin = origin; rulesTab='basic'; rulesSection='deck'; labResult=null;
     const difficulty = game.rules.difficulty || 'thoughtful';
     if (origin === 'newgame') {
       draftPreset = 'classic';
       draft = E.rulesFor('classic', {difficulty});
       customDraft = customRules ? {...customRules} : null;
     } else {
-      draft = {...game.rules};
+      draft = E.normalizeRules(game.rules);
       draftPreset = Object.keys(E.PRESETS).find(key => {
         const preset = E.rulesFor(key);
         return Object.keys(E.DEFAULT_RULES).every(prop =>
@@ -1480,11 +1565,12 @@
   function selectVariation(key) {
     if (!Object.hasOwn(E.PRESETS,key) && key !== 'custom') return;
     if (key === draftPreset) return;
+    labResult=null;
     const difficulty = draft.difficulty;
     if (draftPreset === 'custom') customDraft = {...draft};
     if (key === 'custom') {
       // Restore custom edits, or inherit the previewed preset on first use.
-      draft = {...(customDraft || draft),name:'Custom Cassino',difficulty};
+      draft = {...(customDraft || draft),name:'Custom Fishing',difficulty};
     } else {
       draft = E.rulesFor(key,{difficulty});
     }
@@ -1500,13 +1586,16 @@
     // Presets are starting points. Editing one creates a Custom draft.
     // Enabling a dependent rule also enables its building prerequisite.
     if (value && dependents.includes(prop)) draft.builds = true;
-    draft[prop] = value;
+    draft[prop] = value; labResult=null;
+    if(prop==='dealMode')draft.drawMode=value==='draw';
+    if(prop==='drawMode')draft.dealMode=value?'draw':'batch';
+    if(prop==='faceValues'&&value==='extended')draft.royal=true;
     if (prop === 'sweepCancel') draft.sweepPoints = value ? 1 : 0;
     if (prop === 'builds' && !value) {
       for (const dependent of dependents) draft[dependent] = false;
     }
     draftPreset = 'custom';
-    draft.name = 'Custom Cassino';
+    draft.name = 'Custom Fishing';
     customDraft = {...draft};
     render('overlay');
   }
@@ -1515,7 +1604,7 @@
     if (!(target instanceof HTMLElement) || !target.dataset.setting || target.disabled || modal !== 'settings') return;
     const prop = target.dataset.setting;
     updateDraftSetting(prop,target.type === 'checkbox' ? target.checked :
-      ['winningScore','sweepPoints'].includes(prop) ? Number(target.value) : target.value);
+      ['winningScore','sweepPoints','deckSize','handSize','initialTableSize','aceValue','jokerCount','jokerValue','playerCount'].includes(prop)&&target.value!=='4team' ? Number(target.value) : target.value);
   });
   app.addEventListener('click', event => {
     const node = event.target.closest('[data-action]');
@@ -1530,6 +1619,18 @@
     if (action === 'resume-game') { screen='game'; modal=''; sound('tap'); if(game.turn===1 && game.phase==='playing') botTurn(); else {if(game.phase!=='playing')modal='round';render();} return; }
     if (action === 'setup-new-game') { sound('tap'); return openSettings('newgame'); }
     if (action === 'info-setting' && modal === 'settings') { detailSetting=detailSetting===node.dataset.key?'':node.dataset.key; render('overlay'); return; }
+    if (action === 'rules-tab' && modal === 'settings'){rulesTab=node.dataset.value;variationsScrollTop=0;render('overlay');return;}
+    if (action === 'rules-section' && modal === 'settings'){rulesSection=node.dataset.value;render('overlay');return;}
+    if (action === 'run-rules-lab' && modal === 'settings'){
+      if(!E.validateRules(draft).playable)return;
+      const snapshot=JSON.stringify(draft);node.disabled=true;node.textContent='Testing…';
+      setTimeout(()=>{if(modal!=='settings'||JSON.stringify(draft)!==snapshot)return;labResult=E.simulateRules(draft,10,1);render('overlay');},0);return;
+    }
+    if (action === 'copy-lab-report' && modal === 'settings' && labResult){
+      const report=JSON.stringify(labResult,null,2);
+      if(navigator.clipboard?.writeText)navigator.clipboard.writeText(report).catch(()=>window.prompt('Copy report',report));
+      else window.prompt('Copy report',report);return;
+    }
     if (action === 'preset-choice' && modal === 'settings') return selectVariation(node.dataset.value);
     if (action === 'setup-difficulty' && modal === 'settings') { draft.difficulty=node.dataset.value; render('overlay'); return; }
     if (action === 'menu') { modal = 'menu'; sound('tap'); render('overlay'); return; }
@@ -1543,7 +1644,8 @@
     if (action === 'next-hand') return nextHand();
     if (action === 'undo') return undo();
     if (action === 'apply-settings' && modal === 'settings') {
-      const nextRules = { ...draft, name: draftPreset==='custom'?'Custom Cassino':E.PRESETS[draftPreset].name };
+      if(!E.validateRules(draft).playable)return;
+      const nextRules = E.normalizeRules({...draft, name: draftPreset==='custom'?'Custom Fishing':E.PRESETS[draftPreset].name});
       if (!nextRules.builds) { nextRules.multipleBuilds = false; nextRules.allowTrailWithOwnBuild = false; nextRules.buildAnything = false; nextRules.pirateBuilds = false; }
       if (screen === 'game' && game.phase === 'playing' && !confirm('Start a new match with these rules?')) return;
       if (draftPreset==='custom') {customRules = {...nextRules};saveCustomRules();}

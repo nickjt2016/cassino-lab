@@ -1,6 +1,6 @@
 /* Network-first offline cache for the small, fixed app asset set. */
 const CACHE_PREFIX = 'cassino-lab-';
-const CACHE = CACHE_PREFIX + 'v0.5.35-overlapped-thinking';
+const CACHE = CACHE_PREFIX + 'v0.6.0-fishing-rules';
 const ASSETS = ['./index.html', './manifest.webmanifest', './icon.svg', './version.json'];
 const scope = new URL(self.registration.scope);
 const home = new URL('./index.html', scope).href;

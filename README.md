@@ -1,4 +1,4 @@
-# Cassino Lab
+# Fishing Lab
 
 A single-player browser card game based on classic **Cassino**, designed as the foundation for a library of configurable fishing-card games.
 
@@ -78,7 +78,7 @@ Replacement cards in Draw mode no longer appear immediately in the hand: each tr
 
 
 ## Install as an app (v0.5.0)
-Open the GitHub Pages URL in Chrome on Android, then choose **⋮ → Add to Home screen → Install app**. The PWA runs standalone and caches the game for offline play. Publishing updates to `main` changes the app at the existing URL; the app checks for releases at launch and when returning to the foreground. If an updated service worker takes control while you're on the main menu, Cassino Lab reloads automatically. During an active game, it waits for the player to return to the main menu or select **Update now** instead of interrupting a turn. Game data is kept in browser-local storage and doesn't synchronize across devices.
+Open the GitHub Pages URL in Chrome on Android, then choose **⋮ → Add to Home screen → Install app**. The PWA runs standalone and caches the game for offline play. Publishing updates to `main` changes the app at the existing URL; the app checks for releases at launch and when returning to the foreground. If an updated service worker takes control while you're on the main menu, Fishing Lab reloads automatically. During an active game, it waits for the player to return to the main menu or select **Update now** instead of interrupting a turn. Game data is kept in browser-local storage and doesn't synchronize across devices.
 
 
 ### v0.5.1 — unambiguous build raises
@@ -86,7 +86,7 @@ A raise is now labeled for its **new build target**, rather than the rank of the
 
 
 ### v0.5.2 — fully automatic safe updates
-Cassino Lab checks `version.json` when it opens, when connectivity returns, and when the app comes to the foreground. A newer release is installed automatically when the main menu is showing and no dialog is open. During play, the upgrade is deferred until the player returns to the main menu. A short reload guard prevents loops if a hosting cache temporarily serves an old page. The existing PWA service worker still provides offline play and is updated alongside each release. Game saves continue using browser-local storage.
+Fishing Lab checks `version.json` when it opens, when connectivity returns, and when the app comes to the foreground. A newer release is installed automatically when the main menu is showing and no dialog is open. During play, the upgrade is deferred until the player returns to the main menu. A short reload guard prevents loops if a hosting cache temporarily serves an old page. The existing PWA service worker still provides offline play and is updated alongside each release. Game saves continue using browser-local storage.
 
 ### v0.5.3 — fixes for the four reported issues
 - Custom Rules settings toggle updates preserve the existing dialog and scroll position, preventing flashes.
@@ -109,7 +109,7 @@ Builds remain straight stacks of actual cards, with visible rank/suit corners an
 Compared the green-felt gameplay with the two user-supplied recordings (1000063672.mp4 and 1000063673.mp4), including the sequence where a K-build becomes a multiple K-build. The table uses independent stock (left), loose-card (middle-left), and build (right) lanes. Unlike the previous layout, builds no longer jump above the card row or push the loose cards around. Four initial loose cards fit in one row at 320, 360, and 390px viewport widths, even when a build is present. Existing overlapping full-card build stacks, the owner/value panel, card-flight paths, contextual action prompts, and the v0.5.5 stacked-menu/exit-confirmation logic are retained. Check against the reference recordings on every layout/animation revision, and keep visual regression tests current.
 
 ### v0.5.7 — reference-video straight card movement
-From the user's second reference recording (1000063673.mp4), the extension of a K-build happens over roughly half a second. Cassino Lab now starts successive cards 48ms apart instead of 72ms, flies each card in 310–365ms rather than 380–420ms, and shows the black owner/value panel after 65ms with a 140ms settling transition. Flights now follow direct paths without the previous artificial vertical hop, and cards scale in both dimensions to their final build positions. Existing trail, capture and dealing choreography remains intact.
+From the user's second reference recording (1000063673.mp4), the extension of a K-build happens over roughly half a second. Fishing Lab now starts successive cards 48ms apart instead of 72ms, flies each card in 310–365ms rather than 380–420ms, and shows the black owner/value panel after 65ms with a 140ms settling transition. Flights now follow direct paths without the previous artificial vertical hop, and cards scale in both dimensions to their final build positions. Existing trail, capture and dealing choreography remains intact.
 
 ### v0.5.8 — numerical build panel and HUD deck
 The value panel on a build occupies the lower 77% of the topmost card, leaving the top 23% with the real rank/suit index visible. The label always shows the **numerical build target**, including 1/11/12/13/14 when A/J/Q/K participate numerically; it does not substitute the face-card letter. The physical draw deck is relocated into the rightmost **Cards in Deck** HUD cell alongside its count, freeing the former stock lane on the left of the table. Dealing sound and face-down card animations still originate from the actual moved `.draw-stock` element. Layout retains a side lane for builds and full-width loose cards when no build is present.
@@ -198,3 +198,7 @@ Removed legacy hover lifts from hand cards, loose cards and builds. Only the sel
 
 ### v0.5.35 — concurrent thinking and matching animation rhythm
 The opponent starts calculating the committed position as soon as the player's flight is scheduled (also during an opening/replacement deal). All four difficulties use the public-information worker where supported; Easy/Medium retain their scoring policy. Hard/Expert publish completed search iterations. The visible pause is 600 ms after the player's action and any dealing complete; at the deadline the CPU uses the best completed legal result and cancels remaining work. Undo/new match/exit discard obsolete searches. Both players use 490 ms trails, 340 ms capture gathering, 125 ms hold, 280 ms collection, 310 ms build flights, identical easing and staggering. The CPU retains its 335 ms face-down reveal. No rules or scoring changes.
+
+## Fishing Lab 0.6.0 — custom rules and compatibility
+
+Basic and Advanced rules share one configuration. Advanced controls cover deck/deal, capture, build and turn mechanics. The validator distinguishes static conflicts, warnings and not-yet-implemented features; the latter cannot be started. The rules laboratory runs ten deterministic deals using the actual engine, checks card conservation and build obligations, and retains failure diagnostics. The existing installation URL, storage keys and saved match format remain compatible. Planned mechanics include multiplayer, jokers, bid phases, multiple hand cards/actions per turn, and captured-pile stealing. The simulator samples deals, not a proof of all possible states. Subtractive building supports a two-card difference or lowering one single build; broader Zwicker arithmetic is not claimed.
