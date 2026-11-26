@@ -246,3 +246,7 @@ The seating diagram now consists solely of equal-sized annular-sector seats arou
 ### 0.9.0 — rules audit and stable seating
 
 Constant-size polar seating preview; shared rule dependencies with retained editor preferences; validation for impossible captures and missing scoring categories; corrected direct-priority/build obligations and uneven dealing. Corrected Wippen sweep scoring. Nine more playable profiles using existing rule controls and regional scoring choices. See [the rule audit and roadmap](docs/rule-roadmap.md) for sources, fidelity notes, deferred mechanics, and reproducible test instructions.
+
+### 0.9.1 — extended gameplay regression audit
+
+Adds reproducible full-match, search-based CPU, mixed-deck gameplay and player/deal compatibility matrices. Run `node --test tests/gameplay-matrix.test.cjs` or `npm test`. This test release preserves v0.9.0's game rules and fixed seating geometry. Three-to-six-player arrangements are tested for setup, not played; they remain blocked until a multiplayer engine is implemented.

@@ -57,3 +57,12 @@ Preexisting Royal Cassino is a numerical-face house rule, not full Puerto Rican 
 
 ## Reproduce testing
 Run node --test tests/rules-audit.test.cjs or npm test. Tests cover dependencies, blocked configurations, scoring fixtures, preserved editor preferences, reserved-card capture priority, non-dealer deal order, stable seating markup/CSS, and a deterministic randomized matrix. Simulated deals test termination of a deal, legal moves, and card conservation; they do not prove every possible game configuration or physical phone rendering.
+
+## Extended audit (v0.9.1)
+
+- 100 additional randomized rule configurations use 40-, 52-, 54-card and arbitrary custom decks, varying hands, opening table, dealing mode, remainder handling and card values. Two complete CPU deals per valid configuration.
+- 42 complete matches across the 21 playable profiles, one Easy and one Medium per profile. Verify legal moves, conservation, score accumulation, dealer rotation and actual victory/finish conditions.
+- Eight search-based full deals across Classic, color/subtraction Royal, custom-valued jokers and Scopa at Hard and Expert. Reduced deterministic node budgets test legal completion, not device speed or full-strength play.
+- 1,296 setup compatibility combinations cross player count 2–6, all permitted team modes, deck type, opening table, deal method and remainder policy. These are static setup tests, not actual multi-player games. Two-player pairs and all three-to-six-player matches remain unplayable.
+
+See `tests/gameplay-matrix.test.cjs` for the seeded reproducible audit. Browser touch interaction, phone layout, and full multiplayer gameplay are not certified by these tests.
