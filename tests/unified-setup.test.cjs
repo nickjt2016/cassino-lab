@@ -8,124 +8,73 @@ const css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
 function harness(saved=null,current=E.rulesFor()){
   const markup=app.slice(app.indexOf('  const SETTING_INFO = {'),app.indexOf('  function renderMenu()'));
   const state=app.slice(app.indexOf('  function openSettings('),app.indexOf("  app.addEventListener('change'"));
-  return new Function('E','customRules','current',`
-    let game={rules:current},draft=null,draftPreset='classic',customDraft=null;
-    let variationsScrollTop=0,detailSetting='',settingsOrigin='home',screen='home',modal='';
-    const render=()=>{},escapeHtml=String;
-    ${markup}
-    ${state}
-    return {open:openSettings,choose:selectVariation,set:updateDraftSetting,html:renderSettings,
-      info:key=>{detailSetting=key;},difficulty:value=>{draft.difficulty=value;},
-      rules:()=>({...draft}),preset:()=>draftPreset};
-  `)(E,saved,current);
+  return new Function('E','customRules','current',
+    "let game={rules:current},draft=null,draftPreset='classic',customDraft=null;let variationsScrollTop=0,detailSetting='',settingsOrigin='home',screen='home',modal='';const render=()=>{},escapeHtml=String;"+
+    markup+state+"return {open:openSettings,choose:selectVariation,set:updateDraftSetting,html:renderSettings,tab:value=>{rulesTab=value;},section:value=>{rulesSection=value;},info:key=>{detailSetting=key;},difficulty:value=>{draft.difficulty=value;},issues:()=>{rulesIssuesOpen=true;},rules:()=>({...draft}),effective:effectiveDraftRules,preset:()=>draftPreset};"
+  )(E,saved,current);
 }
-const input=(html,key)=>html.match(new RegExp('<input[^>]*data-setting="'+key+'"[^>]*>'))?.[0] || '';
-const checked=(html,key)=>/\bchecked\b/.test(input(html,key));
-const disabled=(html,key)=>/\bdisabled\b/.test(input(html,key));
-test('One setup contains players, difficulty, all five variations, and one Start Game action',()=>{
-  const h=harness();h.open('newgame');
-  const html=h.html();
+const make=()=>{const h=harness();h.open('newgame');return h;};
+const blocked=h=>/data-action="apply-settings"[^>]*disabled/.test(h.html());
+test('Basic setup presents five presets, four difficulty choices and one Start action',()=>{
+  const h=make(),html=h.html();
   assert.match(html,/New Game/);
-  assert.match(html,/PLAYERS/);
-  assert.equal((html.match(/DIFFICULTY/g)||[]).length,1);
+  assert.match(html,/2 PLAYERS/);
   assert.equal((html.match(/data-action="preset-choice"/g)||[]).length,5);
+  assert.equal((html.match(/data-action="setup-difficulty"/g)||[]).length,4);
   assert.equal((html.match(/data-action="apply-settings"/g)||[]).length,1);
-  assert.doesNotMatch(app,/function renderNewGame|function renderSettingInfo|modal = 'newgame'/);
+  assert.equal(blocked(h),false);
+  assert.doesNotMatch(html,/data-setting="playerCount"|data-setting="jokerCount"/);
 });
-test('All preset switches reflect the engine and can be edited directly',()=>{
-  const h=harness();h.open('newgame');h.difficulty('casual');
-  for(const key of Object.keys(E.PRESETS)){
-    h.choose(key);
-    const html=h.html(),rules=E.rulesFor(key,{difficulty:'casual'});
-    assert.deepEqual(h.rules(),rules);
-    for(const prop of Object.keys(rules).filter(p=>typeof rules[p]==='boolean')){
-      const key=prop==='buildAnything'?'buildObligation':prop;
-      assert.ok(input(html,key),key);
-      assert.equal(checked(html,key),prop==='buildAnything'?!rules[prop]:rules[prop],key);
-      assert.equal(disabled(html,key),false,key);
-    }
-    assert.doesNotMatch(html,/<select data-setting="winningScore" disabled>/);
-    assert.match(html,new RegExp('value="'+rules.winningScore+'" selected'));
-    h.set('royal',!rules.royal);
-    assert.equal(h.preset(),'custom');
-    assert.equal(h.rules().royal,!rules.royal);
-    assert.equal(h.rules().winningScore,rules.winningScore);
-  }
+test('Preset and custom edits preserve difficulty, and tabs share one draft',()=>{
+  const h=make();h.difficulty('hard');
+  for(const key of Object.keys(E.PRESETS)){h.choose(key);assert.deepEqual(h.rules(),E.rulesFor(key,{difficulty:'hard'}));}
+  h.choose('custom');h.set('handSize',8);h.set('winningScore',31);
+  h.tab('advanced');assert.equal(h.rules().handSize,8);assert.equal(h.rules().winningScore,31);
+  assert.equal((h.html().match(/data-action="rules-section"/g)||[]).length,7);
+  h.choose('royal');h.choose('custom');assert.equal(h.rules().handSize,8);assert.equal(h.rules().difficulty,'hard');
 });
-test('First Custom selection inherits the previewed preset and unlocks rules',()=>{
-  const h=harness();h.open('newgame');h.choose('royalSpade');h.choose('custom');
-  assert.equal(h.rules().royal,true);
-  assert.equal(h.rules().spadeScoring,true);
-  assert.equal(h.rules().winningScore,61);
-  assert.equal(disabled(h.html(),'royal'),false);
-  assert.doesNotMatch(h.html(),/<select data-setting="winningScore" disabled>/);
-  h.set('royal',false);h.set('winningScore',31);
-  assert.equal(h.rules().winningScore,31);
-  h.choose('royal');assert.equal(h.rules().royal,true);
-  h.choose('custom');assert.equal(h.rules().royal,false);
-  assert.equal(h.rules().winningScore,31);
+test('Aliases consolidate face, ace, deal and independent-build settings',()=>{
+  const h=make();h.set('faceMode','extended');h.set('aceMode',11);
+  assert.equal(h.rules().royal,true);assert.equal(h.rules().faceValues,'extended');assert.equal(h.rules().aceValue,11);assert.equal(h.rules().royalAces,false);
+  h.set('independentBuilds','2');assert.equal(h.rules().pirateBuilds,true);assert.equal(h.rules().buildLimit,'2');
+  h.set('dealMode','draw');assert.equal(h.rules().drawMode,true);
+  h.set('dealMode','batch');assert.equal(h.rules().drawMode,false);
+  h.set('remainderMode','strict');h.set('dealMode','full');assert.equal(h.rules().remainderMode,'equal');
+  h.tab('advanced');assert.doesNotMatch(h.html(),/data-setting="royalAces"|data-setting="drawMode"|data-setting="pirateBuilds"/);
 });
-test('Previously saved custom rules are restored independently of preset and difficulty',()=>{
-  const h=harness(E.rulesFor('classic',{drawMode:true,winningScore:50}));
-  h.open('newgame');h.difficulty('casual');h.choose('royal');h.choose('custom');
-  assert.equal(h.rules().drawMode,true);
-  assert.equal(h.rules().winningScore,50);
-  assert.equal(h.rules().difficulty,'casual');
+test('Inactive dependent preferences are remembered but not sent to the engine',()=>{
+  const h=make();h.set('mergeSameValue',true);h.set('multipleBuilds',false);
+  assert.equal(h.rules().mergeSameValue,true);assert.equal(h.effective().mergeSameValue,false);
+  h.set('multipleBuilds',true);assert.equal(h.effective().mergeSameValue,true);
+  h.set('builds',false);assert.equal(h.effective().multipleBuilds,false);assert.equal(h.effective().mergeSameValue,false);
+  h.set('builds',true);assert.equal(h.effective().mergeSameValue,true);
+  h.set('additiveBuilds',true);h.set('additiveCapture',false);assert.equal(h.effective().additiveBuilds,false);
+  h.set('additiveCapture',true);assert.equal(h.effective().additiveBuilds,true);
 });
-test('Dependent build switches stay editable; enabling one enables building',()=>{
-  const h=harness();h.open('newgame');h.choose('custom');h.set('pirateBuilds',true);
-  h.set('builds',false);
-  for(const key of ['multipleBuilds','pirateBuilds','allowTrailWithOwnBuild','buildAnything']){
-    assert.equal(h.rules()[key],false);
-    assert.equal(disabled(h.html(),key==='buildAnything'?'buildObligation':key),false);
-    h.set(key,true);assert.equal(h.rules()[key],true);
-    assert.equal(h.rules().builds,true);
-    h.set('builds',false);
-  }
+test('Sweep cancellation no longer changes selected sweep points',()=>{
+  const h=make();h.set('sweepPoints',10);h.set('sweepCancel',true);
+  assert.equal(h.rules().sweepPoints,10);
+  h.set('sweepPoints',0);assert.equal(h.rules().sweepCancel,true);assert.equal(h.effective().sweepCancel,false);
+  h.set('sweepPoints',50);assert.equal(h.effective().sweepCancel,true);assert.equal(h.effective().sweepPoints,50);
 });
-test('In-game setup recognizes the current preset and explanations stay inline',()=>{
-  const h=harness(null,E.rulesFor('spade'));h.open('game');
-  assert.equal(h.preset(),'spade');
-  h.info('royal');assert.match(h.html(),/inline-setting-info/);
-  assert.match(h.html(),/Jacks, Queens and Kings have numerical values/);
-  assert.doesNotMatch(css,/\.unified-setup \.var-toggle input:disabled:checked\+i/);
+test('Compatibility is always visible, blocks Start, and offers relevant review links',()=>{
+  const h=make();h.set('directCapture',false);h.set('additiveCapture',false);
+  assert.equal(blocked(h),true);h.issues();
+  assert.match(h.html(),/data-action="rules-jump" data-value="capture"/);
+  h.set('directCapture',true);assert.equal(blocked(h),false);
+  assert.match(h.html(),/Static check/);
+});
+test('Advanced accordion summaries, explanations and old custom flags survive',()=>{
+  const h=harness(E.rulesFor('classic',{royalAces:true,drawMode:true,buildAnything:true}));h.open('newgame');h.choose('custom');h.tab('advanced');h.section('values');h.info('faceMode');
+  assert.match(h.html(),/value="14" selected/);assert.match(h.html(),/value="draw" selected/);assert.match(h.html(),/inline-setting-info/);
+  assert.match(h.html(),/2 vs\. 2 partnerships/);assert.doesNotMatch(h.html(),/data-setting="multiHandCapture"|data-setting="pileAccess"/);
+  h.set('buildObligation',true);assert.equal(h.rules().buildAnything,false);
+});
+test('Layout keeps four difficulty columns and fixed navigation/footer',()=>{
+  assert.match(css,/\.diff-row\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.doesNotMatch(css,/\.diff-row\s*\{[^}]*grid-template-columns:repeat\(2,/);
+  assert.match(css,/\.rules-footer\{flex:none/);
+  assert.match(css,/\.rules-accordion-body\[hidden\]\{display:none/);
   assert.match(app,/existingSettings\.innerHTML = renderSettings\(\)/);
   assert.match(app,/restoreVariationsScroll\(\)/);
-});
-
-test('No explanatory paragraph appears beneath any variation selector',()=>{
-  const h=harness();h.open('newgame');
-  for(const key of [...Object.keys(E.PRESETS),'custom']) {
-    h.choose(key);
-    assert.doesNotMatch(h.html(),/setup-rule-note|Choose Custom to edit|Customize the rules below|Your choices are saved/);
-  }
-  assert.doesNotMatch(css,/\.setup-rule-note/);
-});
-
-test('Build Obligation is a visible inverse of the legacy saved Build To Anything flag',()=>{
-  const h=harness();h.open('newgame');
-  assert.equal(checked(h.html(),'buildObligation'),true);
-  assert.equal(input(h.html(),'buildAnything'),'');
-  h.set('buildObligation',false);assert.equal(h.rules().buildAnything,true);
-  assert.equal(checked(h.html(),'buildObligation'),false);
-  h.set('buildObligation',true);assert.equal(h.rules().buildAnything,false);
-  assert.equal(checked(h.html(),'buildObligation'),true);
-  const saved=harness(E.rulesFor('royal',{buildAnything:true}));
-  saved.open('newgame');saved.choose('custom');
-  assert.equal(checked(saved.html(),'buildObligation'),false);
-});
-
-test('All four difficulty levels are enabled and preserved on preset changes',()=>{
-  const h=harness();h.open('newgame');
-  for(const level of ['casual','thoughtful','hard','expert']){
-    assert.match(h.html(),new RegExp('data-action="setup-difficulty" data-value="'+level+'"'));
-    h.difficulty(level);h.choose('royal');assert.equal(h.rules().difficulty,level);h.choose('classic');
-  }
-  assert.doesNotMatch(h.html(),/Insane|Hard <small>soon/);
-});
-
-test('Difficulty choices occupy one row of four equal columns',()=>{
-  assert.match(css,/\.diff-row\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
-  assert.match(css,/\.unified-setup \.diff-row \.pill-choice\s*\{[^}]*min-width:0;[^}]*white-space:nowrap/);
-  assert.doesNotMatch(css,/\.diff-row\s*\{[^}]*grid-template-columns:repeat\(2,/);
 });

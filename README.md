@@ -202,3 +202,7 @@ The opponent starts calculating the committed position as soon as the player's f
 ## Fishing Lab 0.6.0 — custom rules and compatibility
 
 Basic and Advanced rules share one configuration. Advanced controls cover deck/deal, capture, build and turn mechanics. The validator distinguishes static conflicts, warnings and not-yet-implemented features; the latter cannot be started. The rules laboratory runs ten deterministic deals using the actual engine, checks card conservation and build obligations, and retains failure diagnostics. The existing installation URL, storage keys and saved match format remain compatible. Planned mechanics include multiplayer, jokers, bid phases, multiple hand cards/actions per turn, and captured-pile stealing. The simulator samples deals, not a proof of all possible states. Subtractive building supports a two-card difference or lowering one single build; broader Zwicker arithmetic is not claimed.
+
+### 0.6.1 — rules menu redesign
+
+The Basic view is a quick-start preset, difficulty and common-rules editor. Advanced groups are collapsible and summarize their current configuration. Duplicate legacy face/ace/dealing controls are consolidated; the underlying saved rule flags remain compatible. The editor remembers dependent preferences when a parent rule is off and removes inactive effects from the actual game configuration. Compatibility is visible in the fixed footer, with expandable explanations and review links. Unimplemented modes appear only as an informational note, not as selectable game rules.
