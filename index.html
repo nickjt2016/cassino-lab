@@ -1312,6 +1312,11 @@ html,body,#app{background:#005d0b;color:#fff}
 .setup-seat-legend i{width:10px;height:10px;border-radius:3px;flex:none;border:1px solid #0002}
 .setup-preview-note{text-align:center;font-size:11px;line-height:1.4;color:#8a5e2f;margin:8px 0 0}
 
+/* v0.8.7: polar rectangles only, with a completely empty center. */
+.setup-table-figure .setup-table-svg{max-width:340px}
+.setup-seat-legend.polar-seat-legend{gap:7px 16px;font-weight:650;margin-top:0}
+.setup-seat-legend.polar-seat-legend span{display:inline}
+
 </style></head><body><div id="app"></div>
 <script>/* Fishing Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -3788,7 +3793,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.6';
+  const APP_VERSION = '0.8.7';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -5472,31 +5477,37 @@ html,body,#app{background:#005d0b;color:#fff}
       '<div class="player-count-ticks" aria-hidden="true">'+[2,3,4,5,6].map(v=>'<span class="'+(v===n?'active':'')+'" data-player-tick="'+v+'"><i></i><b>'+v+'</b></span>').join('')+'</div></div>'+
       ruleExplanation('playerCount')+'</div>';
   }
+  // A polar rectangle is a fixed radial band and fixed angular interval.
+  // All seats keep exactly the same shape at every player count; only
+  // their angular positions change. The center is deliberately empty.
+  function polarSeatPath(cx,cy,inner,outer,angle,halfAngle){
+    const point=(r,t)=>[+(cx+r*Math.cos(t)).toFixed(3),+(cy+r*Math.sin(t)).toFixed(3)].join(' ');
+    const start=angle-halfAngle,end=angle+halfAngle;
+    return 'M '+point(outer,start)+' A '+outer+' '+outer+' 0 0 1 '+point(outer,end)+
+      ' L '+point(inner,end)+' A '+inner+' '+inner+' 0 0 0 '+point(inner,start)+' Z';
+  }
   function seatingDiagram(rules=draft){
     const n=rules.playerCount,mode=rules.teamMode,seats=E.seatAssignments(n,mode);
     const colors=['#346da8','#ac4847','#367c55'];
     const free=mode==='freeForAll';
     const fillFor=s=>free?(s.human?colors[0]:'#777b73'):colors[s.team];
     const labels=seats.map(s=>(s.human?'You':'CPU '+s.seat)+(free?'':', team '+(s.team+1)));
+    const cx=160,cy=110,inner=60,outer=100,halfAngle=22*Math.PI/180,labelRadius=(inner+outer)/2;
     const groups=seats.map(s=>{
-      const angle=2*Math.PI*s.seat/n;
-      const x=160-114*Math.sin(angle),y=108+78*Math.cos(angle);
-      const xPos=x.toFixed(2),yPos=y.toFixed(2),label=s.human?'You':'CPU '+s.seat;
-      return '<g class="setup-seat'+(s.human?' human-seat':'')+'" data-seat="'+s.seat+'" data-team="'+(s.team===null?'none':s.team)+'" data-seat-x="'+xPos+'" data-seat-y="'+yPos+'" transform="translate('+xPos+' '+yPos+')"><title>'+escapeHtml(labels[s.seat])+(s.human?' (south seat)':'')+'</title>'+
-        '<rect x="-28" y="-16" width="56" height="32" rx="9" fill="'+fillFor(s)+'" stroke="'+(s.human?'#193b60':'#fffaf1')+'" stroke-width="'+(s.human?2.5:2)+'"/>'+
-        '<text x="0" y="4" text-anchor="middle" fill="#ffffff" font-size="10.5" font-weight="700">'+label+'</text></g>';
+      const angle=Math.PI/2+2*Math.PI*s.seat/n;
+      const xPos=(cx+labelRadius*Math.cos(angle)).toFixed(2),yPos=(cy+labelRadius*Math.sin(angle)).toFixed(2);
+      const label=s.human?'You':'CPU '+s.seat;
+      return '<g class="setup-seat'+(s.human?' human-seat':'')+'" data-seat="'+s.seat+'" data-team="'+(s.team===null?'none':s.team)+'" data-seat-x="'+xPos+'" data-seat-y="'+yPos+'"><title>'+escapeHtml(labels[s.seat])+(s.human?' (south seat)':'')+'</title>'+
+        '<path class="polar-seat" d="'+polarSeatPath(cx,cy,inner,outer,angle,halfAngle)+'" fill="'+fillFor(s)+'" stroke="'+(s.human?'#193b60':fillFor(s))+'" stroke-width="1.6" stroke-linejoin="round"/>'+
+        '<text x="'+xPos+'" y="'+yPos+'" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-size="10.5" font-weight="700">'+label+'</text></g>';
     }).join('');
     const legend=free?
-      '<span><i style="background:'+colors[0]+'"></i>You</span><span><i style="background:#777b73"></i>Individual opponents</span>':
-      Array.from({length:n/(mode==='pairs'?2:3)},(_,i)=>'<span><i style="background:'+colors[i]+'"></i>'+(i===0?'Your team':'Team '+(i+1))+'</span>').join('');
+      '<span style="color:#346da8">You</span><span style="color:#656961">Individual opponents</span>':
+      Array.from({length:n/(mode==='pairs'?2:3)},(_,i)=>'<span style="color:'+colors[i]+'">'+(i===0?'Your team':'Team '+(i+1))+'</span>').join('');
     const notice=n===2&&mode==='pairs'?'One pair, no opposing team. Select Free for all to play.':n>2?'Seating preview — multiplayer gameplay is not implemented yet.':'';
-    return '<div class="setup-table-figure"><svg viewBox="0 0 320 214" class="setup-table-svg" role="img" aria-labelledby="setup-table-title setup-table-desc">'+
+    return '<div class="setup-table-figure"><svg viewBox="0 0 320 220" class="setup-table-svg" role="img" aria-labelledby="setup-table-title setup-table-desc">'+
       '<title id="setup-table-title">'+escapeHtml(playerSetupSummary(rules))+' seating</title><desc id="setup-table-desc">You sit at the south seat. '+escapeHtml(labels.join('; '))+'.</desc>'+
-      '<ellipse cx="160" cy="108" rx="82" ry="48" fill="#b59b63"/><ellipse cx="160" cy="108" rx="78" ry="44" fill="#1b593e" stroke="#d4bb82" stroke-width="1.5"/>'+
-      '<ellipse cx="160" cy="108" rx="71" ry="37" fill="none" stroke="#8baf91" stroke-width=".8" stroke-dasharray="2.5 3" opacity=".6"/>'+
-      '<text x="160" y="105" fill="#eae7d2" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="1.1">TABLE</text>'+
-      '<text x="160" y="120" fill="#c6ddc3" font-size="10" text-anchor="middle">'+n+' seats</text>'+groups+'</svg>'+
-      '<div class="setup-seat-legend">'+legend+'</div>'+(notice?'<p class="setup-preview-note">'+escapeHtml(notice)+'</p>':'')+'</div>';
+      groups+'</svg><div class="setup-seat-legend polar-seat-legend">'+legend+'</div>'+(notice?'<p class="setup-preview-note">'+escapeHtml(notice)+'</p>':'')+'</div>';
   }
   function playerSetupContent(){
     return '<div class="rules-group player-setup-group">'+playerCountSetting()+

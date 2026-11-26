@@ -26,7 +26,7 @@ test('Setup appears before dealing; seats, dropdown and hand limit follow the se
  for(let n=2;n<=6;n++){
    h.set('playerCount',n);html=h.html();
    assert.equal((html.match(/data-seat="/g)||[]).length,n);
-   assert.match(html,/data-seat="0" data-team="none" data-seat-x="160\.00" data-seat-y="186\.00"/);
+   assert.match(html,/data-seat="0" data-team="none" data-seat-x="160\.00" data-seat-y="190\.00"/);
    assert.match(html,new RegExp('data-setting="handSize" min="1" max="'+Math.floor(52/n)+'"'));
    const select=html.match(/<select id="rule-teamMode"[\s\S]*?<\/select>/)[0];
    assert.equal(select.includes('value="pairs"'),n%2===0);assert.equal(select.includes('value="triples"'),n===6);
@@ -60,4 +60,31 @@ test('A slider input handler updates preview before the change commits the new d
  assert.match(app,/target\?\.dataset\?\.setting==='playerCount'/);
  assert.match(app,/diagram\.innerHTML=seatingDiagram\(preview\)/);
  assert.match(app,/if\(prop==='playerCount'\)/);
+});
+
+test('Every seat is a fixed-size polar rectangle with an empty center, at every player count',()=>{
+ const h=harness();h.open('newgame');
+ for(let n=2;n<=6;n++){
+  h.set('playerCount',n);
+  const svg=h.html().match(/<svg viewBox="0 0 320 220" class="setup-table-svg"[\s\S]*?<\/svg>/)[0];
+  assert.doesNotMatch(svg,/<(?:ellipse|rect|circle)\b/);
+  assert.equal((svg.match(/class="polar-seat"/g)||[]).length,n);
+  const points=[...svg.matchAll(/data-seat-x="([\d.]+)" data-seat-y="([\d.]+)"/g)].map(m=>[Number(m[1]),Number(m[2])]);
+  assert.deepEqual(points[0],[160,190]);
+  for(let i=0;i<n;i++){
+   const angle=Math.PI/2+2*Math.PI*i/n;
+   assert.ok(Math.abs(points[i][0]-(160+80*Math.cos(angle)))<.006);
+   assert.ok(Math.abs(points[i][1]-(110+80*Math.sin(angle)))<.006);
+  }
+  const paths=[...svg.matchAll(/class="polar-seat" d="([^"]+)"/g)].map(m=>m[1]);
+  for(const path of paths){
+   const nums=path.match(/^M ([\d.]+) ([\d.]+) A 100 100 0 0 1 ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+) A 60 60 0 0 0 ([\d.]+) ([\d.]+) Z$/);
+   assert.ok(nums,path);
+   const p=nums.slice(1).map(Number);
+   for(let i=0;i<4;i++)assert.ok(Math.abs(Math.hypot(p[2*i]-160,p[2*i+1]-110)-(i<2?100:60))<.002);
+   assert.ok(Math.abs(Math.hypot(p[0]-p[2],p[1]-p[3])-200*Math.sin(22*Math.PI/180))<.003);
+  }
+ }
+ h.set('teamMode','pairs');const svg=h.html().match(/<svg viewBox="0 0 320 220" class="setup-table-svg"[\s\S]*?<\/svg>/)[0];
+ for(const color of ['#346da8','#ac4847','#367c55'])assert.equal((svg.match(new RegExp('fill="'+color+'"','g'))||[]).length,2);
 });

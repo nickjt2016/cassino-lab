@@ -238,3 +238,7 @@ Negative builds are an opt-in extension to subtractive building: a 3 minus a pla
 ### 0.8.6 — player setup and seating previews
 
 Player Setup precedes Deck & Dealing. The stepped slider selects 2–6 players; the Teams dropdown offers free-for-all for every count, pairs for even counts, and triples for six. Seat zero is the human at the south end; teams alternate around the table and use blue, red and green. Two-player pairs have one team and no opponent. Player count updates hand-size limits, deal validation and setup summaries. Legacy four-player partnership profiles migrate to four players with pairs. Multiplayer arrangements are selectable previews, not playable modes: only two-player free-for-all can start a match. No change to saved two-player match behavior.
+
+### 0.8.7 — polar seating preview
+
+The seating diagram now consists solely of equal-sized annular-sector seats around a blank center. Each seat retains the same radial thickness and angular width at every player count (2–6), and seats are evenly distributed around the circle. Team colors and the southern human seat remain unchanged. This is a visual setup change only; multiplayer gameplay remains unavailable.
