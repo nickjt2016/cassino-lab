@@ -12,7 +12,7 @@ test('One dropdown includes all studied games, one rules page has no duplicate s
  assert.equal((html.match(/data-setting="preset"/g)||[]).length,1);
  assert.equal((html.match(/data-action="setup-difficulty"/g)||[]).length,4);
  assert.equal((html.match(/data-action="apply-settings"/g)||[]).length,1);
- assert.equal((html.match(/class="rules-page-section"/g)||[]).length,6);
+ assert.equal((html.match(/class="rules-page-section"/g)||[]).length,7);
  for(const k of ['handSize','initialTableSize','winningScore','forcedCapture','builds','faceMode','scoreMode'])assert.equal((html.match(new RegExp('data-setting="'+k+'"','g'))||[]).length,1,k);
  for(const p of E.PRESET_CATALOG)assert.ok(html.includes('value="'+p.id+'"'),p.name);
  assert.doesNotMatch(html,/data-action="rules-tab"/);

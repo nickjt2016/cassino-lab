@@ -14,7 +14,7 @@
     allowTrailWithOwnBuild: false, drawMode: false, sweepCancel: false,
     royalAces: false, royalBigLittle: false, pirateCaptures: false,
     pirateBuilds: false, buildAnything: false, winningScore: 21, difficulty: 'thoughtful',
-    playerCount: 2, deckSize: 52, deckMode:'legacy', deckCards:null, handSize: 4, initialTableSize: 4,
+    playerCount: 2, teamMode:'freeForAll', deckSize: 52, deckMode:'legacy', deckCards:null, handSize: 4, initialTableSize: 4,
     customizeCardValues:false, cardValueOverrides:null,
     dealMode: 'batch', remainderMode: 'equal', faceValues: 'standard', aceValue: 1,
     jokerCount: 0, jokerValue: 15, directCapture: true, additiveCapture: true,
@@ -80,11 +80,13 @@
   },
   "partnership": {
     "name": "Partnership Cassino",
-    "playerCount": "4team",
+    "playerCount": 4,
+    "teamMode": "pairs",
     "presetBlocker": "Four-player partnerships are not implemented."
   },
   "fivePlayer": {
     "name": "Five-player Cassino",
+    "playerCount": 5,
     "presetBlocker": "Five-player gameplay and dealing are not implemented."
   },
   "twentyOne": {
@@ -258,7 +260,8 @@
     "sweepPoints": 1,
     "ignoreFinalSweep": true,
     "winningScore": 11,
-    "playerCount": "4team",
+    "playerCount": 4,
+    "teamMode": "pairs",
     "dealMode": "full",
     "presetBlocker": "Four-player partnerships are not implemented."
   },
@@ -278,7 +281,8 @@
     "sweepPoints": 1,
     "ignoreFinalSweep": true,
     "winningScore": 11,
-    "playerCount": "4team",
+    "playerCount": 4,
+    "teamMode": "pairs",
     "dealMode": "full",
     "initialTableSize": 0,
     "presetBlocker": "Four-player partnerships are not implemented."
@@ -991,8 +995,23 @@
     const profile=PRESETS[preset]||PRESETS.classic;
     return normalizeRules({...DEFAULT_RULES,...profile,...overrides,dealMode:overrides.dealMode??(Object.hasOwn(overrides,'drawMode')?(overrides.drawMode?'draw':'batch'):(profile.dealMode??(profile.drawMode?'draw':'batch')))});
   }
+  // Seating is a rules-level model shared by setup, validation and any
+  // future multiplayer implementation. Seat zero is the human (south);
+  // alternating team membership puts partners as far apart as possible.
+  function teamModesFor(count){
+    if(![2,3,4,5,6].includes(count))return [];
+    return ['freeForAll',...(count%2===0?['pairs']:[]),...(count===6?['triples']:[])];
+  }
+  function seatAssignments(count,mode='freeForAll'){
+    if(!teamModesFor(count).includes(mode))return [];
+    const teamSize=mode==='pairs'?2:mode==='triples'?3:1;
+    const teams=count/teamSize;
+    return Array.from({length:count},(_,seat)=>({seat,human:seat===0,team:mode==='freeForAll'?null:seat%teams}));
+  }
   function normalizeRules(input={}) {
     const r={...DEFAULT_RULES,...input};
+    // Migrate legacy partnership presets without changing the number of seats.
+    if(r.playerCount==='4team'){r.playerCount=4;r.teamMode='pairs';}
     // Old saves use drawMode and royalAces; retain those flags as aliases.
     if(!Object.hasOwn(input,'dealMode')) r.dealMode=r.drawMode?'draw':'batch';
     if(r.dealMode==='batch'&&r.drawMode) r.dealMode='draw';
@@ -1030,7 +1049,7 @@
   }
   function validateRules(input={}) {
     const r=normalizeRules(input),errors=[],warnings=[],unavailable=[];
-    const allowed={playerCount:[2,4,'4team'],deckMode:['40','52','54','custom'],initialTableSize:[0,3,4,8],
+    const allowed={playerCount:[2,3,4,5,6],teamMode:['freeForAll','pairs','triples'],deckMode:['40','52','54','custom'],initialTableSize:[0,3,4,8],
       dealMode:['batch','draw','full','bid'],remainderMode:['equal','uneven','strict'],
       faceValues:['standard','extended','italian'],aceValue:[1,11,14],jokerCount:[0,1,2],jokerValue:Array.from({length:30},(_,i)=>i+1),
       captureGroups:['one','unlimited'],forcedCapture:['optional','faces','direct','all'],captureExtent:['choice','maximal','maximum'],
@@ -1039,7 +1058,10 @@
     for(const [k,options] of Object.entries(allowed))if(!options.includes(r[k]))errors.push('Invalid setting: '+k+'.');
     for(const [k,v] of Object.entries(DEFAULT_RULES))if(typeof v==='boolean'&&typeof r[k]!=='boolean')errors.push('Invalid switch: '+k+'.');
     if(!Number.isInteger(r.winningScore)||r.winningScore<1||!Number.isInteger(r.sweepPoints)||r.sweepPoints<0)errors.push('Score settings must be nonnegative whole numbers, with a positive winning score.');
-    const deck=makeDeck(r),players=r.playerCount===2?2:4,count=deck.length-r.initialTableSize;
+    const validPlayerCount=[2,3,4,5,6].includes(r.playerCount);
+    if(validPlayerCount&&!teamModesFor(r.playerCount).includes(r.teamMode))errors.push('The selected team arrangement is not available for this player count.');
+    if(r.playerCount===2&&r.teamMode==='pairs')errors.push('Two-player pairs form a single team with no opponent. Select Free for all to start.');
+    const deck=makeDeck(r),players=validPlayerCount?r.playerCount:2,count=deck.length-r.initialTableSize;
     const maxHand=Math.floor(deck.length/players);
     if(r.deckMode==='custom'){
       const valid=new Set(allCards().map(c=>c.id));
@@ -1080,7 +1102,7 @@
     if(r.initialTableSize>openingCapacity(deck,r.initialTableRule))errors.push('The selected deck cannot satisfy the starting table restrictions.');
     if(r.builds&&!availableValues(r).length)warnings.push('There are no numerical card values; building is unavailable in this deck.');
     if(!r.directCapture&&!availableValues(r).length)errors.push('Rank-only cards cannot make additive captures when direct matching is off.');
-    if(r.playerCount!==2)unavailable.push('Three- and four-player gameplay is not implemented.');
+    if(validPlayerCount&&r.playerCount>2)unavailable.push('Multiplayer gameplay for 3–6 players is not implemented yet. Player Setup is a preview.');
     if(r.dealMode==='bid')unavailable.push('Opening bidding is not implemented.');
     if(r.multiHandCapture||r.handCardsPerTurn==='multiple')unavailable.push('Multi-card hand actions are not implemented.');
     if(r.actionsPerTurn==='multiple'||(r.builds&&r.tableOnlyBuild))unavailable.push('Multi-action turns and table-only building are not implemented.');
@@ -2429,7 +2451,7 @@
     }
     return {tested:count,completed,zeroScore,failures,validation};
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, teamModesFor, seatAssignments, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,

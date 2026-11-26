@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.5';
+  const APP_VERSION = '0.8.6';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1588,6 +1588,8 @@
 };
   function helpFor(key,options=[]){
     if(key==='scoreMode')return E.scoreHelp(draft);
+    if(key==='playerCount')return [2,3,4,5,6].map(n=>[n+' players',n===2?'You and one computer opponent.':'You and '+(n-1)+' computer seats. Layout preview until multiplayer gameplay is implemented.']);
+    if(key==='teamMode')return options.map(([mode,label])=>[label,mode==='freeForAll'?'Every player competes independently.':mode==='pairs'?(draft.playerCount===2?'Both players are one pair; there is no opposing team. This layout cannot start a competitive game.':'Teams of two, seated opposite each other when possible. '+(draft.playerCount/2)+' teams compete.'):'Two teams of three. Teammates alternate around the table.']);
     if(OPTION_HELP[key])return OPTION_HELP[key];
     if(key==='handSize')return [['1 to '+handMaximum(),'Drag the stepped slider or type a whole number into the value box. Maximum = deck size divided by player count, rounded down. Starting table cards can impose a tighter legal limit; the compatibility check catches that.'],['All cards at start','The slider has no effect in this dealing mode.']];
     if(key==='jokerValue')return options.map(n=>[String(n),'Both identical jokers have numerical capture and build value '+n+'.']);
@@ -1678,8 +1680,55 @@
     return '<div class="build-range-editor'+(locked?' is-inactive':'')+'">'+field('buildMin','Minimum')+field('buildMax','Maximum')+
       '<small>'+(vals.length?'Only values available in this deck can be used.':'No numerical card values are available.')+'</small></div>';
   }
+  const TEAM_LABELS={freeForAll:'Free for all',pairs:'Pairs',triples:'Triples'};
+  function playerTeamOptions(count){return E.teamModesFor(count).map(mode=>[mode,TEAM_LABELS[mode]]);}
+  function playerSetupSummary(rules=draft){
+    return rules.playerCount+' players · '+TEAM_LABELS[rules.teamMode];
+  }
+  function playerHeader(rules=draft){
+    return 'FISHING LAB · '+rules.playerCount+' PLAYERS · '+(rules.playerCount===2&&rules.teamMode==='freeForAll'?'VS COMPUTER':'SETUP PREVIEW');
+  }
+  function playerCountSetting(){
+    const n=draft.playerCount,disabled=!!draft.presetBlocker;
+    return '<div class="rules-setting hand-slider-setting player-count-setting'+(disabled?' is-inactive':'')+'"><label class="rules-setting-label" for="rule-playerCount"><span class="rules-label">Number of players</span></label>'+ruleInfo('playerCount','Number of players')+
+      '<output class="player-count-number" id="player-count-output" for="rule-playerCount">'+n+'</output>'+
+      '<div class="hand-slider-control player-count-control"><input id="rule-playerCount" type="range" data-setting="playerCount" min="2" max="6" step="1" value="'+n+'" '+(disabled?'disabled':'')+' aria-label="Number of players">'+
+      '<div class="player-count-ticks" aria-hidden="true">'+[2,3,4,5,6].map(v=>'<span class="'+(v===n?'active':'')+'" data-player-tick="'+v+'"><i></i><b>'+v+'</b></span>').join('')+'</div></div>'+
+      ruleExplanation('playerCount')+'</div>';
+  }
+  function seatingDiagram(rules=draft){
+    const n=rules.playerCount,mode=rules.teamMode,seats=E.seatAssignments(n,mode);
+    const colors=['#346da8','#ac4847','#367c55'];
+    const free=mode==='freeForAll';
+    const fillFor=s=>free?(s.human?colors[0]:'#777b73'):colors[s.team];
+    const labels=seats.map(s=>(s.human?'You':'CPU '+s.seat)+(free?'':', team '+(s.team+1)));
+    const groups=seats.map(s=>{
+      const angle=2*Math.PI*s.seat/n;
+      const x=160-114*Math.sin(angle),y=108+78*Math.cos(angle);
+      const xPos=x.toFixed(2),yPos=y.toFixed(2),label=s.human?'You':'CPU '+s.seat;
+      return '<g class="setup-seat'+(s.human?' human-seat':'')+'" data-seat="'+s.seat+'" data-team="'+(s.team===null?'none':s.team)+'" data-seat-x="'+xPos+'" data-seat-y="'+yPos+'" transform="translate('+xPos+' '+yPos+')"><title>'+escapeHtml(labels[s.seat])+(s.human?' (south seat)':'')+'</title>'+
+        '<rect x="-28" y="-16" width="56" height="32" rx="9" fill="'+fillFor(s)+'" stroke="'+(s.human?'#193b60':'#fffaf1')+'" stroke-width="'+(s.human?2.5:2)+'"/>'+
+        '<text x="0" y="4" text-anchor="middle" fill="#ffffff" font-size="10.5" font-weight="700">'+label+'</text></g>';
+    }).join('');
+    const legend=free?
+      '<span><i style="background:'+colors[0]+'"></i>You</span><span><i style="background:#777b73"></i>Individual opponents</span>':
+      Array.from({length:n/(mode==='pairs'?2:3)},(_,i)=>'<span><i style="background:'+colors[i]+'"></i>'+(i===0?'Your team':'Team '+(i+1))+'</span>').join('');
+    const notice=n===2&&mode==='pairs'?'One pair, no opposing team. Select Free for all to play.':n>2?'Seating preview — multiplayer gameplay is not implemented yet.':'';
+    return '<div class="setup-table-figure"><svg viewBox="0 0 320 214" class="setup-table-svg" role="img" aria-labelledby="setup-table-title setup-table-desc">'+
+      '<title id="setup-table-title">'+escapeHtml(playerSetupSummary(rules))+' seating</title><desc id="setup-table-desc">You sit at the south seat. '+escapeHtml(labels.join('; '))+'.</desc>'+
+      '<ellipse cx="160" cy="108" rx="82" ry="48" fill="#b59b63"/><ellipse cx="160" cy="108" rx="78" ry="44" fill="#1b593e" stroke="#d4bb82" stroke-width="1.5"/>'+
+      '<ellipse cx="160" cy="108" rx="71" ry="37" fill="none" stroke="#8baf91" stroke-width=".8" stroke-dasharray="2.5 3" opacity=".6"/>'+
+      '<text x="160" y="105" fill="#eae7d2" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="1.1">TABLE</text>'+
+      '<text x="160" y="120" fill="#c6ddc3" font-size="10" text-anchor="middle">'+n+' seats</text>'+groups+'</svg>'+
+      '<div class="setup-seat-legend">'+legend+'</div>'+(notice?'<p class="setup-preview-note">'+escapeHtml(notice)+'</p>':'')+'</div>';
+  }
+  function playerSetupContent(){
+    return '<div class="rules-group player-setup-group">'+playerCountSetting()+
+      ruleSelect('teamMode','Teams',playerTeamOptions(draft.playerCount))+
+      '<div id="player-seating-preview">'+seatingDiagram()+'</div></div>';
+  }
   function handMaximum(){
-    const players=draft.playerCount===2?2:4;
+    const players=[2,3,4,5,6].includes(draft.playerCount)?draft.playerCount:2;
     return Math.floor(E.makeDeck(draft).length/players);
   }
   function handSetting(){
@@ -1805,6 +1854,7 @@
       ruleSelect('residueOwner','Remaining table cards',[['lastCapture','Last capturer'],['dealer','Dealer']])+'</div>';
     const captureSummary=(draft.directCapture&&draft.additiveCapture?'Match & sum':draft.directCapture?'Direct only':draft.additiveCapture?'Sums only':'No capture of individual table cards')+' · '+(draft.forcedCapture==='optional'?'Optional':draft.forcedCapture==='direct'?'Direct matches required':draft.forcedCapture==='faces'?'Face matches required':'Legal captures required');
     return '<div class="all-rules-heading"><h3>RULES</h3><button type="button" class="rules-reset" data-action="reset-rules">Reset to Classic</button></div><div class="rules-accordions rules-single-page">'+
+      rulesAccordion('players','Player Setup',playerSetupSummary(),playerSetupContent())+
       rulesAccordion('deal','Deck & dealing',draft.deckSize+' cards · '+dealLabel()+' · '+draft.initialTableSize+' on table',deckContent)+
       rulesAccordion('values','Card values',draft.customizeCardValues?'Individual card values':faceLabel()+' · Ace '+(ruleValue('aceMode')===1?'1':'1 or '+ruleValue('aceMode')),valuesContent)+
       rulesAccordion('capture','Capturing',captureSummary,captureContent)+
@@ -1815,6 +1865,7 @@
       '</div>';
   }
   function issueArea(message){
+    if(/multiplayer gameplay|team arrangement|single team with no opponent|four-player partnerships/i.test(message))return 'players';
     if(/capture method|compulsory direct/i.test(message))return 'capture';
     if(/build|obligation/i.test(message))return 'build';
     if(/score|sweep/i.test(message))return 'score';
@@ -1828,7 +1879,7 @@
     const count=validation.errors.length+validation.unavailable.length;
     const status=count?count+' blocking '+(count===1?'issue':'issues'):validation.warnings.length?validation.warnings.length+' '+(validation.warnings.length===1?'warning':'warnings'):'No known conflicts';
     const detail=issues.length&&rulesIssuesOpen?'<div class="rules-issues" id="rules-issues">'+issues.map(({message,type})=>{
-      const area=type==='unavailable'?'':issueArea(message);
+      const targetArea=issueArea(message),area=type==='unavailable'&&targetArea!=='players'?'':targetArea;
       return '<div class="rules-issue"><span class="rule-'+(type==='warning'?'warning':'error')+'">'+escapeHtml((type==='unavailable'?'Not available: ':'')+message)+'</span>'+
         (area?'<button type="button" data-action="rules-jump" data-value="'+area+'">Review ›</button>':'')+'</div>';
     }).join('')+(validation.unavailable.length?'<button type="button" class="rules-reset" data-action="reset-rules">Reset to Classic</button>':'')+'</div>':'';
@@ -1839,7 +1890,7 @@
   }
   function renderSettings(){
     if(!draft)draft=E.normalizeRules(game.rules);
-    return '<div class="dialog-head rules-header"><div><p class="rules-eyebrow">FISHING LAB · 2 PLAYERS · VS COMPUTER</p><h2>'+(settingsOrigin==='newgame'?'New Game':'Game Setup')+'</h2></div><button type="button" data-action="close" class="icon-close" aria-label="Close">×</button></div>'+
+    return '<div class="dialog-head rules-header"><div><p class="rules-eyebrow">'+escapeHtml(playerHeader())+'</p><h2>'+(settingsOrigin==='newgame'?'New Game':'Game Setup')+'</h2></div><button type="button" data-action="close" class="icon-close" aria-label="Close">×</button></div>'+
       '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderAllRules()+'</div>'+rulesFooter();
   }
 
@@ -2221,6 +2272,16 @@
   }
   function updateDraftSetting(prop,value){
     if(!draft||draft.presetBlocker)return;
+    if(prop==='playerCount'){
+      if(![2,3,4,5,6].includes(value)||draft.playerCount===value)return;
+      draft.playerCount=value;
+      if(!E.teamModesFor(value).includes(draft.teamMode))draft.teamMode='freeForAll';
+      fitHandSize();commitDraftEdit();return;
+    }
+    if(prop==='teamMode'){
+      if(!E.teamModesFor(draft.playerCount).includes(value)||draft.teamMode===value)return;
+      draft.teamMode=value;commitDraftEdit();return;
+    }
     if(prop==='deckMode'){
       if(!['40','52','54','custom'].includes(value)||draft.deckMode===value)return;
       if(value==='custom'&&!Array.isArray(draft.deckCards))draft.deckCards=E.makeDeck(draft).map(c=>c.id);
@@ -2355,6 +2416,22 @@
   app.addEventListener('input',ev=>{
     const target=ev.target;
     if(modal!=='settings'||target?.disabled)return;
+    if(target?.dataset?.setting==='playerCount'){
+      // Preview every slider step without replacing the active range input.
+      // The change event commits the configuration and revalidates dealing.
+      const n=Number(target.value);
+      if(![2,3,4,5,6].includes(n)||draft.presetBlocker)return;
+      const allowed=E.teamModesFor(n),mode=allowed.includes(draft.teamMode)?draft.teamMode:'freeForAll';
+      const preview={...draft,playerCount:n,teamMode:mode};
+      const output=app.querySelector('#player-count-output');if(output)output.textContent=String(n);
+      for(const tick of app.querySelectorAll('[data-player-tick]'))tick.classList.toggle('active',Number(tick.dataset.playerTick)===n);
+      const select=app.querySelector('#rule-teamMode');
+      if(select)select.innerHTML=playerTeamOptions(n).map(([value,label])=>'<option value="'+value+'" '+(value===mode?'selected':'')+'>'+label+'</option>').join('');
+      const diagram=app.querySelector('#player-seating-preview');if(diagram)diagram.innerHTML=seatingDiagram(preview);
+      const summary=app.querySelector('#rules-area-players .rules-page-heading small');if(summary)summary.textContent=playerSetupSummary(preview);
+      const eyebrow=app.querySelector('.rules-header .rules-eyebrow');if(eyebrow)eyebrow.textContent=playerHeader(preview);
+      return;
+    }
     if(target?.dataset?.setting==='handSize'){
       syncHandSizeControls(Number(target.value));return;
     }

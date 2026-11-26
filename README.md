@@ -234,3 +234,7 @@ Construction settings remain together and are disabled rather than hidden when b
 ### 0.8.5 — negative builds, color arithmetic and scoring help
 
 Negative builds are an opt-in extension to subtractive building: a 3 minus a played 7 can produce a displayed −4 single build with capture magnitude 4. All build obligations, same-value combining, capture sums, build ranges, and subsequent modifications use the positive magnitude. In color arithmetic, clubs/spades and the identical jokers add; hearts/diamonds subtract in arithmetic groups. Individual cards used as singleton groups retain their normal magnitudes. The addition and subtraction switches continue to govern allowed arithmetic. No zero-valued builds. Scoring system precedes sweep settings, and its info panel shows one scoring category per line, generated from the actual selected scoring specification.
+
+### 0.8.6 — player setup and seating previews
+
+Player Setup precedes Deck & Dealing. The stepped slider selects 2–6 players; the Teams dropdown offers free-for-all for every count, pairs for even counts, and triples for six. Seat zero is the human at the south end; teams alternate around the table and use blue, red and green. Two-player pairs have one team and no opponent. Player count updates hand-size limits, deal validation and setup summaries. Legacy four-player partnership profiles migrate to four players with pairs. Multiplayer arrangements are selectable previews, not playable modes: only two-player free-for-all can start a match. No change to saved two-player match behavior.
