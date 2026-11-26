@@ -4084,7 +4084,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.0';
+  const APP_VERSION = '0.10.1';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -5692,10 +5692,10 @@ html,body,#app{background:#005d0b;color:#fff}
     ]
   ]
 };
-  function helpFor(key,options=[]){
+  function helpFor(key,options=[],rules=draft){
     if(key==='scoreMode')return E.scoreHelp(draft);
     if(key==='playerCount')return [2,3,4,5,6].map(n=>[n+' players','You and '+(n-1)+' computer '+(n===2?'opponent.':'players.')]);
-    if(key==='teamMode')return options.map(([mode,label])=>[label,mode==='freeForAll'?'Every player competes independently.':mode==='pairs'?'Teams of two, seated opposite each other. '+(draft.playerCount/2)+' teams compete with shared captures and scores.':'Two teams of three with shared captures and scores. Teammates alternate around the table.']);
+    if(key==='teamMode')return playerTeamHelp(rules.playerCount);
     if(OPTION_HELP[key])return OPTION_HELP[key];
     if(key==='handSize')return [['1 to '+handMaximum(),'Drag the stepped slider or type a whole number into the value box. Maximum = deck size divided by player count, rounded down. Starting table cards can impose a tighter legal limit; the compatibility check catches that.'],['All cards at start','The slider has no effect in this dealing mode.']];
     if(key==='jokerValue')return options.map(n=>[String(n),'Both identical jokers have numerical capture and build value '+n+'.']);
@@ -5708,10 +5708,11 @@ html,body,#app{background:#005d0b;color:#fff}
   function ruleInfo(key,title){
     return '<button type="button" class="var-info rules-info" data-action="info-setting" data-key="'+key+'" aria-label="Explain '+escapeHtml(title)+'" aria-expanded="'+(detailSetting===key)+'">ⓘ</button>';
   }
-  function ruleExplanation(key,options=[]){
+  function ruleExplanation(key,options=[],rules=draft){
     if(detailSetting!==key)return '';
-    const inactive=E.ruleActivity(draft).disabled[key];
-    return '<div class="inline-setting-info rule-option-help">'+(inactive?'<p class="inactive-rule-note"><b>Inactive:</b> this setting has no effect under the current configuration. Your preference is retained.</p>':'')+helpFor(key,options).map(([label,description])=>'<p><b>'+escapeHtml(label)+'</b> — '+escapeHtml(description)+'</p>').join('')+'</div>';
+    // A single available arrangement is fixed, not an inactive gameplay rule.
+    const inactive=key!=='teamMode'&&E.ruleActivity(rules).disabled[key];
+    return '<div class="inline-setting-info rule-option-help">'+(inactive?'<p class="inactive-rule-note"><b>Inactive:</b> this setting has no effect under the current configuration. Your preference is retained.</p>':'')+helpFor(key,options,rules).map(([label,description])=>'<p><b>'+escapeHtml(label)+'</b> — '+escapeHtml(description)+'</p>').join('')+'</div>';
   }
   function ruleSwitch(key,title,disabled=false,hint=''){
     disabled=disabled||!!draft.presetBlocker||!!E.ruleActivity(draft).disabled[key];
@@ -5776,10 +5777,22 @@ html,body,#app{background:#005d0b;color:#fff}
     return '<div class="build-range-editor'+(locked?' is-inactive':'')+'">'+field('buildMin','Minimum')+field('buildMax','Maximum')+
       '<small>'+(vals.length?'Only values available in this deck can be used.':'No numerical card values are available.')+'</small></div>';
   }
-  const TEAM_LABELS={freeForAll:'Free for all',pairs:'Pairs',triples:'Triples'};
-  function playerTeamOptions(count){return E.teamModesFor(count).map(mode=>[mode,TEAM_LABELS[mode]]);}
+  function playerTeamLabel(count,mode){
+    if(mode==='freeForAll')return count===2?'1 vs. 1':'FFA';
+    if(mode==='pairs')return count===6?'2 vs. 2 vs. 2':'2 vs. 2';
+    if(mode==='triples')return '3 vs. 3';
+    return '';
+  }
+  function playerTeamOptions(count){return E.teamModesFor(count).map(mode=>[mode,playerTeamLabel(count,mode)]);}
+  function playerTeamHelp(count){
+    return playerTeamOptions(count).map(([mode,label])=>[label,
+      mode==='freeForAll'?(count===2?'You compete against one CPU opponent. Each player has an individual score.':'Free for all: all '+count+' players compete independently, each with their own captured cards and score.'):
+      mode==='pairs'?(count===6?'Three teams of two compete. Partners sit opposite one another and share captured cards and a team score.':'Two teams of two compete. Partners sit opposite one another and share captured cards and a team score.'):
+      'Two teams of three compete. Teammates alternate around the table and share captured cards and a team score.'
+    ]);
+  }
   function playerSetupSummary(rules=draft){
-    return rules.playerCount+' players · '+TEAM_LABELS[rules.teamMode];
+    return rules.playerCount+' players · '+playerTeamLabel(rules.playerCount,rules.teamMode);
   }
   function playerHeader(rules=draft){
     return 'FISHING LAB · '+rules.playerCount+' PLAYERS · VS '+(rules.playerCount===2?'COMPUTER':'CPUs');
@@ -6557,6 +6570,10 @@ html,body,#app{background:#005d0b;color:#fff}
       for(const tick of app.querySelectorAll('[data-player-tick]'))tick.classList.toggle('active',Number(tick.dataset.playerTick)===n);
       const select=app.querySelector('#rule-teamMode');
       if(select){select.innerHTML=playerTeamOptions(n).map(([value,label])=>'<option value="'+value+'" '+(value===mode?'selected':'')+'>'+label+'</option>').join('');select.disabled=allowed.length<2;select.closest('.rules-setting')?.classList.toggle('is-inactive',select.disabled);}
+      if(detailSetting==='teamMode'){
+        const help=select?.closest('.rules-setting')?.querySelector('.rule-option-help');
+        if(help)help.outerHTML=ruleExplanation('teamMode',playerTeamOptions(n),preview);
+      }
       const diagram=app.querySelector('#player-seating-preview');if(diagram)diagram.innerHTML=seatingDiagram(preview);
       const summary=app.querySelector('#rules-area-players .rules-page-heading small');if(summary)summary.textContent=playerSetupSummary(preview);
       const eyebrow=app.querySelector('.rules-header .rules-eyebrow');if(eyebrow)eyebrow.textContent=playerHeader(preview);

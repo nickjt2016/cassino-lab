@@ -3,7 +3,7 @@ const E=require('../src/engine.js'),app=fs.readFileSync(path.join(__dirname,'../
 function harness(){
  const markup=app.slice(app.indexOf('  const SETTING_INFO = {'),app.indexOf('  function renderMenu()'));
  const state=app.slice(app.indexOf('  function openSettings('),app.indexOf("  app.addEventListener('change'"));
- return new Function('E',"let game={rules:E.rulesFor()},draft=null,draftPreset='classic',customDraft=null,customRules=null;let variationsScrollTop=0,detailSetting='',settingsOrigin='home',screen='home',modal='';const render=()=>{},escapeHtml=String;"+markup+state+"return {open:openSettings,set:updateDraftSetting,choose:selectVariation,html:renderSettings,rules:()=>({...draft}),effective:effectiveDraftRules,teams:playerTeamOptions,diagram:seatingDiagram,maximum:handMaximum};")(E);
+ return new Function('E',"let game={rules:E.rulesFor()},draft=null,draftPreset='classic',customDraft=null,customRules=null;let variationsScrollTop=0,detailSetting='',settingsOrigin='home',screen='home',modal='';const render=()=>{},escapeHtml=String;"+markup+state+"return {open:openSettings,set:updateDraftSetting,choose:selectVariation,html:renderSettings,rules:()=>({...draft}),effective:effectiveDraftRules,teams:playerTeamOptions,diagram:seatingDiagram,maximum:handMaximum,help:key=>{detailSetting=key;},summary:playerSetupSummary};")(E);
 }
 test('Team options follow the exact requested player counts',()=>{
  assert.deepEqual(E.teamModesFor(2),['freeForAll']);
@@ -90,4 +90,26 @@ test('Every seat is a fixed-size polar rectangle with an empty center, at every 
  }
  h.set('teamMode','pairs');const svg=h.html().match(/<svg viewBox="0 0 320 220" class="setup-table-svg"[\s\S]*?<\/svg>/)[0];
  for(const color of ['#346da8','#ac4847','#367c55'])assert.equal((svg.match(new RegExp('fill="'+color+'"','g'))||[]).length,2);
+});
+
+test('Arrangement labels and information match the selected player count',()=>{
+ const h=harness();h.open('newgame');h.help('teamMode');
+ const expected={2:['1 vs. 1'],3:['FFA'],4:['FFA','2 vs. 2'],5:['FFA'],6:['FFA','2 vs. 2 vs. 2','3 vs. 3']};
+ for(let n=2;n<=6;n++){
+  h.set('playerCount',n);
+  assert.deepEqual(h.teams(n).map(row=>row[1]),expected[n]);
+  const html=h.html(),select=html.match(/<select id="rule-teamMode"[\s\S]*?<\/select>/)[0];
+  const labels=[...select.matchAll(/<option[^>]*>([^<]+)<\/option>/g)].map(m=>m[1]);
+  assert.deepEqual(labels,expected[n]);
+  const info=html.match(/<div class="inline-setting-info rule-option-help">([\s\S]*?)<\/div>/)[1];
+  assert.deepEqual([...info.matchAll(/<p><b>([^<]+)<\/b>/g)].map(m=>m[1]),expected[n]);
+  assert.doesNotMatch(info,/Inactive:/);
+  if(n===2)assert.match(info,/one CPU opponent/);
+  else assert.match(info,new RegExp('all '+n+' players compete independently'));
+  if(n===4)assert.match(info,/Two teams of two/);
+  if(n===6){assert.match(info,/Three teams of two/);assert.match(info,/Two teams of three/);}
+ }
+ h.set('teamMode','pairs');assert.equal(h.summary(),'6 players · 2 vs. 2 vs. 2');
+ h.set('playerCount',4);assert.equal(h.summary(),'4 players · 2 vs. 2');
+ h.set('playerCount',2);assert.equal(h.summary(),'2 players · 1 vs. 1');
 });
