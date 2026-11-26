@@ -19,7 +19,7 @@
     dealMode: 'batch', remainderMode: 'equal', faceValues: 'standard', aceValue: 1,
     jokerCount: 0, jokerValue: 15, directCapture: true, additiveCapture: true,
     captureGroups: 'unlimited', forcedCapture: 'optional', captureExtent: 'choice',
-    additiveBuilds: false, multiHandCapture: false, additiveBuilding: true, subtractiveBuilds: false,
+    additiveBuilds: false, multiHandCapture: false, additiveBuilding: true, subtractiveBuilds: false, negativeBuilds: false, colorArithmetic: false,
     singleCardBuild: false, raiseOwnBuild: true, raiseOpponentBuild: true,
     buildRange: 'all', buildMin: null, buildMax: null, buildLimit: 'unlimited', mergeSameValue: false, absorbMatching: false,
     tableOnlyBuild: false, pileAccess: 'none', actionsPerTurn: 'single', handCardsPerTurn: 'one', extraAfterSweep: false,
@@ -1395,17 +1395,108 @@
     }
     return null;
   }
+  // A build always stores a positive capture value. A negative calculation
+  // can additionally record its signed result for display and history.
+  // Once declared, its announced magnitude is used for matching, building,
+  // reservations and further modifications.
+  function redSuit(card){return card.suit==='H'||card.suit==='D';}
+  function constructionValues(card,rules){
+    const sign=rules.colorArithmetic&&redSuit(card)?-1:1;
+    return cardValues(card,rules).map(v=>v*sign);
+  }
+  function signedTotals(cards,rules){
+    let totals=new Set([0]);
+    for(const {card} of cards){
+      const vals=constructionValues(card,rules);
+      if(!vals.length)return new Set();
+      const next=new Set();
+      for(const total of totals)for(const v of vals)next.add(total+v);
+      totals=next;
+    }
+    return totals;
+  }
+  // Single-card matching groups need no arithmetic and retain their
+  // magnitude. For groups involving arithmetic, color determines the sign.
+  function coloredGroupValue(cards,target,rules){
+    if(cards.length===1)return cardValues(cards[0].card,rules).includes(target)?target:null;
+    if(!cards.length)return null;
+    const red=cards.filter(x=>redSuit(x.card)).length,black=cards.length-red;
+    if(red&&!rules.subtractiveBuilds||black>1&&rules.additiveBuilding===false)return null;
+    const totals=signedTotals(cards,rules);
+    return totals.has(target)?target:rules.negativeBuilds&&rules.subtractiveBuilds&&totals.has(-target)?-target:null;
+  }
+  function coloredPartition(cards,target,desired,rules){
+    if(!cards.length||cards.some(x=>!cardValues(x.card,rules).length))return null;
+    // Fast paths for monochrome groups; the ordinary partition solver
+    // is valid for these when the corresponding arithmetic is enabled.
+    const red=cards.filter(x=>redSuit(x.card)).length;
+    if(red===0&&rules.additiveBuilding!==false||red===cards.length&&rules.subtractiveBuilds&&rules.negativeBuilds)
+      return findValuePartition(cards,target,desired,rules);
+    if(desired==='single')return coloredGroupValue(cards,target,rules)!==null?[cards.map(x=>x.card)]:null;
+    const failed=new Set();
+    function split(remaining,needMultiple){
+      if(!remaining.length)return needMultiple?null:[];
+      const key=remaining.map(x=>x.card.id).join(',')+':'+needMultiple;
+      if(failed.has(key))return null;
+      if(!needMultiple&&coloredGroupValue(remaining,target,rules)!==null)return [remaining.map(x=>x.card)];
+      // Every successful group contributes a multiple of the magnitude,
+      // even when its signed value is negative.
+      if(![...signedTotals(remaining,rules)].some(v=>v%target===0)){failed.add(key);return null;}
+      const [first,...rest]=remaining;
+      function choose(index,group,left){
+        if(coloredGroupValue(group,target,rules)!==null){
+          const others=left.concat(rest.slice(index));
+          if(!needMultiple||others.length){
+            const tail=split(others,false);
+            if(tail)return [group.map(x=>x.card),...tail];
+          }
+        }
+        for(let i=index;i<rest.length;i++){
+          const next=choose(i+1,group.concat(rest[i]),left.concat(rest.slice(index,i)));
+          if(next)return next;
+        }
+        return null;
+      }
+      const result=choose(0,[first],[]);
+      if(!result&&failed.size<4096)failed.add(key);
+      return result;
+    }
+    return split(cards,desired==='multiple');
+  }
+  function subtractionValue(played,table,target,rules){
+    if(!rules.subtractiveBuilds||rules.colorArithmetic)return null;
+    const differences=played.flatMap(v=>table.map(w=>w-v));
+    if(differences.includes(target))return target;
+    if(differences.includes(-target))return rules.negativeBuilds?-target:target;
+    return null;
+  }
+  function modificationValues(oldValue,card,rules){
+    const vals=cardValues(card,rules),red=redSuit(card);
+    const results=vals.flatMap(v=>[
+      ...(rules.additiveBuilding!==false&&(!rules.colorArithmetic||!red)?[oldValue+v]:[]),
+      ...(rules.subtractiveBuilds&&(!rules.colorArithmetic||red)?[oldValue-v]:[])
+    ]);
+    return [...new Set(results.filter(v=>v!==0&&(v>0||rules.negativeBuilds)))];
+  }
+  function modificationValue(oldValue,card,newValue,rules){
+    const possible=modificationValues(oldValue,card,rules);
+    return possible.includes(newValue)?newValue:possible.includes(-newValue)?-newValue:null;
+  }
+  function signedBuildResult(value,groups,operation,signed=value){
+    return {ok:true,build:{value,groups,kind:groups.length===1?'single':'multiple',operation,
+      ...(groups.length===1&&signed<0?{signedValue:signed}:{})}};
+  }
   // When addition is disabled, a same-value card can still form its
   // own group in a multiple build, or be declared alone.
   function constructionPartition(cards,target,desired,rules){
+    if(rules.colorArithmetic)return coloredPartition(cards,target,desired,rules);
     if(rules.additiveBuilding!==false)return findValuePartition(cards,target,desired,rules);
     if(!cards.length||cards.some(x=>!cardValues(x.card,rules).includes(target)))return null;
     if(desired==='single'&&cards.length!==1||desired==='multiple'&&cards.length<2)return null;
     return cards.map(x=>[x.card]);
   }
-  function canModifyValue(oldValue,played,newValue,rules){
-    return rules.additiveBuilding!==false&&oldValue+played===newValue||
-      !!rules.subtractiveBuilds&&oldValue-played===newValue;
+  function canModifyValue(oldValue,card,newValue,rules){
+    return modificationValue(oldValue,card,newValue,rules)!==null;
   }
   function describeBuild(selection, card, remainingHand, rules, requestedValue, requestedMode) {
     if (!rules.builds) return { ok:false, reason:'Building is disabled.' };
@@ -1435,7 +1526,7 @@
         if(extra)return {ok:true,build:{value:requestedValue,groups:matching.flatMap(b=>b.groups).concat(extra),kind:'multiple',operation:'merge'}};
       }
       if(lower.length!==1||!matching.length||lower[0].groups.length!==1||
-        !playedValues.some(v=>canModifyValue(lower[0].value,v,requestedValue,rules)))
+        !canModifyValue(lower[0].value,card,requestedValue,rules))
         return {ok:false,reason:'Raise or lower one single build and combine only same-value builds.'};
       const extra=loose.length?constructionPartition(loose,requestedValue,'any',rules):[];
       if(!extra)return {ok:false,reason:'Table cards must form complete matching groups.'};
@@ -1447,10 +1538,15 @@
       if (!loose.length && !rules.singleCardBuild) return {ok:false,reason:'Select at least one table card to build.'};
       let groups = constructionPartition([{card}, ...loose], requestedValue,
         requestedMode === 'single' ? 'single' : requestedMode === 'multiple' ? 'multiple' : 'any', rules);
-      if(!groups&&rules.subtractiveBuilds&&loose.length===1&&requestedMode!=='multiple'&&playedValues.some(v=>cardValues(loose[0].card,rules).some(w=>Math.abs(w-v)===requestedValue)))groups=[[card,loose[0].card]];
+      let signed=requestedValue;
+      if(groups&&groups.length===1&&rules.colorArithmetic)signed=coloredGroupValue(groups[0].map(card=>({card})),requestedValue,rules)??requestedValue;
+      if(!groups&&loose.length===1&&requestedMode!=='multiple'){
+        const difference=subtractionValue(playedValues,cardValues(loose[0].card,rules),requestedValue,rules);
+        if(difference!==null){groups=[[card,loose[0].card]];signed=difference;}
+      }
       if (!groups) return {ok:false,reason:'Selected cards do not form the requested build.'};
       if (groups.length > 1 && !rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
-      return {ok:true,build:{value:requestedValue,groups,kind:groups.length===1?'single':'multiple',operation:'create'}};
+      return signedBuildResult(requestedValue,groups,'create',signed);
     }
     const current = builds[0];
     if (requestedValue === current.value && requestedMode !== 'raise') {
@@ -1461,13 +1557,14 @@
     }
     if (requestedMode === 'extend') return {ok:false,reason:'Extending preserves the build value.'};
     if (current.groups.length > 1) return {ok:false,reason:'A multiple build cannot be raised or lowered.'};
-    if (!playedValues.some(v => canModifyValue(current.value,v,requestedValue,rules))) {
+    const signed=modificationValue(current.value,card,requestedValue,rules);
+    if (signed===null) {
       return {ok:false,reason:'The played card must change this build to its new value.'};
     }
     const extraGroups = loose.length ? constructionPartition(loose, requestedValue, 'any', rules) : [];
     if (!extraGroups) return {ok:false,reason:'Table cards must form extra complete groups when raising.'};
     if (extraGroups.length && !rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
-    return {ok:true,build:{value:requestedValue,groups:[current.groups[0].concat(card),...extraGroups],kind:extraGroups.length?'multiple':'single',operation:requestedValue<current.value?'lower':'raise'}};
+    return signedBuildResult(requestedValue,[current.groups[0].concat(card),...extraGroups],signed<current.value?'lower':'raise',signed);
   }
   function validateAction(state, action, skipPolicies = false) {
     if (!state || state.phase !== 'playing') return { ok: false, reason: 'This hand has ended.' };
@@ -1504,7 +1601,7 @@
       }
       outcome = describeBuild(selected, card, remainingHand, state.rules, action.value, action.mode);
       if(outcome.ok){
-        const changed=selected.filter(e=>e.type==='build'&&e.value!==outcome.build.value);
+        const changed=selected.filter(e=>e.type==='build'&&(e.value!==outcome.build.value||selected.filter(x=>x.type==='build').length===1&&['raise','lower'].includes(outcome.build.operation)));
         if(changed.some(e=>e.owner===player?state.rules.raiseOwnBuild===false:state.rules.raiseOpponentBuild===false))
           return {ok:false,reason:'Raising or lowering the selected single build is disabled.'};
         if(state.rules.mergeSameValue&&remainingTable.some(e=>e.type==='build'&&e.value===outcome.build.value))
@@ -1524,7 +1621,7 @@
     const resultTable = action.kind === 'trail'
       ? [...state.table, { id: 'preview', type: 'loose', card }]
       : action.kind === 'capture' ? remainingTable
-      : [...remainingTable, { id: 'preview', type: 'build', value: outcome.build.value, groups: outcome.build.groups, owner: player }];
+      : [...remainingTable, { id: 'preview', type: 'build', value: outcome.build.value, groups: outcome.build.groups, owner: player,...(outcome.build.signedValue<0?{signedValue:outcome.build.signedValue}:{}) }];
     const obligation = ownBuildObligation(state, resultTable, remainingHand, player);
     if (obligation) return { ok: false, reason: obligation };
     if(!skipPolicies){const policy=capturePolicy(state,action,card,selected);if(policy)return {ok:false,reason:policy};}
@@ -1536,7 +1633,7 @@
   function buildActionLabel(_card, value, build, _rules) {
     const title = build.operation === 'lower' ? 'Lower to' : build.operation === 'raise' ? 'Raise to'
       : build.kind === 'multiple' ? 'Multiple Build' : 'Build';
-    return `${title} ${value}`;
+    return `${title} ${build.signedValue??value}`;
   }
   function legalBuildOptions(state, cardId, targetIds) {
     if (!state.rules.builds || !cardId) return [];
@@ -1568,9 +1665,7 @@
     if(selected.length!==1||selected[0].groups.length!==1)return options;
     const card=state.players[state.turn].hand.find(c=>c.id===cardId);
     if(!card)return options;
-    for(const value of new Set(cardValues(card,state.rules).flatMap(v=>[
-      ...(state.rules.additiveBuilding!==false?[v+selected[0].value]:[]),
-      ...(state.rules.subtractiveBuilds&&selected[0].value>v?[selected[0].value-v]:[])]))){
+    for(const value of new Set(modificationValues(selected[0].value,card,state.rules).map(Math.abs))){
       const matching=state.table.filter(b=>b.type==='build'&&b.owner===state.turn&&b.value===value&&!ids.includes(b.id));
       // Prefer the existing matching stack as the visual base.
       if(matching.length)options.push(...legalBuildOptions(state,cardId,[...matching.map(b=>b.id),...ids])
@@ -1601,9 +1696,9 @@
       description = `${player.name} captured ${won.length - 1} table card${won.length === 2 ? '' : 's'} with ${cardName(played)}${scoredSweep ? ' — sweep!' : '.'}`;
     } else {
       state.table = checked.remainingTable;
-      state.table.push({ id: `t${state.nextId++}`, type: 'build', value: checked.build.value, groups: checked.build.groups, owner: playerIndex });
+      state.table.push({ id: `t${state.nextId++}`, type: 'build', value: checked.build.value, groups: checked.build.groups, owner: playerIndex,...(checked.build.signedValue<0?{signedValue:checked.build.signedValue}:{}) });
       const op = { create: 'built', lower: 'lowered a build to', raise: 'raised a build to', extend: 'extended a build of', merge: 'merged builds of' }[checked.build.operation];
-      description = `${player.name} ${op} ${checked.build.value} (${checked.build.kind}).`;
+      description = `${player.name} ${op} ${checked.build.signedValue??checked.build.value} (${checked.build.kind}).`;
     }
     state.moveNumber++;
     state.lastAction = description;
@@ -1661,6 +1756,20 @@
     if(s.prime)rows.push(['prime','Primiera ('+s.prime+')']);
     rows.push(['sweeps','Sweeps ('+(rules.sweepPoints||0)+(rules.sweepCancel?', net':'')+')'],['total','This hand (total)']);
     return rows;
+  }
+  function scoreHelp(rules){
+    const s=scoreSpec(rules),suitNames={S:'spades',H:'hearts',C:'clubs',D:'diamonds'};
+    const points=n=>n+' point'+(n===1?'':'s');
+    const lines=[['Most cards',points(s.cards)]];
+    if(s.perSpade){lines.push(['Each spade','1 point'],['Jack of spades (J♠)','1 extra point']);}
+    else if(s.suitPoints)lines.push(['Most '+suitNames[s.suit],points(s.suitPoints)]);
+    if(s.bigPoints)lines.push([bonusLabel(s.big),points(s.bigPoints)]);
+    if(s.littlePoints)lines.push([bonusLabel(s.little),points(s.littlePoints)]);
+    if(s.ace)lines.push(['Each ace',points(s.ace)]);
+    if(s.face)lines.push(['Each face card',points(s.face)]);
+    if(s.tens)lines.push(['Each other ten',points(s.tens)]);
+    if(s.prime)lines.push(['Primiera',points(s.prime)+' for the best four-suit combination (7=21, 6=18, A=16, 5=15, 4=14, 3=13, 2=12, faces=10).']);
+    return lines;
   }
   function primeValue(pile){
     const value={1:16,2:12,3:13,4:14,5:15,6:18,7:21,11:10,12:10,13:10};
@@ -1787,7 +1896,7 @@
       targetSets.push([b.id]);
       for (const l of relevant) targetSets.push([b.id, l.id]);
       if(b.groups.length===1&&state.rules.multipleBuilds)for(const other of builds){
-        if(other===b||!cardValues(card,state.rules).some(v=>canModifyValue(b.value,v,other.value,state.rules)))continue;
+        if(other===b||!canModifyValue(b.value,card,other.value,state.rules))continue;
         targetSets.push([other.id,b.id]);
         for(const l of relevant)targetSets.push([other.id,b.id,l.id]);
       }
@@ -1858,13 +1967,14 @@
   // the target. The suffix residue masks prune impossible branches, without
   // limiting the number of cards or the number of legal results.
   function* hintSubsets(entries, target, initialValues, allowEmpty = false, stop=()=>false) {
+    const mod=n=>((n%target)+target)%target;
     const suffix=Array(entries.length+1);
     suffix[entries.length]=new Set([0]);
     for(let i=entries.length-1;i>=0;i--){
       const after=suffix[i+1];
       suffix[i]=new Set(after);
       for(const value of entries[i].values) for(const residue of after)
-        suffix[i].add((value+residue)%target);
+        suffix[i].add(mod(value+residue));
     }
     function* walk(start, residues, ids){
       if(stop())return;
@@ -1872,12 +1982,12 @@
       for(let i=start;i<entries.length&&!stop();i++){
         const next=new Set();
         for(const residue of residues) for(const value of entries[i].values)
-          next.add((residue+value)%target);
+          next.add(mod(residue+value));
         if(![...next].some(r=>suffix[i+1].has((target-r)%target)))continue;
         yield* walk(i+1,next,[...ids,entries[i].id]);
       }
     }
-    yield* walk(0,new Set(initialValues.map(v=>v%target)),[]);
+    yield* walk(0,new Set(initialValues.map(mod)),[]);
   }
 
   // Exhaustive legal action generation shares the same validator as manual
@@ -1935,8 +2045,8 @@
       }
       for(const target of targets){
         if(stop())return;
-        const entries=numericEntries(target);
-        const values=played.filter(v=>v<=target);
+        const entries=rules.colorArithmetic?loose.map(x=>({id:x.id,values:constructionValues(x.card,rules)})).filter(x=>x.values.length):numericEntries(target);
+        const values=rules.colorArithmetic?constructionValues(card,rules):played.filter(v=>v<=target);
         if(rules.singleCardBuild)yield* options([],target);
         if(rules.subtractiveBuilds)for(const item of loose)yield* options([item.id],target);
         if(!values.length&&!rules.subtractiveBuilds)continue;
@@ -1944,14 +2054,18 @@
         for(const build of builds){
           if(stop())return;
           const extend=rules.multipleBuilds&&build.value===target;
-          const raise=build.groups.length===1&&played.some(v=>canModifyValue(build.value,v,target,rules));
+          const raise=build.groups.length===1&&canModifyValue(build.value,card,target,rules);
           if(!extend&&!raise)continue;
-          const initial=extend?values:played.filter(v=>canModifyValue(build.value,v,target,rules)).map(v=>build.value+v===target?v:-v);
+          const initial=extend?values:[target];
           // When raising, matching existing builds can be included as
           // intact groups. They never contribute to the increase in value.
           const matching=raise&&rules.multipleBuilds?builds.filter(b=>b!==build&&b.value===target)
             .map(b=>({id:b.id,values:[target]})):[];
-          for(const extra of hintSubsets(entries,target,initial.map(v=>extend?v+build.value:target),true,stop))
+          // Extension and modification may both be legal at the same
+          // magnitude. Enumerate each residue pattern independently.
+          if(extend)for(const extra of hintSubsets(entries,target,initial.map(v=>v+build.value),true,stop))
+            yield* options([build.id,...extra],target);
+          if(raise)for(const extra of hintSubsets(entries,target,[target],true,stop))
             yield* options([build.id,...extra],target);
           if(matching.length){
             for(const extra of hintSubsets([...matching,...entries],target,[0],false,stop)){
@@ -2099,9 +2213,10 @@
       const secured=matches(owner,item.value),stealable=matches(enemy,item.value);
       let raiseable=false;
       if(item.groups.length===1&&rules.builds){
-        raiseable=vals[enemy].some((values,i)=>values.some(v=>
-          v+item.value<=highest&&
-          (rules.buildAnything||vals[enemy].some((rest,j)=>i!==j&&rest.includes(v+item.value)))));
+        raiseable=state.players[enemy].hand.some((card,i)=>modificationValues(item.value,card,rules).some(signed=>{
+          const v=Math.abs(signed);
+          return v<=highest&&(rules.buildAnything||vals[enemy].some((rest,j)=>i!==j&&rest.includes(v)));
+        }));
       }
       const security=secured?(stealable?.04:raiseable?.20:.43):-.14;
       score+=(owner===root?1:-1)*(worth*security-.065);
@@ -2283,6 +2398,7 @@
     const expected=new Set(makeDeck(state.rules).map(c=>c.id));
     const cards=[...state.stock,...state.players.flatMap(p=>[...p.hand,...p.captured]),...state.table.flatMap(cardsInElement),...(state.unclaimed||[])];
     if(cards.length!==expected.size||new Set(cards.map(c=>c.id)).size!==expected.size||cards.some(c=>!expected.has(c.id)))return 'Card conservation failed.';
+    if(state.table.some(b=>b.type==='build'&&(!Number.isInteger(b.value)||b.value<1||b.signedValue!=null&&(b.signedValue>=0||Math.abs(b.signedValue)!==b.value))))return 'Invalid signed build magnitude.';
     if(state.phase==='playing'){
       if(!state.players[state.turn]?.hand.length)return 'Active player has no cards.';
       for(let i=0;i<state.players.length;i++){const error=ownBuildObligation(state,state.table,state.players[i].hand,i);if(error)return error;}
@@ -2313,7 +2429,7 @@
     }
     return {tested:count,completed,zeroScore,failures,validation};
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,

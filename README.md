@@ -230,3 +230,7 @@ Cards per hand can be set with the slider or the editable integer box. Typing ke
 ### 0.8.4 — building controls and custom value limits
 
 Construction settings remain together and are disabled rather than hidden when building is off. Addition, subtraction, multi builds and single-hand-card builds are independently configurable. A custom inclusive build range has editable numerical endpoints and dropdowns drawn from the selected deck’s available values; bounds adjust to available values when card values or deck composition change. Raising and lowering require both the applicable arithmetic setting and the appropriate owner-specific permission. Existing rules and saves default to additive building enabled. No new game presets or non-French deck types are introduced.
+
+### 0.8.5 — negative builds, color arithmetic and scoring help
+
+Negative builds are an opt-in extension to subtractive building: a 3 minus a played 7 can produce a displayed −4 single build with capture magnitude 4. All build obligations, same-value combining, capture sums, build ranges, and subsequent modifications use the positive magnitude. In color arithmetic, clubs/spades and the identical jokers add; hearts/diamonds subtract in arithmetic groups. Individual cards used as singleton groups retain their normal magnitudes. The addition and subtraction switches continue to govern allowed arithmetic. No zero-valued builds. Scoring system precedes sweep settings, and its info panel shows one scoring category per line, generated from the actual selected scoring specification.

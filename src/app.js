@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.4';
+  const APP_VERSION = '0.8.5';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -850,8 +850,8 @@
   // Builds are numerical targets, even when a Royal rank (A/J/Q/K) supplies
   // that value. Leave the physical card's corner index unchanged, but show
   // the actual build total (1, 11, 12, 13, 14, etc.) on the black panel.
-  function buildPanelValue(value) {
-    return String(value);
+  function buildPanelValue(value,signedValue) {
+    return String(signedValue??value);
   }
   function entryMarkup(element) {
     const selected = pickedTable.has(element.id);
@@ -867,9 +867,9 @@
       groupOffset+=group.length;
     }
     const ownerName = element.owner === 0 ? 'You' : 'Computer';
-    const panelValue = buildPanelValue(element.value);
+    const panelValue = buildPanelValue(element.value,element.signedValue);
     const layers=cards.map((card,i)=>`<span class="build-layer${groupStarts.has(i)?' build-group-start':''}" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
-    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.value} build owned by ${element.owner === 0 ? 'you' : 'computer'}">
+    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.signedValue??element.value} build${element.signedValue<0?' (capture value '+element.value+')':''} owned by ${element.owner === 0 ? 'you' : 'computer'}">
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
   }
@@ -1372,36 +1372,7 @@
       "There is no fixed per-player stack limit. Equal-value stacks may coexist unless Builds must combine same-value builds is enabled. Each stack may require its own capturing card."
     ]
   ],
-  "scoreMode": [
-    [
-      "Classic Cassino",
-      "Most cards 3; most spades 1; 10♦ 2; 2♠ 1; each ace 1."
-    ],
-    [
-      "Spade Cassino",
-      "As Classic, except each spade scores one point and J♠ an extra point, replacing the spade-majority award."
-    ],
-    [
-      "Wippen",
-      "Two points for each majority, with the Cassino special-card points."
-    ],
-    [
-      "Diloti",
-      "Most cards 4; 10♦ 2; 2♣ 1; each ace 1; no suit-majority award."
-    ],
-    [
-      "Kontsina",
-      "Most cards 2; most clubs 1; 10♦ 1; 2♣ 1."
-    ],
-    [
-      "Tablić / Tabinet",
-      "Most cards 3; 10♦ 2; 2♣ 1; each ace, face card and other ten 1."
-    ],
-    [
-      "Scopa",
-      "Most cards 1; most diamonds 1; 7♦ 1; primiera 1, based on the best card in each suit."
-    ]
-  ],
+
   "residueOwner": [
     [
       "Last capturer",
@@ -1486,6 +1457,14 @@
       "Example: 9 − 2 makes a 7-build. You may also lower a single 9-build to 7 with a 2, if the appropriate modification permission is enabled."
     ]
   ],
+  "negativeBuilds": [
+    ["Off","Subtraction uses the normal positive build values. In color arithmetic, a negative result cannot be declared."],
+    ["On","Permit a negative result, such as 3 − 7 = −4. Display −4 on the single build; capture it with any card valued 4. Its absolute value is used for build limits, reserved cards, merging and subsequent arithmetic. Zero is never a valid build. Requires subtractive building."]
+  ],
+  "colorArithmetic": [
+    ["Off","Choose addition or subtraction according to the enabled building methods, regardless of suit."],
+    ["On","When forming arithmetic groups, spades and clubs add, hearts and diamonds subtract. Both jokers add. For example, 5♣ + 3♠ − 2♥ makes a 6-build. When changing a single build, the played card determines the operation. Single-card declarations and individual same-value groups retain their ordinary values. Captures still use ordinary card values. Addition and subtraction must be enabled separately."]
+  ],
   "singleCardBuild": [
     [
       "Off",
@@ -1503,7 +1482,7 @@
     ],
     [
       "On",
-      "Raise your own single build by adding a hand card, or lower it by subtraction, when the corresponding building option is enabled. Multi builds cannot be raised or lowered."
+      "Raise your own single build by adding a hand card, or lower it by subtraction, when the corresponding building option is enabled. If color arithmetic is on, the played card's suit determines which operation is allowed. Multi builds cannot be raised or lowered."
     ]
   ],
   "raiseOpponentBuild": [
@@ -1513,7 +1492,7 @@
     ],
     [
       "On",
-      "Raise an opponent’s single build by addition, or lower it by subtraction, when the corresponding building option is enabled. The modified build becomes yours. Multi builds cannot be raised or lowered."
+      "Raise an opponent’s single build by addition, or lower it by subtraction, when the corresponding building option is enabled. If color arithmetic is on, the played card's suit determines which operation is allowed. The modified build becomes yours. Multi builds cannot be raised or lowered."
     ]
   ],
   "mergeSameValue": [
@@ -1608,6 +1587,7 @@
   ]
 };
   function helpFor(key,options=[]){
+    if(key==='scoreMode')return E.scoreHelp(draft);
     if(OPTION_HELP[key])return OPTION_HELP[key];
     if(key==='handSize')return [['1 to '+handMaximum(),'Drag the stepped slider or type a whole number into the value box. Maximum = deck size divided by player count, rounded down. Starting table cards can impose a tighter legal limit; the compatibility check catches that.'],['All cards at start','The slider has no effect in this dealing mode.']];
     if(key==='jokerValue')return options.map(n=>[String(n),'Both identical jokers have numerical capture and build value '+n+'.']);
@@ -1655,10 +1635,11 @@
     const r=E.normalizeRules(draft);
     // Keep preferences in the editor; deactivate only when exporting to the engine.
     if(!r.builds){
-      for(const key of ['additiveBuilding','multipleBuilds','buildAnything','allowTrailWithOwnBuild','pirateBuilds','pirateCaptures','subtractiveBuilds','singleCardBuild','mergeSameValue','absorbMatching','tableOnlyBuild','additiveBuilds'])r[key]=false;
+      for(const key of ['additiveBuilding','negativeBuilds','colorArithmetic','multipleBuilds','buildAnything','allowTrailWithOwnBuild','pirateBuilds','pirateCaptures','subtractiveBuilds','singleCardBuild','mergeSameValue','absorbMatching','tableOnlyBuild','additiveBuilds'])r[key]=false;
       if(r.pileAccess==='build')r.pileAccess='none';
       if(r.pileAccess==='both')r.pileAccess='capture';
     }
+    if(!r.subtractiveBuilds)r.negativeBuilds=false;
     if(!r.multipleBuilds){r.mergeSameValue=false;r.absorbMatching=false;}
     if(!r.additiveCapture)r.additiveBuilds=false;
     if(!r.sweepPoints)r.sweepCancel=false;
@@ -1805,6 +1786,8 @@
       ruleSwitch('subtractiveBuilds','Allow subtractive building',!building,'9 − 2 makes a 7-build')+
       ruleSwitch('multipleBuilds','Allow multi builds',!building,'Stack equal-value groups')+
       ruleSwitch('singleCardBuild','Allow single hand card builds',!building)+
+      ruleSwitch('negativeBuilds','Allow negative builds',!building||!draft.subtractiveBuilds,'3 − 7 = −4; captured by a 4')+
+      ruleSwitch('colorArithmetic','Black adds, red subtracts',!building,'♠ ♣ add · ♥ ♦ subtract')+
       ruleSelect('buildRange','Allowed build values',[['all','All capturable'],['9-13','9–13'],['10-13','10–13'],['custom','Custom']],!building)+
       renderBuildRangeFields(!building)+'</div>'+
       ruleGroup('Modifying builds',ruleSwitch('raiseOwnBuild','Can modify your own single build',!building||!arithmetic)+
@@ -1815,9 +1798,9 @@
         ruleSwitch('pirateCaptures','Allow unrelated captures',!building)+ruleSwitch('allowTrailWithOwnBuild','Allow trailing',!building));
     const turnContent='<p class="rules-description">Play one hand card per action. The opponent normally plays next.</p><div class="rules-group">'+
       ruleSwitch('extraAfterSweep','Extra turn after opponent sweep')+'</div>';
-    const scoreContent='<div class="rules-group">'+targetSetting()+ruleSelect('sweepPoints','Points per sweep',[0,1,10,50])+ruleSwitch('sweepCancel','Cancel opposing sweeps',!draft.sweepPoints)+
-      ruleSelect('scoreMode','Scoring system',[['cassino','Classic Cassino'],['spade','Spade Cassino'],['wippen','Wippen'],['diloti','Diloti'],['kontsina','Kontsina'],['tablic','Tablić / Tabinet'],['scopa','Scopa']])+
-      ruleSelect('matchDeals','Match length',[[0,'Target score'],[1,'1 deal'],[2,'2 deals'],[3,'3 deals'],[4,'4 deals'],[6,'6 deals']])+
+    const scoreContent='<div class="rules-group">'+ruleSelect('scoreMode','Scoring system',[['cassino','Classic Cassino'],['spade','Spade Cassino'],['wippen','Wippen'],['diloti','Diloti'],['kontsina','Kontsina'],['tablic','Tablić / Tabinet'],['scopa','Scopa']])+
+      ruleSelect('matchDeals','Match length',[[0,'Target score'],[1,'1 deal'],[2,'2 deals'],[3,'3 deals'],[4,'4 deals'],[6,'6 deals']])+targetSetting()+
+      ruleSelect('sweepPoints','Points per sweep',[0,1,10,50])+ruleSwitch('sweepCancel','Cancel opposing sweeps',!draft.sweepPoints)+
       ruleSwitch('ignoreOpeningSweep','No opening sweep points',!draft.sweepPoints)+ruleSwitch('ignoreFinalSweep','No final sweep points',!draft.sweepPoints)+
       ruleSelect('residueOwner','Remaining table cards',[['lastCapture','Last capturer'],['dealer','Dealer']])+'</div>';
     const captureSummary=(draft.directCapture&&draft.additiveCapture?'Match & sum':draft.directCapture?'Direct only':draft.additiveCapture?'Sums only':'No capture of individual table cards')+' · '+(draft.forcedCapture==='optional'?'Optional':draft.forcedCapture==='direct'?'Direct matches required':draft.forcedCapture==='faces'?'Face matches required':'Legal captures required');
