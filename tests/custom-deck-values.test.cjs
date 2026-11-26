@@ -49,3 +49,16 @@ test('Difficulty descriptions are info-only and multi-option help uses separate 
  h.info('initialTableRule');assert.match(h.html(),/<p><b>No 3 kings<\/b>/);
  h.info('independentBuilds');assert.match(h.html(),/Two separate 8-builds count as two/);
 });
+
+test('Build requirements use clear table-card terminology without changing saved rule keys',()=>{
+ const h=harness();h.open('newgame');
+ assert.match(h.html(),/Builds must absorb matching table cards/);
+ assert.match(h.html(),/Builds must combine matching builds/);
+ assert.doesNotMatch(h.html(),/loose[- ](?:table )?cards?/i);
+ h.info('absorbMatching');
+ assert.match(h.html(),/every unbuilt table card that individually matches/);
+ h.info('mergeSameValue');
+ assert.match(h.html(),/A new build must include any existing stacks at the same value/);
+ h.set('absorbMatching',true);assert.equal(h.rules().absorbMatching,true);
+ h.set('mergeSameValue',true);assert.equal(h.rules().mergeSameValue,true);
+});

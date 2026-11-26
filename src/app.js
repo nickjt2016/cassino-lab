@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.0';
+  const APP_VERSION = '0.8.1';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1082,7 +1082,7 @@
             <div class="opponent-hand${opponent().hand.length>5?' wide-hand':''}" style="--hand-count:${Math.max(1,opponent().hand.length)}" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>
           </div>
           <div class="table-area">
-            <div class="table-stage"><div class="table-cards" aria-label="Loose table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
+            <div class="table-stage"><div class="table-cards" aria-label="Table cards">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
             <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
           </div>
@@ -1115,7 +1115,7 @@
     royal: ['Face Cards', 'With Royal face cards on, Jacks, Queens and Kings have numerical values 11, 12 and 13 and may participate in sums and builds. Otherwise they capture matching face cards only.'],
     royalAces: ['Aces', 'Royal Aces may count as either 1 or 14 in captures and builds. The game chooses a legal value for the move.'],
     royalBigLittle: ['2 and 10', 'Little Cassino (2♠) can count as 2 or 15; Big Cassino (10♦) can count as 10 or 16 in captures and builds.'],
-    pirateCaptures: ['Captures', 'When enabled, you may capture loose cards and other builds while you still own a build. When off, you must first capture your own build.'],
+    pirateCaptures: ['Captures', 'When enabled, you may capture table cards and other builds while you still own a build. When off, you must first capture your own build.'],
     pirateBuilds: ['Builds', 'When enabled, you may start another independent build while you own one. Each separate build requires its own matching capture card in your hand, unless Build Obligation is off. A multiple build counts as one stack. Otherwise, resolve your current build first.'],
     allowTrailWithOwnBuild: ['Trails', 'Allows trailing a card onto the table while owning builds, as long as you retain a distinct matching capture card for each independent build (unless Build Obligation is off).'],
     buildObligation: ['Build Obligation', 'When on, keep a distinct matching capture card for each independent build. One card covers one multiple build. When off, you may build without holding the capture card. The Pirate switches separately control other moves while owning builds.'],
@@ -1124,15 +1124,15 @@
     spadeScoring: ['Spade Scoring', 'Every spade captured earns one point, plus a bonus point for the Jack of spades, replacing the ordinary most-spades award.'],
     builds: ['Building', 'Allow single builds; with this switched off, players can only capture or trail.'],
     multipleBuilds: ['Multiple Builds', 'Allow two or more equal-valued combinations to be combined into a multiple build.'],
-    directCapture:['Direct matching','A loose card can be captured by matching its rank or numerical value. Matching builds remain capturable.'],
-    additiveCapture:['Additive matching','Allow several loose cards whose values add to the played card.'],
+    directCapture:['Direct matching','A table card can be captured by matching its rank or numerical value. Matching builds remain capturable.'],
+    additiveCapture:['Additive matching','Allow several table cards whose values add to the played card.'],
     additiveBuilds:['Builds as capture units','A build can contribute its announced value to an arithmetic capture.'],
     subtractiveBuilds:['Subtractive building','Two cards may create a build at their positive difference, or a single build may be lowered by the played card.'],
     singleCardBuild:['Single-card declaration','A hand card alone can be declared as a build, subject to the ordinary obligation.'],
     raiseOwnBuild:['Modify own builds','Permit changing the announced value of your own single build.'],
     raiseOpponentBuild:['Modify opponent builds','Permit changing the announced value of the opponent’s single build.'],
-    mergeSameValue:['Mandatory merging','Include existing same-value builds in a new build.'],
-    absorbMatching:['Matching loose cards','Include loose cards matching the new build value.'],
+    mergeSameValue:['Builds must combine matching builds','Include existing same-value builds in a new build.'],
+    absorbMatching:['Builds must absorb matching table cards','Include table cards matching the new build value.'],
     extraAfterSweep:['Extra turn after a sweep','The opponent receives a second turn after a sweep, if they still have a card.'],
     multiHandCapture:['Multiple hand cards','Planned: use multiple cards from hand for one capture.'],
     tableOnlyBuild:['Table-only building','Planned: build without spending a card from hand.'],
@@ -1141,7 +1141,7 @@
   let valueCardKey='S1',valuePickerOpen=false,deckChecklistScroll=0;
   const RULE_HELP={
     handSize:'Cards dealt to each player at a time. In a full deal, all remaining cards are distributed at once.',
-    initialTableSize:'Loose cards placed on the table before the first turn.',
+    initialTableSize:'Table cards placed on the table before the first turn.',
     deckSize:'The 40-card deck removes ranks 8, 9 and 10, including Big Cassino.',
     dealMode:'Batch: deal again when both hands are empty. Draw: replace each played card. Full: deal the entire remaining stock at the start.',
     remainderMode:'How to distribute the stock when it does not divide into equal full batches.',
@@ -1157,7 +1157,7 @@
     scoreMode:'Choose the scoring system. The results table uses its actual point categories.',
     matchDeals:'The higher cumulative score wins after the selected number of deals.',
     initialTableRule:'Replace forbidden starting cards and return them to the stock.',
-    directPriority:'If the played card directly matches a loose card, capture a matching card rather than a sum.',
+    directPriority:'If the played card directly matches a table card, capture a matching card rather than a sum.',
     ignoreOpeningSweep:'The first move of a deal does not score a sweep.',
     ignoreFinalSweep:'The final move of a deal does not score a sweep.',
     residueOwner:'Who receives the table cards left at deal end.'
@@ -1312,7 +1312,7 @@
     ],
     [
       "Direct matches",
-      "A card cannot be trailed when it can legally take a single matching loose card."
+      "A card cannot be trailed when it can legally take a single matching table card."
     ],
     [
       "Any legal match",
@@ -1368,7 +1368,7 @@
     ],
     [
       "Unlimited",
-      "There is no fixed per-player stack limit. Equal-value stacks may coexist unless mandatory merging is enabled. Each stack may require its own capturing card."
+      "There is no fixed per-player stack limit. Equal-value stacks may coexist unless Builds must combine matching builds is enabled. Each stack may require its own capturing card."
     ]
   ],
   "scoreMode": [
@@ -1414,21 +1414,21 @@
   "directCapture": [
     [
       "Off",
-      "Disable single loose-card matches. Matching builds remain capturable."
+      "Disable single table-card matches. Matching builds remain capturable."
     ],
     [
       "On",
-      "A played card may take one loose card of equal numerical value, or equal rank if both cards are rank-only."
+      "A played card may take one table card of equal numerical value, or equal rank if both cards are rank-only."
     ]
   ],
   "additiveCapture": [
     [
       "Off",
-      "Loose-card sums cannot be captured."
+      "Table-card sums cannot be captured."
     ],
     [
       "On",
-      "Capture a combination of loose cards whose values add to the played card's chosen value."
+      "Capture a combination of table cards whose values add to the played card's chosen value."
     ]
   ],
   "additiveBuilds": [
@@ -1438,17 +1438,17 @@
     ],
     [
       "On",
-      "Treat an existing build as one numerical unit in a capture sum. An 8 can capture a 6-build plus a loose 2 already on the table. No new build is created, and no extra card is played from hand."
+      "Treat an existing build as one numerical unit in a capture sum. An 8 can capture a 6-build plus a 2 already on the table. No new build is created, and no extra card is played from hand."
     ]
   ],
   "directPriority": [
     [
       "Off",
-      "A legal sum may be selected even if a direct loose-card match exists."
+      "A legal sum may be selected even if a direct table-card match exists."
     ],
     [
       "On",
-      "If the played card matches a loose card directly, take a matching loose card rather than an additive alternative."
+      "If the played card matches a table card directly, take a matching table card rather than an additive alternative."
     ]
   ],
   "builds": [
@@ -1524,11 +1524,11 @@
   "absorbMatching": [
     [
       "Off",
-      "Loose cards matching the new build may remain separate."
+      "Individual table cards matching the new build value may remain separate."
     ],
     [
       "On",
-      "Include loose cards directly matching the new build value. Requires multiple builds."
+      "A new or modified build must absorb every unbuilt table card that individually matches its value. For example, a new 8-build must include any separate 8 on the table. Additional combinations summing to 8 are not required. Requires multiple builds."
     ]
   ],
   "buildObligation": [
@@ -1548,7 +1548,7 @@
     ],
     [
       "On",
-      "Capture unrelated loose cards or builds while owning a build, subject to any obligation to retain a matching card."
+      "Capture unrelated table cards or builds while owning a build, subject to any obligation to retain a matching card."
     ]
   ],
   "allowTrailWithOwnBuild": [
@@ -1606,7 +1606,7 @@
     if(OPTION_HELP[key])return OPTION_HELP[key];
     if(key==='handSize')return [['1 to '+handMaximum(),'Choose a whole number of cards per player. Maximum = deck size divided by player count, rounded down. Starting table cards can impose a tighter legal limit; the compatibility check catches that.'],['All cards at start','The slider has no effect in this dealing mode.']];
     if(key==='jokerValue')return options.map(n=>[String(n),'Both identical jokers have numerical capture and build value '+n+'.']);
-    if(key==='initialTableSize')return options.map(([n,label])=>[label,n===0?'The table starts empty.':'Place '+n+' loose cards on the table before the first turn.']);
+    if(key==='initialTableSize')return options.map(([n,label])=>[label,n===0?'The table starts empty.':'Place '+n+' table cards on the table before the first turn.']);
     if(key==='sweepPoints')return options.map(n=>[String(n),n===0?'Sweeps earn no points.':'Each eligible sweep earns '+n+' point'+(n===1?'':'s')+'.']);
     if(key==='winningScore')return options.map(([n,label])=>[label,'Win at the end of a deal when you have at least '+n+' points and lead the opponent.']);
     if(key==='matchDeals')return options.map(([n,label])=>[label,n===0?'Continue until a player reaches the winning score and leads.':'Play exactly '+n+' deal'+(n===1?'':'s')+'; the higher cumulative score wins.']);
@@ -1762,7 +1762,7 @@
       ruleSelect('aceMode','Ace values',[[1,'1'],[11,'1 or 11'],[14,'1 or 14']],valueOverride)+ruleSwitch('royalBigLittle','Special values for 2♠ / 10♦',valueOverride||!hasSpecial,'2 or 15 · 10 or 16')+
       (draft.jokerCount?ruleSelect('jokerValue','Joker value',Array.from({length:30},(_,i)=>i+1),valueOverride):'')+
       ruleSwitch('customizeCardValues','Customize card values')+renderValueEditor()+'</div>';
-    const captureContent=ruleGroup('What can be captured',ruleSwitch('directCapture','Direct matches',false,'8 takes 8')+ruleSwitch('additiveCapture','Matching sums',false,'8 takes 5 + 3')+ruleSwitch('additiveBuilds','Use existing builds in capture sums',!building||!hasSums,'8 takes a 6-build + loose 2'))+
+    const captureContent=ruleGroup('What can be captured',ruleSwitch('directCapture','Direct matches',false,'8 takes 8')+ruleSwitch('additiveCapture','Matching sums',false,'8 takes 5 + 3')+ruleSwitch('additiveBuilds','Use existing builds in capture sums',!building||!hasSums,'8 takes a 6-build + a 2 on the table'))+
       ruleGroup('Capture requirements',forcedSetting()+ruleSwitch('directPriority','Direct matches take priority',!draft.directCapture)+ruleSelect('captureGroups','Groups per capture',[['one','One group'],['unlimited','Multiple groups']])+ruleSelect('captureExtent','Capture extent',[['choice','Selective'],['maximal','Maximal'],['maximum','Maximum cards']]));
     const buildContent='<div class="rules-group">'+ruleSwitch('builds','Allow building')+'</div>'+
       (!building?'<p class="rules-description">Enable building to edit its rules. Your build preferences are retained.</p>':'')+
@@ -1770,7 +1770,7 @@
         ruleSwitch('subtractiveBuilds','Subtractive building',false,'9 − 2 makes a 7-build')+ruleSwitch('singleCardBuild','Single-card declarations')+
         ruleSelect('buildRange','Allowed build values',[['all','All capturable'],['9-13','9–13'],['10-13','10–13']]))+
       ruleGroup('Modifying builds',ruleSwitch('raiseOwnBuild','Modify own build value')+ruleSwitch('raiseOpponentBuild','Modify opponent build value')+
-        ruleSwitch('mergeSameValue','Require same-value merging',!multiple)+ruleSwitch('absorbMatching','Absorb matching loose cards',!multiple))+
+        ruleSwitch('mergeSameValue','Builds must combine matching builds',!multiple)+ruleSwitch('absorbMatching','Builds must absorb matching table cards',!multiple))+
       ruleGroup('While owning a build',ruleSwitch('buildObligation','Keep a capturing card',false,'Reserve a distinct card for each stack')+
         ruleSelect('independentBuilds','Independent builds per player',[['1','One'],['2','Up to two'],['unlimited','Unlimited']])+
         ruleSwitch('pirateCaptures','Allow unrelated captures')+ruleSwitch('allowTrailWithOwnBuild','Allow trailing')):'');
@@ -1781,7 +1781,7 @@
       ruleSelect('matchDeals','Match length',[[0,'Target score'],[1,'1 deal'],[2,'2 deals'],[3,'3 deals'],[4,'4 deals'],[6,'6 deals']])+
       ruleSwitch('ignoreOpeningSweep','No opening sweep points',!draft.sweepPoints)+ruleSwitch('ignoreFinalSweep','No final sweep points',!draft.sweepPoints)+
       ruleSelect('residueOwner','Remaining table cards',[['lastCapture','Last capturer'],['dealer','Dealer']])+'</div>';
-    const captureSummary=(draft.directCapture&&draft.additiveCapture?'Match & sum':draft.directCapture?'Direct only':draft.additiveCapture?'Sums only':'No loose-card capture')+' · '+(draft.forcedCapture==='optional'?'Optional':draft.forcedCapture==='direct'?'Direct matches required':draft.forcedCapture==='faces'?'Face matches required':'Legal captures required');
+    const captureSummary=(draft.directCapture&&draft.additiveCapture?'Match & sum':draft.directCapture?'Direct only':draft.additiveCapture?'Sums only':'No capture of individual table cards')+' · '+(draft.forcedCapture==='optional'?'Optional':draft.forcedCapture==='direct'?'Direct matches required':draft.forcedCapture==='faces'?'Face matches required':'Legal captures required');
     return '<div class="all-rules-heading"><h3>RULES</h3><button type="button" class="rules-reset" data-action="reset-rules">Reset to Classic</button></div><div class="rules-accordions rules-single-page">'+
       rulesAccordion('deal','Deck & dealing',draft.deckSize+' cards · '+dealLabel()+' · '+draft.initialTableSize+' on table',deckContent)+
       rulesAccordion('values','Card values',draft.customizeCardValues?'Individual card values':faceLabel()+' · Ace '+(ruleValue('aceMode')===1?'1':'1 or '+ruleValue('aceMode')),valuesContent)+
@@ -1838,7 +1838,7 @@
   function renderRules() {
     return `<div class="dialog-head"><div><span class="eyebrow">HOW TO PLAY</span><h2>Cassino, in brief</h2><p>A capture-and-build fishing card game.</p></div><button data-action="close" class="icon-close">×</button></div>
       <div class="dialog-content rules-copy">
-      <h3>Your turn</h3><p>Play exactly one card from your hand. <b>Capture</b> selected loose cards whose values split into groups equal to your played card, or take a matching build. <b>Trail</b> to place your card loose on the table. <b>Build</b> to combine your played card with table cards for a later capture.</p>
+      <h3>Your turn</h3><p>Play exactly one card from your hand. <b>Capture</b> selected table cards whose values split into groups equal to your played card, or take a matching build. <b>Trail</b> to place your card on the table without building. <b>Build</b> to combine your played card with table cards for a later capture.</p>
       <h3>Making builds</h3><p>To create a build, keep another card with its announced value in your hand. A <b>single build</b> contains one group summing to that value. A <b>multiple build</b> has two or more such groups. You can add an equal-valued group to any build; you can raise a single build by contributing its increase from your hand. Multiple builds cannot be raised. Builds are indivisible and can only be captured at their announced value.</p>
       <p>In standard Cassino, you cannot trail while owning an active build, or play away its last matching capture card.</p>
       <h3>Scoring</h3><div class="rules-points">${E.scoreCategories(game.rules).filter(([key])=>key!=='total').map(([,label])=>'<span>'+escapeHtml(label)+'</span><b>·</b>').join('')}</div>

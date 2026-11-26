@@ -591,7 +591,7 @@
     "id": "pluck",
     "name": "Pluck Cassino",
     "group": "Major variations",
-    "note": "Special loose-card removals.",
+    "note": "Special table-card removals.",
     "status": "preview",
     "partial": false
   },
@@ -1051,7 +1051,7 @@
     if(r.dealMode!=='full'&&count<players*r.handSize)errors.push('Not enough cards for all starting hands after placing the starting table.');
     if(r.dealMode==='batch'&&r.remainderMode==='strict'&&count%(players*r.handSize)!==0)errors.push('The stock cannot be exhausted in complete batches.');
     if(r.dealMode!=='draw'&&r.remainderMode!=='uneven'&&count%players!==0)errors.push('The remaining deck cannot be divided equally. Allow unequal hands or change table size.');
-    if(!r.directCapture&&!r.additiveCapture)errors.push('Enable at least one loose-card capture method.');
+    if(!r.directCapture&&!r.additiveCapture)errors.push('Enable at least one table-card capture method.');
     if(r.multiHandCapture&&r.handCardsPerTurn==='one')errors.push('Multi-card captures require spending more than one hand card per turn.');
     if(r.builds&&r.tableOnlyBuild&&r.actionsPerTurn==='single')errors.push('Table-only building requires multiple actions per turn.');
     if(r.builds&&(r.mergeSameValue||r.absorbMatching)&&!r.multipleBuilds)errors.push('Mandatory merging and absorption require multiple builds.');
@@ -1062,7 +1062,7 @@
     }
     if(!r.builds&&(r.tableOnlyBuild||r.subtractiveBuilds||r.additiveBuilds||r.mergeSameValue||r.absorbMatching))warnings.push('Build-specific rules are inactive while building is off.');
     if(r.builds&&r.buildAnything)warnings.push('Unbacked builds are experimental; a stranded build may be collected at hand end.');
-    if(r.forcedCapture==='direct'&&!r.directCapture)warnings.push('Compulsory direct matching has no effect on loose cards when direct matching is off.');
+    if(r.forcedCapture==='direct'&&!r.directCapture)warnings.push('Compulsory direct matching has no effect on table cards when direct matching is off.');
     if(r.forcedCapture!=='optional'&&r.builds&&!r.buildAnything)warnings.push('Build obligations take precedence; only otherwise legal captures can be compulsory.');
     if(r.presetBlocker)unavailable.push(String(r.presetBlocker));
     if(!r.customizeCardValues&&r.royal&&r.faceValues==='italian'&&deck.some(c=>c.suit!=='X'&&c.rank>=8&&c.rank<=10)&&deck.some(c=>c.suit!=='X'&&c.rank>=11))errors.push('Italian face values require removing 8–10 when face cards are included; use a custom deck.');
@@ -1415,7 +1415,7 @@
         !playedValues.some(v=>lower[0].value+v===requestedValue))
         return {ok:false,reason:'Raise one single build and merge only matching-value builds.'};
       const extra=loose.length?findValuePartition(loose,requestedValue,'any',rules):[];
-      if(!extra)return {ok:false,reason:'Loose cards must form complete matching groups.'};
+      if(!extra)return {ok:false,reason:'Table cards must form complete matching groups.'};
       const groups=[...matching.flatMap(b=>b.groups),lower[0].groups[0].concat(card),...extra];
       return {ok:true,build:{value:requestedValue,groups,kind:'multiple',operation:'merge'}};
     }
@@ -1442,7 +1442,7 @@
       return {ok:false,reason:'The played card must change this build to its new value.'};
     }
     const extraGroups = loose.length ? findValuePartition(loose, requestedValue, 'any', rules) : [];
-    if (!extraGroups) return {ok:false,reason:'Loose cards must form extra complete groups when raising.'};
+    if (!extraGroups) return {ok:false,reason:'Table cards must form extra complete groups when raising.'};
     if (extraGroups.length && !rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
     return {ok:true,build:{value:requestedValue,groups:[current.groups[0].concat(card),...extraGroups],kind:extraGroups.length?'multiple':'single',operation:requestedValue<current.value?'lower':'raise'}};
   }
@@ -1485,9 +1485,9 @@
         if(changed.some(e=>e.owner===player?state.rules.raiseOwnBuild===false:state.rules.raiseOpponentBuild===false))
           return {ok:false,reason:'Changing the value of that owner’s build is disabled.'};
         if(state.rules.mergeSameValue&&remainingTable.some(e=>e.type==='build'&&e.value===outcome.build.value))
-          return {ok:false,reason:'Include the existing same-value build in this move.'};
+          return {ok:false,reason:'Combine matching builds in this move.'};
         if(state.rules.absorbMatching&&remainingTable.some(e=>e.type==='loose'&&cardValues(e.card,state.rules).includes(outcome.build.value)))
-          return {ok:false,reason:'Include loose cards matching the build value.'};
+          return {ok:false,reason:'Absorb all individual table cards matching the build value.'};
         if(state.rules.buildLimit&&state.rules.buildLimit!=='unlimited'&&remainingTable.filter(e=>e.type==='build'&&e.owner===player).length+1>Number(state.rules.buildLimit))
           return {ok:false,reason:'The independent build limit has been reached.'};
       }
@@ -1686,7 +1686,7 @@
     if (state.phase !== 'roundOver') return null;
     return makeState(state.rules, 1 - state.dealer, state.players.map(p => p.score), state.round + 1, random);
   }
-  // All loose-card subsets whose sum is value. Pruned by positive card values.
+  // All table-card subsets whose sum is value. Pruned by positive card values.
   function valueGroups(state, target, max = 160) {
     const matching = state.table.filter(e => e.type === 'build' && e.value === target).map(e => [e.id]);
     const loose = state.table.filter(e => e.type === 'loose' && cardValues(e.card,state.rules).length || state.rules.additiveBuilds&&e.type==='build'&&e.value<target)

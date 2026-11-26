@@ -49,7 +49,7 @@ The Royal Aces and Royal 2-and-10 options can now use alternative numerical valu
 - Main-menu title now uses a clean SVG card fan and responsive type instead of overlapping HTML cards.
 - Hands, table cards and opponent card backs are larger; the backs use a woven diamond motif.
 - Cards fly at full opacity when trailed or built; only captured cards fade on the way to the captured pile.
-- You may select loose table cards or builds before selecting a hand card; highlights persist. Selected build stacks now glow yellow, including their constituent cards.
+- You may select table cards or builds before selecting a hand card; highlights persist. Selected build stacks now glow yellow, including their constituent cards.
 - Royal move labels pair rank and target value: Build Q (14), Build A (14), Multiple Build A (14) when the indicated move is legal. Royal J/Q/K normally count as 11/12/13, and Royal Aces as 1 or 14; displaying a target beside a rank does not change that card's inherent value.
 
 
@@ -62,7 +62,7 @@ Card movements now use eased physical flights, staggered redeals, and FLIP trans
 
 During a capture, the player's actual face-up card moves from their hand over the selected table cards. Every captured card, including cards inside a build, slides beneath it, then the whole assembled stack travels back to that player's capture area. Only the returning captured stack fades.
 
-At the end of a hand, loose cards remaining on the table are collected by the player who made the last capture. This collection finishes before hand scoring appears. The results table now labels category point values (such as Most cards (3), Aces (1–4)), bolds the higher number in each category and highlights the hand winner. Dealing uses a louder quick sequence of original synthesized card-snap sounds synchronized with cards flying from the stock on the left.
+At the end of a hand, table cards remaining on the table are collected by the player who made the last capture. This collection finishes before hand scoring appears. The results table now labels category point values (such as Most cards (3), Aces (1–4)), bolds the higher number in each category and highlights the hand winner. Dealing uses a louder quick sequence of original synthesized card-snap sounds synchronized with cards flying from the stock on the left.
 
 ## Readable build stacks (v0.4.7)
 
@@ -70,7 +70,7 @@ Builds remain physical card piles, not icons. The cards form a stepped solitaire
 
 
 ### v0.4.8 — computer trails
-The opponent's trailed card flips face-up over the hand, scales smoothly to exactly the loose-table-card dimensions, and lands without a size jump. The same sizing applies when the trail finishes the hand, with a separate safeguard for an already-cleared table. This update preserves the existing animation timing and legal moves.
+The opponent's trailed card flips face-up over the hand, scales smoothly to exactly the table-card dimensions, and lands without a size jump. The same sizing applies when the trail finishes the hand, with a separate safeguard for an already-cleared table. This update preserves the existing animation timing and legal moves.
 
 
 ### v0.4.9 — physical replacement-card dealing
@@ -90,8 +90,8 @@ Fishing Lab checks `version.json` when it opens, when connectivity returns, and 
 
 ### v0.5.3 — fixes for the four reported issues
 - Custom Rules settings toggle updates preserve the existing dialog and scroll position, preventing flashes.
-- Four loose table cards fit on one row on phones down to 320px; side builds occupy an upper-right lane.
-- In Draw mode, replacement-card animations no longer incorrectly hide existing loose table cards or just-trailed cards.
+- Four table cards fit on one row on phones down to 320px; side builds occupy an upper-right lane.
+- In Draw mode, replacement-card animations no longer incorrectly hide existing table cards or just-trailed cards.
 - Build labels sit flush at the bottom of the top card and cover the lower portion of its large rank.
 
 
@@ -106,22 +106,22 @@ Builds remain straight stacks of actual cards, with visible rank/suit corners an
 - Other gameplay and automatically installed releases remain unchanged.
 
 ### v0.5.6 — reference-video gameplay blocking
-Compared the green-felt gameplay with the two user-supplied recordings (1000063672.mp4 and 1000063673.mp4), including the sequence where a K-build becomes a multiple K-build. The table uses independent stock (left), loose-card (middle-left), and build (right) lanes. Unlike the previous layout, builds no longer jump above the card row or push the loose cards around. Four initial loose cards fit in one row at 320, 360, and 390px viewport widths, even when a build is present. Existing overlapping full-card build stacks, the owner/value panel, card-flight paths, contextual action prompts, and the v0.5.5 stacked-menu/exit-confirmation logic are retained. Check against the reference recordings on every layout/animation revision, and keep visual regression tests current.
+Compared the green-felt gameplay with the two user-supplied recordings (1000063672.mp4 and 1000063673.mp4), including the sequence where a K-build becomes a multiple K-build. The table uses independent stock (left), table-card (middle-left), and build (right) lanes. Unlike the previous layout, builds no longer jump above the card row or push the table cards around. Four initial table cards fit in one row at 320, 360, and 390px viewport widths, even when a build is present. Existing overlapping full-card build stacks, the owner/value panel, card-flight paths, contextual action prompts, and the v0.5.5 stacked-menu/exit-confirmation logic are retained. Check against the reference recordings on every layout/animation revision, and keep visual regression tests current.
 
 ### v0.5.7 — reference-video straight card movement
 From the user's second reference recording (1000063673.mp4), the extension of a K-build happens over roughly half a second. Fishing Lab now starts successive cards 48ms apart instead of 72ms, flies each card in 310–365ms rather than 380–420ms, and shows the black owner/value panel after 65ms with a 140ms settling transition. Flights now follow direct paths without the previous artificial vertical hop, and cards scale in both dimensions to their final build positions. Existing trail, capture and dealing choreography remains intact.
 
 ### v0.5.8 — numerical build panel and HUD deck
-The value panel on a build occupies the lower 77% of the topmost card, leaving the top 23% with the real rank/suit index visible. The label always shows the **numerical build target**, including 1/11/12/13/14 when A/J/Q/K participate numerically; it does not substitute the face-card letter. The physical draw deck is relocated into the rightmost **Cards in Deck** HUD cell alongside its count, freeing the former stock lane on the left of the table. Dealing sound and face-down card animations still originate from the actual moved `.draw-stock` element. Layout retains a side lane for builds and full-width loose cards when no build is present.
+The value panel on a build occupies the lower 77% of the topmost card, leaving the top 23% with the real rank/suit index visible. The label always shows the **numerical build target**, including 1/11/12/13/14 when A/J/Q/K participate numerically; it does not substitute the face-card letter. The physical draw deck is relocated into the rightmost **Cards in Deck** HUD cell alongside its count, freeing the former stock lane on the left of the table. Dealing sound and face-down card animations still originate from the actual moved `.draw-stock` element. Layout retains a side lane for builds and full-width table cards when no build is present.
 
 ### v0.5.9 — modest card-size reduction
-All gameplay cards are about 8–10% smaller: the player's hand, loose cards on the table, opponent card backs and stacked build cards. The tiny deck graphic in the HUD is reduced slightly too. Physical element dimensions are used rather than transform-based visual scaling, so card-flight start/end points, build stacking and face-up reveals still match their measured positions. Corner indices scale with the card via container-width units; no change to legal moves, scoring, custom settings, or automatic updates.
+All gameplay cards are about 8–10% smaller: the player's hand, table cards on the table, opponent card backs and stacked build cards. The tiny deck graphic in the HUD is reduced slightly too. Physical element dimensions are used rather than transform-based visual scaling, so card-flight start/end points, build stacking and face-up reveals still match their measured positions. Corner indices scale with the card via container-width units; no change to legal moves, scoring, custom settings, or automatic updates.
 
-### v0.5.10 — loose table cards close gaps from left to right
-Following reference recording `1000063678.mp4`, loose table cards retain a fixed left-side start position even as other cards are captured or converted into builds. When an 8 leaves the first loose slot to form a build, the remaining 7 shifts left to occupy that first slot over 355ms with an eased transition. The layout no longer recenters the row after the build disappears or appears. Existing cards retain their unique table IDs during FLIP transitions, and build cards remain in the independent right-side lane. The order of loose cards does not change.
+### v0.5.10 — table cards close gaps from left to right
+Following reference recording `1000063678.mp4`, table cards retain a fixed left-side start position even as other cards are captured or converted into builds. When an 8 leaves the first table-card slot to form a build, the remaining 7 shifts left to occupy that first slot over 355ms with an eased transition. The layout no longer recenters the row after the build disappears or appears. Existing cards retain their unique table IDs during FLIP transitions, and build cards remain in the independent right-side lane. The order of table cards does not change.
 
 ### v0.5.11 — mirrored capture staging and clear turn labels
-On capture, the face-up capturing card moves over selected loose cards or each card layer of a build; all captured cards converge beneath it. The assembled stack then moves into empty space in front of the capturer (lower field for the human, upper field for the computer), pauses briefly, and only then shrinks toward the captured-card area. This preserves the entire physical card stack until collection. The turn banner now displays only **Your turn** or **Opponent's turn**, including during deal/capture transitions. Build card corner ranks and suit symbols share a common baseline and rank-column width for consistent shoulder alignment.
+On capture, the face-up capturing card moves over selected table cards or each card layer of a build; all captured cards converge beneath it. The assembled stack then moves into empty space in front of the capturer (lower field for the human, upper field for the computer), pauses briefly, and only then shrinks toward the captured-card area. This preserves the entire physical card stack until collection. The turn banner now displays only **Your turn** or **Opponent's turn**, including during deal/capture transitions. Build card corner ranks and suit symbols share a common baseline and rank-column width for consistent shoulder alignment.
 
 ### v0.5.12 — rules engine and maintenance
 Fixed a deadlock in Build To Anything when the owner cannot capture their own build. Royal alternate capture values are enumerated separately. Human and computer turn completion share one path; obsolete menu and announcement state was removed. Added deterministic full-hand gameplay and release-parity tests.
@@ -151,7 +151,7 @@ Removed the explanatory paragraph below the variation selector for all presets a
 Every variation's options and winning score are editable immediately. Editing a preset switches to Custom while retaining its other rules. Enabling a build-dependent rule also enables building if needed. Selection fills the entire card or build with pale yellow, including its value panel; redundant outlines and extra shadows are removed. Individual build cards retain their source artwork, fade only the selection tint on movement, and move to their final dimensions without recreating or raster-scaling the face.
 
 ### v0.5.21 — build panels and table timing
-Menu joins Exit on the left; the computer score occupies the middle of the toolbar, with Hint and Undo on the right. The new build panel starts invisible and fades in over 140 ms after landing; the next turn waits for it. Extended builds retain the previous panel until incoming layers cover it. Multiple-build group boundaries use a dark top border fading into the regular outline. Loose survivors wait 160 ms after capture movement begins before sliding into gaps; CPU captures include the card-flip delay.
+Menu joins Exit on the left; the computer score occupies the middle of the toolbar, with Hint and Undo on the right. The new build panel starts invisible and fades in over 140 ms after landing; the next turn waits for it. Extended builds retain the previous panel until incoming layers cover it. Multiple-build group boundaries use a dark top border fading into the regular outline. Surviving table cards wait 160 ms after capture movement begins before sliding into gaps; CPU captures include the card-flip delay.
 
 ### v0.5.22 — selection colors
 The build value and owner use pure white ink on a permanently black panel. Selecting a build turns the ink the same pale yellow as the selected card paper. Cards and builds use their existing physical borders in gold, without additional stacked outlines; multiple-build separators remain dark and blend into the gold edge. Selection paper and border fade together when cards move.
@@ -194,7 +194,7 @@ Prepaint both sides of the opponent's card; native two-sided rotations replace t
 The CPU trail and capture tracks use a gentler zero-velocity start/end easing and a shared 16 ms paint lead; native refresh-rate timing remains uncapped.
 
 ### v0.5.34 — touch selection and difficulty layout
-Removed legacy hover lifts from hand cards, loose cards and builds. Only the selected class controls elevation; deselection returns to the normal position with a short transform transition. Selection updates no longer run a second FLIP movement or measure the board unnecessarily. The four difficulty choices appear in one horizontal row. CPU animation paths and gameplay rules are unchanged.
+Removed legacy hover lifts from hand cards, table cards and builds. Only the selected class controls elevation; deselection returns to the normal position with a short transform transition. Selection updates no longer run a second FLIP movement or measure the board unnecessarily. The four difficulty choices appear in one horizontal row. CPU animation paths and gameplay rules are unchanged.
 
 ### v0.5.35 — concurrent thinking and matching animation rhythm
 The opponent starts calculating the committed position as soon as the player's flight is scheduled (also during an opening/replacement deal). All four difficulties use the public-information worker where supported; Easy/Medium retain their scoring policy. Hard/Expert publish completed search iterations. The visible pause is 600 ms after the player's action and any dealing complete; at the deadline the CPU uses the best completed legal result and cancels remaining work. Undo/new match/exit discard obsolete searches. Both players use 490 ms trails, 340 ms capture gathering, 125 ms hold, 280 ms collection, 310 ms build flights, identical easing and staggering. The CPU retains its 335 ms face-down reveal. No rules or scoring changes.
@@ -214,3 +214,7 @@ The grouped native dropdown contains 66 games plus Custom; 12 playable profiles 
 ### 0.8.0 — custom decks and capture values
 
 Deck selection: 40 (A–10), 52, 54 (two identical jokers), or any subset of the 54 physical cards. Old Italian 40-card presets and saved matches retain their original composition using an explicit custom deck. Jokers have independent physical IDs but identical appearance and a shared numerical value assignment; no special joker capture powers are implied. The hand-size slider ranges from one to floor(deck size/player count); the validator separately accounts for initial table cards, final deal rules, and opening restrictions. Individual numerical values (1–30, optional second value) override standard settings while enabled. Rank-only preserves non-numerical face cards. Custom assignments and deck selection persist when switched off. The CPU, hint generator, legality checks and card conservation use the actual deck and values. Every info control explains the relevant options separately, and independent builds are clearly distinguished from mandatory equal-value merging. Difficulty descriptions appear only when info is expanded. Existing research-only presets remain blocked.
+
+### 0.8.1 — rule terminology
+
+Renamed the switches to **Builds must absorb matching table cards** and **Builds must combine matching builds**. Player-facing help, validation and accessibility labels now refer to table cards instead of loose cards. A table card in these settings means an individual, unbuilt card. Internal state identifiers and game mechanics are unchanged for save compatibility.
