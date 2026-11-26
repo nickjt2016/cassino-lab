@@ -1197,3 +1197,16 @@ html,body,#app{background:#005d0b;color:#fff}
 .rules-lab-result p{margin:4px 0}
 @media(max-width:350px){.rules-header,.rules-content,.rules-footer{padding-left:12px;padding-right:12px}.rules-header{padding-right:48px}.rules-nav{margin-left:12px;margin-right:12px}.rules-preset{padding:8px;min-height:60px}.rules-preset.selected{padding:7px}.rules-setting select{width:108px;font-size:11px}.rules-label{font-size:12px}}
 @media(max-height:480px){.dialog[aria-label="settings"]{max-height:97dvh}.rules-header{padding-top:8px;padding-bottom:7px}.rules-header h2{font-size:22px}.rules-nav{margin-bottom:6px}.rules-nav button{min-height:32px}.rules-footer .dialog-actions{padding:5px 0 7px}.rules-footer .dialog-actions .action-btn{min-height:35px}}
+
+/* v0.7.0: one continuous grouped rules page. */
+.preset-picker{padding:2px 0 8px}.rules-main-label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#74694f;font-weight:800;margin:0 0 7px}
+.preset-picker select{width:100%;min-height:48px;font-size:15px;font-weight:700;padding:8px 12px;color:#234c36;background:#fffaf1;border:1px solid #c6b68f;border-radius:10px}
+.preset-description,.difficulty-summary{font-size:11px;color:#6c6351;line-height:1.45;margin:6px 1px 0}
+.preset-preview-note{padding:10px;border:1px solid #d4bd91;border-radius:9px;background:#f4ead4;color:#79582a;margin-top:9px;font-size:12px;line-height:1.4}
+.preset-preview-note p{margin:5px 0}.difficulty-heading,.all-rules-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 5px}
+.difficulty-heading h3,.all-rules-heading h3{font-size:10px;color:#74694f;letter-spacing:1px;margin:0}
+.difficulty-heading .var-info{font-size:20px;min-width:36px;min-height:32px;padding:0}
+.difficulty-explanations{background:#fffaf1;border:1px solid #d8ccb0;border-radius:10px;margin:7px 0;padding:0 10px}
+.difficulty-explanations>div{border-bottom:1px solid #e5dac4;padding:8px 0}.difficulty-explanations b{font-size:13px;color:#514b3b}.difficulty-explanations .current b{color:#17563e}.difficulty-explanations p{font-size:11px;line-height:1.4;color:#6c6351;margin:3px 0}.difficulty-explanations .difficulty-footnote{padding:6px 0}
+.all-rules-heading{margin:18px 0 7px}.rules-single-page{gap:15px}.rules-page-heading{display:flex;flex-direction:column;gap:3px;margin-bottom:7px;padding:0 1px}.rules-page-heading h3{font-size:15px;letter-spacing:0;text-transform:none;margin:0;font-weight:750;color:#254e37}.rules-page-heading small{font-size:11px;color:#786e58;line-height:1.3}
+.rules-page-body .rules-subheading{margin-top:11px}.rules-page-body .rules-group{margin-bottom:3px}.rules-page-body .rules-description{margin:6px 1px}
