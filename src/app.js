@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.7';
+  const APP_VERSION = '0.9.0';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1604,10 +1604,11 @@
   }
   function ruleExplanation(key,options=[]){
     if(detailSetting!==key)return '';
-    return '<div class="inline-setting-info rule-option-help">'+helpFor(key,options).map(([label,description])=>'<p><b>'+escapeHtml(label)+'</b> — '+escapeHtml(description)+'</p>').join('')+'</div>';
+    const inactive=E.ruleActivity(draft).disabled[key];
+    return '<div class="inline-setting-info rule-option-help">'+(inactive?'<p class="inactive-rule-note"><b>Inactive:</b> this setting has no effect under the current configuration. Your preference is retained.</p>':'')+helpFor(key,options).map(([label,description])=>'<p><b>'+escapeHtml(label)+'</b> — '+escapeHtml(description)+'</p>').join('')+'</div>';
   }
   function ruleSwitch(key,title,disabled=false,hint=''){
-    disabled=disabled||!!draft.presetBlocker;
+    disabled=disabled||!!draft.presetBlocker||!!E.ruleActivity(draft).disabled[key];
     const checked=key==='buildObligation'?!draft.buildAnything:!!draft[key];
     return '<div class="rules-setting rules-switch'+(disabled?' is-inactive':'')+'"><div class="rules-setting-label"><span class="rules-label">'+escapeHtml(title)+'</span>'+
       (hint?'<small>'+escapeHtml(hint)+'</small>':'')+'</div>'+ruleInfo(key,title)+
@@ -1617,36 +1618,25 @@
   function ruleValue(key){
     if(key==='faceMode')return !draft.royal?'classic':draft.faceValues==='extended'?'extended':draft.faceValues==='italian'?'italian':'royal';
     if(key==='scoreMode')return draft.scoreProfile==='cassino'&&draft.spadeScoring?'spade':draft.scoreProfile;
+    if(key==='forcedCapture')return E.ruleActivity(draft).forcedOptions.includes(draft.forcedCapture)?draft.forcedCapture:'optional';
     if(key==='aceMode')return draft.royalAces?14:(draft.aceValue||1);
     if(key==='independentBuilds')return !draft.pirateBuilds||draft.buildLimit==='1'?'1':draft.buildLimit;
     return draft[key];
   }
   function ruleSelect(key,title,options,disabled=false,hint=''){
-    disabled=disabled||!!draft.presetBlocker;
+    const activity=E.ruleActivity(draft);
+    disabled=disabled||!!draft.presetBlocker||!!activity.disabled[key];
     const value=ruleValue(key);
     return '<div class="rules-setting rules-select'+(disabled?' is-inactive':'')+'"><label class="rules-setting-label" for="rule-'+key+'"><span class="rules-label">'+escapeHtml(title)+'</span>'+
       (hint?'<small>'+escapeHtml(hint)+'</small>':'')+'</label>'+ruleInfo(key,title)+
       '<select id="rule-'+key+'" data-setting="'+key+'" aria-label="'+escapeHtml(title)+'" '+(disabled?'disabled':'')+'>'+
-      options.map(option=>{const pair=Array.isArray(option)?option:[option,option];return '<option value="'+escapeHtml(pair[0])+'" '+(String(value)===String(pair[0])?'selected':'')+'>'+escapeHtml(pair[1])+'</option>';}).join('')+
+      options.map(option=>{const pair=Array.isArray(option)?option:[option,option];const blocked=key==='forcedCapture'&&!activity.forcedOptions.includes(pair[0]);return '<option value="'+escapeHtml(pair[0])+'" '+(String(value)===String(pair[0])?'selected':'')+(blocked?' disabled':'')+'>'+escapeHtml(pair[1])+'</option>';}).join('')+
       '</select>'+ruleExplanation(key,options)+'</div>';
   }
   function ruleGroup(title,content){
     return '<h4 class="rules-subheading">'+title+'</h4><div class="rules-group">'+content+'</div>';
   }
-  function effectiveDraftRules(){
-    const r=E.normalizeRules(draft);
-    // Keep preferences in the editor; deactivate only when exporting to the engine.
-    if(!r.builds){
-      for(const key of ['additiveBuilding','negativeBuilds','colorArithmetic','multipleBuilds','buildAnything','allowTrailWithOwnBuild','pirateBuilds','pirateCaptures','subtractiveBuilds','singleCardBuild','mergeSameValue','absorbMatching','tableOnlyBuild','additiveBuilds'])r[key]=false;
-      if(r.pileAccess==='build')r.pileAccess='none';
-      if(r.pileAccess==='both')r.pileAccess='capture';
-    }
-    if(!r.subtractiveBuilds)r.negativeBuilds=false;
-    if(!r.multipleBuilds){r.mergeSameValue=false;r.absorbMatching=false;}
-    if(!r.additiveCapture)r.additiveBuilds=false;
-    if(!r.sweepPoints)r.sweepCancel=false;
-    return r;
-  }
+  function effectiveDraftRules(){return E.activeRules(draft);}
   function faceLabel(){return !draft.royal?'Rank matching':draft.faceValues==='extended'?'J=12 · Q=13 · K=14':draft.faceValues==='italian'?'J=8 · Q=9 · K=10':'J=11 · Q=12 · K=13';}
   function dealLabel(){return draft.dealMode==='full'?'All cards at start':draft.dealMode==='draw'?draft.handSize+' cards · replace after play':draft.dealMode==='bid'?'Opening bid':draft.handSize+'-card batches';}
   function buildLabel(){return !draft.builds?'Disabled':(draft.multipleBuilds?'Single & multi builds':'Single builds')+' · '+(draft.buildAnything?'No reserved card':'Reserved card required')+(draft.buildRange==='custom'?' · Values '+(draft.buildMin??'—')+'–'+(draft.buildMax??'—'):'');}
@@ -1669,7 +1659,7 @@
   function renderBuildRangeFields(disabled){
     if(draft.buildRange!=='custom')return '';
     const vals=E.availableValues(draft);
-    const locked=disabled||!!draft.presetBlocker||!vals.length;
+    const locked=disabled||!!draft.presetBlocker||!vals.length||E.ruleActivity(draft).disabled.buildRange;
     const field=(key,title)=>{
       const choices=buildBoundChoices(key),val=draft[key]??'';
       return '<div class="build-bound"><label for="range-'+key+'">'+title+'</label><div class="build-bound-combo">'+
@@ -1723,10 +1713,10 @@
     const legend=free?
       '<span style="color:#346da8">You</span><span style="color:#656961">Individual opponents</span>':
       Array.from({length:n/(mode==='pairs'?2:3)},(_,i)=>'<span style="color:'+colors[i]+'">'+(i===0?'Your team':'Team '+(i+1))+'</span>').join('');
-    const notice=n===2&&mode==='pairs'?'One pair, no opposing team. Select Free for all to play.':n>2?'Seating preview — multiplayer gameplay is not implemented yet.':'';
+    const notice=n===2&&mode==='pairs'?'One pair, no opposing team. Select Free for all to play.':n>2?'Multiplayer seating preview only; see compatibility status below.':'';
     return '<div class="setup-table-figure"><svg viewBox="0 0 320 220" class="setup-table-svg" role="img" aria-labelledby="setup-table-title setup-table-desc">'+
       '<title id="setup-table-title">'+escapeHtml(playerSetupSummary(rules))+' seating</title><desc id="setup-table-desc">You sit at the south seat. '+escapeHtml(labels.join('; '))+'.</desc>'+
-      groups+'</svg><div class="setup-seat-legend polar-seat-legend">'+legend+'</div>'+(notice?'<p class="setup-preview-note">'+escapeHtml(notice)+'</p>':'')+'</div>';
+      groups+'</svg><div class="setup-seat-legend polar-seat-legend">'+legend+'</div><span class="sr-only">'+escapeHtml(notice)+'</span></div>';
   }
   function playerSetupContent(){
     return '<div class="rules-group player-setup-group">'+playerCountSetting()+
@@ -1788,7 +1778,7 @@
       ruleExplanation('customValues')+renderValuePicker(card)+'</div>';
   }
   function targetSetting(){return ruleSelect('winningScore','Winning score',[11,16,21,31,41,50,51,61,100,101,121].map(n=>[n,n+' pts']),!!draft.matchDeals);}
-  function forcedSetting(){return ruleSelect('forcedCapture','Compulsory captures',[['optional','Optional'],['faces','Face cards only'],['direct','Direct matches'],['all','Any legal match']]);}
+  function forcedSetting(){const inactive=!E.ruleActivity(draft).forcedOptions.includes(draft.forcedCapture);return ruleSelect('forcedCapture','Compulsory captures',[['optional','Optional'],['faces','Face cards only'],['direct','Direct matches'],['all','Any legal match']],false,inactive?'Previous preference inactive; restores when available.':'');}
   function renderPresetPicker(){
     const chosen=E.PRESET_CATALOG.find(p=>p.id===draftPreset),groups=[...new Set(E.PRESET_CATALOG.map(p=>p.group))];
     const options=groups.map(group=>'<optgroup label="'+escapeHtml(group)+'">'+E.PRESET_CATALOG.filter(p=>p.group===group).map(p=>'<option value="'+p.id+'" '+(draftPreset===p.id?'selected':'')+'>'+escapeHtml(p.name+(p.status==='preview'?' — preview':''))+'</option>').join('')+'</optgroup>').join('');
@@ -1853,7 +1843,7 @@
         ruleSwitch('pirateCaptures','Allow unrelated captures',!building)+ruleSwitch('allowTrailWithOwnBuild','Allow trailing',!building));
     const turnContent='<p class="rules-description">Play one hand card per action. The opponent normally plays next.</p><div class="rules-group">'+
       ruleSwitch('extraAfterSweep','Extra turn after opponent sweep')+'</div>';
-    const scoreContent='<div class="rules-group">'+ruleSelect('scoreMode','Scoring system',[['cassino','Classic Cassino'],['spade','Spade Cassino'],['wippen','Wippen'],['diloti','Diloti'],['kontsina','Kontsina'],['tablic','Tablić / Tabinet'],['scopa','Scopa']])+
+    const scoreContent='<div class="rules-group">'+ruleSelect('scoreMode','Scoring system',[['cassino','Classic Cassino'],['spade','Spade Cassino'],['wippen','Wippen'],['diloti','Diloti'],['kontsina','Kontsina'],['tablic','Tablić / Tabinet'],['scopa','Scopa'],['northeast','Connecticut / New York'],['swedish','Swedish Kasino'],['overspader','Överspader'],['hurrikan','Hurrikan']])+
       ruleSelect('matchDeals','Match length',[[0,'Target score'],[1,'1 deal'],[2,'2 deals'],[3,'3 deals'],[4,'4 deals'],[6,'6 deals']])+targetSetting()+
       ruleSelect('sweepPoints','Points per sweep',[0,1,10,50])+ruleSwitch('sweepCancel','Cancel opposing sweeps',!draft.sweepPoints)+
       ruleSwitch('ignoreOpeningSweep','No opening sweep points',!draft.sweepPoints)+ruleSwitch('ignoreFinalSweep','No final sweep points',!draft.sweepPoints)+
@@ -1872,7 +1862,7 @@
   }
   function issueArea(message){
     if(/multiplayer gameplay|team arrangement|single team with no opponent|four-player partnerships/i.test(message))return 'players';
-    if(/capture method|compulsory direct/i.test(message))return 'capture';
+    if(/capture method|compulsory direct|cannot make any capture|Rank-only cards/i.test(message))return 'capture';
     if(/build|obligation/i.test(message))return 'build';
     if(/score|sweep/i.test(message))return 'score';
     if(/Italian face|custom card values|numerical card values/i.test(message))return 'values';
@@ -2217,9 +2207,9 @@
     } else {
       draft = E.normalizeRules(game.rules);
       draftPreset = Object.keys(E.PRESETS).sort((x,y)=>Number(E.PRESETS[y].name===draft.name)-Number(E.PRESETS[x].name===draft.name)).find(key => {
-        const preset = E.rulesFor(key);
+        const preset=E.activeRules(E.rulesFor(key)),current=E.activeRules(draft);
         return Object.keys(E.DEFAULT_RULES).every(prop =>
-          prop === 'name' || prop === 'difficulty' || JSON.stringify(preset[prop]) === JSON.stringify(draft[prop]));
+          prop === 'name' || prop === 'difficulty' || JSON.stringify(preset[prop]) === JSON.stringify(current[prop]));
       }) || 'custom';
       customDraft = draftPreset === 'custom' ? {...draft} : customRules ? {...customRules} : null;
     }
@@ -2282,11 +2272,11 @@
       if(![2,3,4,5,6].includes(value)||draft.playerCount===value)return;
       draft.playerCount=value;
       if(!E.teamModesFor(value).includes(draft.teamMode))draft.teamMode='freeForAll';
-      fitHandSize();commitDraftEdit();return;
+      rulesIssuesOpen=false;fitHandSize();commitDraftEdit();return;
     }
     if(prop==='teamMode'){
       if(!E.teamModesFor(draft.playerCount).includes(value)||draft.teamMode===value)return;
-      draft.teamMode=value;commitDraftEdit();return;
+      draft.teamMode=value;rulesIssuesOpen=false;commitDraftEdit();return;
     }
     if(prop==='deckMode'){
       if(!['40','52','54','custom'].includes(value)||draft.deckMode===value)return;
@@ -2302,17 +2292,18 @@
       if(value&&!draft.cardValueOverrides)draft.cardValueOverrides=E.initialCardValues(draft);
       draft.customizeCardValues=!!value;valuePickerOpen=false;commitDraftEdit();return;
     }
-    if(draft.customizeCardValues&&['faceMode','aceMode','royalBigLittle','jokerValue'].includes(prop))return;
+    if(E.ruleActivity(draft).disabled[prop])return;
+    if(prop==='forcedCapture'&&!E.ruleActivity(draft).forcedOptions.includes(value))return;
     if(prop==='handSize'&&(!Number.isInteger(value)||value<1||value>handMaximum()))return;
     if(prop==='buildRange'&&!['all','9-13','10-13','custom'].includes(value))return;
     if(['buildMin','buildMax'].includes(prop)&&(!draft.builds||draft.buildRange!=='custom'||!buildBoundChoices(prop).includes(value)))return;
-    if(String(ruleValue(prop))===String(value))return;
+    if(String(ruleValue(prop))===String(value)&&!(prop==='forcedCapture'&&draft.forcedCapture!==value))return;
     if(prop==='faceMode'){
       if(!['classic','royal','extended','italian'].includes(value))return;
       draft.royal=value!=='classic';
       draft.faceValues=value==='classic'||value==='royal'?'standard':value;
     }else if(prop==='scoreMode'){
-      if(!['cassino','spade','wippen','diloti','kontsina','tablic','scopa'].includes(value))return;
+      if(!['cassino','spade','wippen','diloti','kontsina','tablic','scopa','northeast','swedish','overspader','hurrikan'].includes(value))return;
       draft.scoreProfile=value==='spade'?'cassino':value;draft.spadeScoring=value==='spade';
     }else if(prop==='aceMode'){
       if(![1,11,14].includes(value))return;
@@ -2395,7 +2386,7 @@
     }
   }
   function applyBuildBound(key,value,exceptInput){
-    if(!draft||draft.presetBlocker||!draft.builds||draft.buildRange!=='custom'||!['buildMin','buildMax'].includes(key)||!buildBoundChoices(key).includes(value))return false;
+    if(!draft||draft.presetBlocker||E.ruleActivity(draft).disabled.buildRange||draft.buildRange!=='custom'||!['buildMin','buildMax'].includes(key)||!buildBoundChoices(key).includes(value))return false;
     if(draft[key]!==value){draft[key]=value;refreshNumericRuleEdit();}
     syncBuildBounds(exceptInput);return true;
   }
@@ -2432,7 +2423,7 @@
       const output=app.querySelector('#player-count-output');if(output)output.textContent=String(n);
       for(const tick of app.querySelectorAll('[data-player-tick]'))tick.classList.toggle('active',Number(tick.dataset.playerTick)===n);
       const select=app.querySelector('#rule-teamMode');
-      if(select)select.innerHTML=playerTeamOptions(n).map(([value,label])=>'<option value="'+value+'" '+(value===mode?'selected':'')+'>'+label+'</option>').join('');
+      if(select){select.innerHTML=playerTeamOptions(n).map(([value,label])=>'<option value="'+value+'" '+(value===mode?'selected':'')+'>'+label+'</option>').join('');select.disabled=allowed.length<2;select.closest('.rules-setting')?.classList.toggle('is-inactive',select.disabled);}
       const diagram=app.querySelector('#player-seating-preview');if(diagram)diagram.innerHTML=seatingDiagram(preview);
       const summary=app.querySelector('#rules-area-players .rules-page-heading small');if(summary)summary.textContent=playerSetupSummary(preview);
       const eyebrow=app.querySelector('.rules-header .rules-eyebrow');if(eyebrow)eyebrow.textContent=playerHeader(preview);

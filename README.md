@@ -242,3 +242,7 @@ Player Setup precedes Deck & Dealing. The stepped slider selects 2–6 players; 
 ### 0.8.7 — polar seating preview
 
 The seating diagram now consists solely of equal-sized annular-sector seats around a blank center. Each seat retains the same radial thickness and angular width at every player count (2–6), and seats are evenly distributed around the circle. Team colors and the southern human seat remain unchanged. This is a visual setup change only; multiplayer gameplay remains unavailable.
+
+### 0.9.0 — rules audit and stable seating
+
+Constant-size polar seating preview; shared rule dependencies with retained editor preferences; validation for impossible captures and missing scoring categories; corrected direct-priority/build obligations and uneven dealing. Corrected Wippen sweep scoring. Nine more playable profiles using existing rule controls and regional scoring choices. See [the rule audit and roadmap](docs/rule-roadmap.md) for sources, fidelity notes, deferred mechanics, and reproducible test instructions.

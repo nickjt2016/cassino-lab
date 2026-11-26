@@ -1317,6 +1317,13 @@ html,body,#app{background:#005d0b;color:#fff}
 .setup-seat-legend.polar-seat-legend{gap:7px 16px;font-weight:650;margin-top:0}
 .setup-seat-legend.polar-seat-legend span{display:inline}
 
+/* v0.9.0: fixed seating preview dimensions for every arrangement. */
+.setup-table-figure .setup-table-svg{aspect-ratio:320/220}
+.setup-seat-legend.polar-seat-legend{height:20px;min-height:20px;flex-wrap:nowrap;align-items:center;line-height:14px;margin:0}
+.setup-seat-legend.polar-seat-legend span{white-space:nowrap}
+@media(max-width:320px){.setup-seat-legend.polar-seat-legend{gap:6px;font-size:10px}}
+.inactive-rule-note{color:#776b53}
+
 </style></head><body><div id="app"></div>
 <script>/* Fishing Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -1372,7 +1379,8 @@ html,body,#app{background:#005d0b;color:#fff}
   },
   "wippen": {
     "name": "Wippen",
-    "scoreProfile": "wippen"
+    "scoreProfile": "wippen",
+    "sweepPoints": 1
   },
   "suipi": {
     "name": "Suipi",
@@ -1482,11 +1490,14 @@ html,body,#app{background:#005d0b;color:#fff}
     "presetBlocker": "Pluck actions are not implemented."
   },
   "nordic": {
-    "name": "Nordic Kasino",
+    "name": "Swedish Kasino",
     "builds": false,
     "multipleBuilds": false,
     "royal": true,
-    "presetBlocker": "Card-specific values and regional scoring require implementation."
+    "aceValue": 14,
+    "scoreProfile": "swedish",
+    "sweepPoints": 1,
+    "winningScore": 16
   },
   "mulle": {
     "name": "Mulle",
@@ -1634,8 +1645,21 @@ html,body,#app{background:#005d0b;color:#fff}
     "presetBlocker": "Opening declarations and bonus scoring are not implemented."
   },
   "hurrikan": {
-    "name": "Hurrikan",
-    "presetBlocker": "Regional rules require verification."
+    "name": "Hurrikan (single match)",
+    "deckSize": 40,
+    "handSize": 6,
+    "royal": true,
+    "faceValues": "italian",
+    "builds": false,
+    "multipleBuilds": false,
+    "captureGroups": "one",
+    "forcedCapture": "all",
+    "directPriority": true,
+    "initialTableRule": "any",
+    "scoreProfile": "hurrikan",
+    "sweepPoints": 1,
+    "ignoreFinalSweep": false,
+    "winningScore": 16
   },
   "escoba": {
     "name": "Escoba",
@@ -1756,6 +1780,53 @@ html,body,#app{background:#005d0b;color:#fff}
   "tuxedo": {
     "name": "Tuxedo",
     "presetBlocker": "Special Rook deck and exact rules are not implemented."
+  },
+  "cassinoSweep": {
+    "name": "Cassino with sweeps",
+    "sweepPoints": 1
+  },
+  "cassinoFifty": {
+    "name": "50-point Cassino",
+    "winningScore": 50
+  },
+  "cassinoTrail": {
+    "name": "Cassino (relaxed trailing)",
+    "allowTrailWithOwnBuild": true
+  },
+  "cassinoBuildSums": {
+    "name": "Cassino (single-build sums)",
+    "additiveBuilds": true
+  },
+  "cassinoNortheast": {
+    "name": "Connecticut / New York Cassino",
+    "scoreProfile": "northeast"
+  },
+  "scopa21": {
+    "name": "Scopa (21 points)",
+    "deckSize": 40,
+    "handSize": 3,
+    "royal": true,
+    "faceValues": "italian",
+    "builds": false,
+    "multipleBuilds": false,
+    "captureGroups": "one",
+    "forcedCapture": "all",
+    "directPriority": true,
+    "initialTableRule": "no-three-kings",
+    "scoreProfile": "scopa",
+    "sweepPoints": 1,
+    "ignoreFinalSweep": true,
+    "winningScore": 21
+  },
+  "swedishOver": {
+    "name": "Swedish Kasino (Överspader)",
+    "builds": false,
+    "multipleBuilds": false,
+    "royal": true,
+    "aceValue": 14,
+    "scoreProfile": "overspader",
+    "sweepPoints": 1,
+    "winningScore": 21
   }
 });
   const PRESET_CATALOG = Object.freeze([
@@ -1771,7 +1842,7 @@ html,body,#app{background:#005d0b;color:#fff}
     "id": "royal",
     "name": "Royal Cassino",
     "group": "Cassino",
-    "note": "Numerical face cards.",
+    "note": "House-rule Royal Cassino: numerical face cards. Full Puerto Rican Royal endgame and all-match rules are not yet supported.",
     "status": "playable",
     "partial": false
   },
@@ -1803,7 +1874,7 @@ html,body,#app{background:#005d0b;color:#fff}
     "id": "wippen",
     "name": "Wippen",
     "group": "Small variations",
-    "note": "Belgian scoring: two points for each majority.",
+    "note": "Belgian Cassino: 2 points each for card and spade majorities; 1 per sweep.",
     "status": "playable",
     "partial": false
   },
@@ -1811,7 +1882,7 @@ html,body,#app{background:#005d0b;color:#fff}
     "id": "suipi",
     "name": "Suipi",
     "group": "Small variations",
-    "note": "Eight-card hands, restricted starting table, compulsory direct matches and a two-deal match. Samoan house rules vary.",
+    "note": "Eight-card, two-deal Samoan house-rule implementation; compulsory direct matches and restricted opening. Regional build protection rules vary.",
     "status": "playable",
     "partial": false
   },
@@ -1867,7 +1938,7 @@ html,body,#app{background:#005d0b;color:#fff}
     "id": "diloti",
     "name": "Diloti",
     "group": "Major variations",
-    "note": "Two-player Greek declarations, six-card hands and 10-point sweeps.",
+    "note": "Two-player six-card declarations, compulsory face matches, and 10-point sweeps. Uses the app's one-independent-build rule.",
     "status": "playable",
     "partial": false
   },
@@ -1921,11 +1992,11 @@ html,body,#app{background:#005d0b;color:#fff}
   },
   {
     "id": "nordic",
-    "name": "Nordic Kasino",
+    "name": "Swedish Kasino",
     "group": "Major variations",
-    "note": "Special capture values; usually no building.",
-    "status": "preview",
-    "partial": true
+    "note": "Swedish Kasino without building, with dual-value aces and a last-capture point. Uses the documented replay-on-tie variant.",
+    "status": "playable",
+    "partial": false
   },
   {
     "id": "mulle",
@@ -2041,10 +2112,10 @@ html,body,#app{background:#005d0b;color:#fff}
   },
   {
     "id": "hurrikan",
-    "name": "Hurrikan",
+    "name": "Hurrikan (single match)",
     "group": "Major variations",
-    "note": "German Scopa relative.",
-    "status": "preview",
+    "note": "Two-player German Scopa variant: six-card hands, heart bonuses, adjusted prime values. Uses a single match; final sweeps count. Double-game settlement is not modeled.",
+    "status": "playable",
     "partial": false
   },
   {
@@ -2286,8 +2357,65 @@ html,body,#app{background:#005d0b;color:#fff}
     "note": "Peripheral or historical fishing-game research.",
     "status": "preview",
     "partial": false
+  },
+  {
+    "id": "cassinoSweep",
+    "name": "Cassino with sweeps",
+    "group": "Small variations",
+    "note": "Classic rules with a point for every table clear.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "cassinoFifty",
+    "name": "50-point Cassino",
+    "group": "Small variations",
+    "note": "Documented longer target-score variant.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "cassinoTrail",
+    "name": "Cassino (relaxed trailing)",
+    "group": "Small variations",
+    "note": "May trail while owning a build, provided its capture card is retained.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "cassinoBuildSums",
+    "name": "Cassino (single-build sums)",
+    "group": "Small variations",
+    "note": "Single builds can contribute their announced value to a capture sum.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "cassinoNortheast",
+    "name": "Connecticut / New York Cassino",
+    "group": "Small variations",
+    "note": "Regional scoring: most cards 1, 10♦ 3, 2♠ 2; other Cassino points unchanged.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "scopa21",
+    "name": "Scopa (21 points)",
+    "group": "Major variations",
+    "note": "Documented longer Scopa match.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "swedishOver",
+    "name": "Swedish Kasino (Överspader)",
+    "group": "Major variations",
+    "note": "Swedish Kasino with one point for each spade beyond six; replay tied targets.",
+    "status": "playable",
+    "partial": false
   }
 ]);
+
   const DIFFICULTY_INFO = Object.freeze([
   [
     "casual",
@@ -2367,6 +2495,75 @@ html,body,#app{background:#005d0b;color:#fff}
       rules.buildRange==='10-13'?values.filter(v=>v>=10&&v<=13):
       rules.buildRange==='custom'?values.filter(v=>v>=rules.buildMin&&v<=rules.buildMax):values;
   }
+  function ruleActivity(input={}){
+    const r=normalizeRules(input),deck=makeDeck(r),numeric=availableValues(r).length>0;
+    const building=r.builds,arithmetic=r.additiveBuilding!==false||r.subtractiveBuilds;
+    const noBuild=!building||!numeric;
+    const canCreate=arithmetic||r.multipleBuilds||r.singleCardBuild;
+    const faces=deck.some(c=>c.rank>=11&&c.rank<=13);
+    const capturableFaces=deck.some(c=>c.rank>=11&&c.rank<=13&&(r.directCapture||r.additiveCapture&&cardValues(c,r).length));
+    const disabled={
+      faceMode:r.customizeCardValues||!faces,
+      aceMode:r.customizeCardValues||!deck.some(c=>c.rank===1),
+      royalBigLittle:r.customizeCardValues||!deck.some(c=>c.id==='S2'||c.id==='D10'),
+      jokerValue:r.customizeCardValues||!r.jokerCount,
+      teamMode:teamModesFor(r.playerCount).length<2,
+      handSize:r.dealMode==='full'||deck.length<r.playerCount,
+      remainderMode:r.dealMode==='draw',
+      initialTableRule:r.initialTableSize===0,
+      directPriority:!r.directCapture||(!r.additiveCapture&&!r.builds&&r.captureGroups==='one'),
+      additiveBuilds:noBuild||!canCreate||!r.additiveCapture,
+      additiveBuilding:noBuild,subtractiveBuilds:noBuild,multipleBuilds:noBuild,singleCardBuild:noBuild,
+      negativeBuilds:noBuild||!r.subtractiveBuilds,
+      colorArithmetic:noBuild||!arithmetic,
+      buildRange:noBuild||!canCreate,
+      raiseOwnBuild:noBuild||!arithmetic,raiseOpponentBuild:noBuild||!arithmetic,
+      mergeSameValue:noBuild||!r.multipleBuilds,absorbMatching:noBuild||!r.multipleBuilds,
+      buildObligation:noBuild||!canCreate,independentBuilds:noBuild||!canCreate,
+      pirateCaptures:noBuild||!canCreate,allowTrailWithOwnBuild:noBuild||!canCreate,
+      winningScore:!!r.matchDeals,
+      sweepCancel:!r.sweepPoints,ignoreOpeningSweep:!r.sweepPoints,ignoreFinalSweep:!r.sweepPoints
+    };
+    const forcedOptions=['optional',...(capturableFaces?['faces']:[]),...(r.directCapture?['direct']:[]),...(r.directCapture||r.additiveCapture?['all']:[])];
+    return {disabled,forcedOptions};
+  }
+  function activeRules(input={}){
+    const r=normalizeRules(input),{disabled,forcedOptions}=ruleActivity(r);
+    for(const key of ['additiveBuilding','subtractiveBuilds','multipleBuilds','singleCardBuild','negativeBuilds','colorArithmetic','raiseOwnBuild','raiseOpponentBuild','mergeSameValue','absorbMatching','pirateCaptures','allowTrailWithOwnBuild','additiveBuilds','directPriority','sweepCancel','ignoreOpeningSweep','ignoreFinalSweep']){
+      if(disabled[key])r[key]=false;
+    }
+    if(!r.builds){
+      r.buildAnything=false;r.pirateBuilds=false;r.tableOnlyBuild=false;
+      if(r.pileAccess==='build')r.pileAccess='none';
+      if(r.pileAccess==='both')r.pileAccess='capture';
+    }
+    if(disabled.buildRange){r.buildRange='all';r.buildMin=null;r.buildMax=null;}
+    if(disabled.buildObligation)r.buildAnything=false;
+    if(disabled.independentBuilds)r.pirateBuilds=false;
+    if(!r.pirateBuilds)r.buildLimit='1';
+    if(!forcedOptions.includes(r.forcedCapture))r.forcedCapture='optional';
+    if(r.scoreProfile!=='cassino')r.spadeScoring=false;
+    return r;
+  }
+  // Conservative proof that a capture-only game cannot ever make a
+  // capture. A matching pair or a matching sum anywhere in the entire
+  // deck is enough to leave the configuration available.
+  function potentialTableCapture(deck,rules){
+    for(const played of deck){
+      const values=cardValues(played,rules);
+      const remaining=deck.filter(c=>c.id!==played.id);
+      if(rules.directCapture&&remaining.some(c=>values.length?cardValues(c,rules).some(v=>values.includes(v)):rankMatch(c,played,rules)))return true;
+      if(!rules.additiveCapture||!values.length)continue;
+      let one=0,many=0;
+      for(const c of remaining){
+        const vals=cardValues(c,rules),oldOne=one,oldMany=many;
+        for(const v of vals){one|=1<<v;many|=(oldOne|oldMany)<<v;}
+        one&=0x7fffffff;many&=0x7fffffff;
+      }
+      if(values.some(v=>many&(1<<v)))return true;
+    }
+    return false;
+  }
   function validateRules(input={}) {
     const r=normalizeRules(input),errors=[],warnings=[],unavailable=[];
     const allowed={playerCount:[2,3,4,5,6],teamMode:['freeForAll','pairs','triples'],deckMode:['40','52','54','custom'],initialTableSize:[0,3,4,8],
@@ -2374,7 +2571,7 @@ html,body,#app{background:#005d0b;color:#fff}
       faceValues:['standard','extended','italian'],aceValue:[1,11,14],jokerCount:[0,1,2],jokerValue:Array.from({length:30},(_,i)=>i+1),
       captureGroups:['one','unlimited'],forcedCapture:['optional','faces','direct','all'],captureExtent:['choice','maximal','maximum'],
       buildRange:['all','9-13','10-13','custom'],buildLimit:['1','2','unlimited'],pileAccess:['none','build','capture','both'],
-      actionsPerTurn:['single','multiple'],handCardsPerTurn:['one','multiple'],scoreProfile:['cassino','wippen','diloti','kontsina','tablic','scopa'],matchDeals:[0,1,2,3,4,6],initialTableRule:['any','distinct-nonpoints','no-three-faces','no-three-kings'],residueOwner:['lastCapture','dealer']};
+      actionsPerTurn:['single','multiple'],handCardsPerTurn:['one','multiple'],scoreProfile:['cassino','wippen','diloti','kontsina','tablic','scopa','northeast','swedish','overspader','hurrikan'],matchDeals:[0,1,2,3,4,6],initialTableRule:['any','distinct-nonpoints','no-three-faces','no-three-kings'],residueOwner:['lastCapture','dealer']};
     for(const [k,options] of Object.entries(allowed))if(!options.includes(r[k]))errors.push('Invalid setting: '+k+'.');
     for(const [k,v] of Object.entries(DEFAULT_RULES))if(typeof v==='boolean'&&typeof r[k]!=='boolean')errors.push('Invalid switch: '+k+'.');
     if(!Number.isInteger(r.winningScore)||r.winningScore<1||!Number.isInteger(r.sweepPoints)||r.sweepPoints<0)errors.push('Score settings must be nonnegative whole numbers, with a positive winning score.');
@@ -2422,6 +2619,22 @@ html,body,#app{background:#005d0b;color:#fff}
     if(r.initialTableSize>openingCapacity(deck,r.initialTableRule))errors.push('The selected deck cannot satisfy the starting table restrictions.');
     if(r.builds&&!availableValues(r).length)warnings.push('There are no numerical card values; building is unavailable in this deck.');
     if(!r.directCapture&&!availableValues(r).length)errors.push('Rank-only cards cannot make additive captures when direct matching is off.');
+    const activeConstruction=r.builds&&availableValues(r).length&&(r.additiveBuilding!==false||r.subtractiveBuilds||r.multipleBuilds||r.singleCardBuild);
+    if(!activeConstruction&&(r.directCapture||r.additiveCapture)&&!potentialTableCapture(deck,r)){
+      const message='This deck and capture configuration cannot make any capture.';
+      if(!r.matchDeals&&r.residueOwner==='lastCapture')errors.push(message+' A target-score match cannot finish.');
+      else warnings.push(message+' Check the residue and match-length rules.');
+    }
+    if(r.deckMode==='custom'||r.deckMode==='40'){
+      const spec=scoreSpec(r),missing=[];
+      if(spec.bigPoints&&!deck.some(c=>c.id===spec.big))missing.push(bonusLabel(spec.big));
+      if(spec.littlePoints&&!deck.some(c=>c.id===spec.little))missing.push(bonusLabel(spec.little));
+      if(spec.ace&&!deck.some(c=>c.rank===1))missing.push('aces');
+      if((spec.suitPoints||spec.perSpade)&&!deck.some(c=>c.suit===spec.suit))missing.push('the scoring suit');
+      if(spec.overSpades&&deck.filter(c=>c.suit==='S').length<=spec.overSpades)missing.push('excess spades');
+      if(spec.prime&&!SUITS.every(suit=>deck.some(c=>c.suit===suit)))missing.push('primiera');
+      if(missing.length)warnings.push('Some scoring categories are unavailable with this deck: '+missing.join(', ')+'.');
+    }
     if(validPlayerCount&&r.playerCount>2)unavailable.push('Multiplayer gameplay for 3–6 players is not implemented yet. Player Setup is a preview.');
     if(r.dealMode==='bid')unavailable.push('Opening bidding is not implemented.');
     if(r.multiHandCapture||r.handCardsPerTurn==='multiple')unavailable.push('Multi-card hand actions are not implemented.');
@@ -2568,7 +2781,7 @@ html,body,#app{background:#005d0b;color:#fff}
     }
     const count=state.rules.dealMode==='full'?state.stock.length:Math.min(state.stock.length,2*(state.rules.handSize||4));
     // Alternate from the nondealer, including a legal smaller/unequal final batch.
-    for(let i=0;i<count;i++)state.players[i%2].hand.push(state.stock.pop());
+    for(let i=0;i<count;i++)state.players[(1-state.dealer+i)%2].hand.push(state.stock.pop());
   }
   function cardsInElement(element) {
     return element.type === 'loose' ? [element.card] : element.groups.flat();
@@ -2721,8 +2934,8 @@ html,body,#app{background:#005d0b;color:#fff}
   function capturePolicy(state,action,card,selected){
     const rules=state.rules;
     if(action.kind==='trail'&&rules.forcedCapture&&rules.forcedCapture!=='optional'&&(rules.forcedCapture!=='faces'||card.rank>=11&&card.rank<=13)){
-      for(const move of rawCaptureMoves(state,card)){
-        if(rules.forcedCapture==='direct'&&(move.targetIds.length!==1||!state.table.some(e=>e.id===move.targetIds[0]&&e.type==='loose')))continue;
+      const candidates=rules.forcedCapture==='direct'?state.table.filter(e=>e.type==='loose').map(e=>({kind:'capture',cardId:card.id,targetIds:[e.id]})):rawCaptureMoves(state,card);
+      for(const move of candidates){
         if(validateAction(state,move,true).ok)return 'This card has a compulsory legal capture.';
       }
     }
@@ -2958,7 +3171,9 @@ html,body,#app{background:#005d0b;color:#fff}
     if(action.kind==='capture'&&state.rules.directPriority&&state.rules.directCapture!==false){
       const vals=cardValues(card,state.rules);
       const matching=state.table.filter(x=>x.type==='loose'&&(vals.length?cardValues(x.card,state.rules).some(v=>vals.includes(v)):rankMatch(x.card,card,state.rules)));
-      if(matching.length&&(selected.length!==1||!matching.some(x=>x.id===selected[0].id)))return {ok:false,reason:'A direct matching card takes priority over sums.'};
+      const legalMatching=matching.filter(x=>(!own.length||state.rules.pirateCaptures)&&
+        !ownBuildObligation(state,state.table.filter(e=>e.id!==x.id),remainingHand,player));
+      if(legalMatching.length&&(selected.length!==1||!legalMatching.some(x=>x.id===selected[0].id)))return {ok:false,reason:'A legal direct matching card takes priority over sums.'};
     }
     const resultTable = action.kind === 'trail'
       ? [...state.table, { id: 'preview', type: 'loose', card }]
@@ -3074,9 +3289,13 @@ html,body,#app{background:#005d0b;color:#fff}
     return { ok: true, description };
   }
   function scoreSpec(rules){
-    const base={cards:3,suit:'S',suitPoints:1,perSpade:!!rules.spadeScoring,big:'D10',bigPoints:2,little:'S2',littlePoints:1,ace:1,face:0,tens:0,prime:0};
+    const base={cards:3,suit:'S',suitPoints:1,perSpade:!!rules.spadeScoring,big:'D10',bigPoints:2,little:'S2',littlePoints:1,ace:1,face:0,tens:0,prime:0,last:0,overSpades:0,primeFaces:null};
     const schemes={
       wippen:{cards:2,suitPoints:2,perSpade:false},
+      northeast:{cards:1,bigPoints:3,littlePoints:2,perSpade:false},
+      swedish:{cards:1,suitPoints:2,perSpade:false,last:1},
+      overspader:{cards:1,suitPoints:0,perSpade:false,last:1,overSpades:6},
+      hurrikan:{cards:1,suit:'H',suitPoints:1,perSpade:false,big:'H7',bigPoints:1,littlePoints:0,ace:0,prime:1,primeFaces:{11:8,12:9,13:10}},
       diloti:{cards:4,suitPoints:0,perSpade:false,little:'C2'},
       kontsina:{cards:2,suit:'C',suitPoints:1,perSpade:false,bigPoints:1,little:'C2',ace:0},
       tablic:{suitPoints:0,perSpade:false,little:'C2',face:1,tens:1},
@@ -3089,6 +3308,7 @@ html,body,#app{background:#005d0b;color:#fff}
   function scoreCategories(rules){
     const s=scoreSpec(rules),rows=[['cards','Most cards ('+s.cards+')']];
     if(s.perSpade)rows.push(['spades','Spades (1 each; J♠ bonus)']);
+    else if(s.overSpades)rows.push(['spades','Spades beyond '+s.overSpades+' (1 each)']);
     else if(s.suitPoints)rows.push(['spades','Most '+({S:'spades',C:'clubs',D:'diamonds',H:'hearts'})[s.suit]+' ('+s.suitPoints+')']);
     if(s.bigPoints)rows.push(['big',bonusLabel(s.big)+' ('+s.bigPoints+')']);
     if(s.littlePoints)rows.push(['little',bonusLabel(s.little)+' ('+s.littlePoints+')']);
@@ -3096,6 +3316,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if(s.face)rows.push(['faces','Face cards ('+s.face+' each)']);
     if(s.tens)rows.push(['tens','Other tens ('+s.tens+' each)']);
     if(s.prime)rows.push(['prime','Primiera ('+s.prime+')']);
+    if(s.last)rows.push(['last','Last capture ('+s.last+')']);
     rows.push(['sweeps','Sweeps ('+(rules.sweepPoints||0)+(rules.sweepCancel?', net':'')+')'],['total','This hand (total)']);
     return rows;
   }
@@ -3104,17 +3325,19 @@ html,body,#app{background:#005d0b;color:#fff}
     const points=n=>n+' point'+(n===1?'':'s');
     const lines=[['Most cards',points(s.cards)]];
     if(s.perSpade){lines.push(['Each spade','1 point'],['Jack of spades (J♠)','1 extra point']);}
+    else if(s.overSpades)lines.push(['Spades beyond '+s.overSpades,'1 point per additional spade.']);
     else if(s.suitPoints)lines.push(['Most '+suitNames[s.suit],points(s.suitPoints)]);
     if(s.bigPoints)lines.push([bonusLabel(s.big),points(s.bigPoints)]);
     if(s.littlePoints)lines.push([bonusLabel(s.little),points(s.littlePoints)]);
     if(s.ace)lines.push(['Each ace',points(s.ace)]);
     if(s.face)lines.push(['Each face card',points(s.face)]);
     if(s.tens)lines.push(['Each other ten',points(s.tens)]);
-    if(s.prime)lines.push(['Primiera',points(s.prime)+' for the best four-suit combination (7=21, 6=18, A=16, 5=15, 4=14, 3=13, 2=12, faces=10).']);
+    if(s.prime)lines.push(['Primiera',points(s.prime)+' for the best four-suit combination (7=21, 6=18, A=16, 5=15, 4=14, 3=13, 2=12, '+(s.primeFaces?'J=8, Q=9, K=10':'faces=10')+').']);
+    if(s.last)lines.push(['Last capture',points(s.last)]);
     return lines;
   }
-  function primeValue(pile){
-    const value={1:16,2:12,3:13,4:14,5:15,6:18,7:21,11:10,12:10,13:10};
+  function primeValue(pile,spec={}){
+    const value={1:16,2:12,3:13,4:14,5:15,6:18,7:21,11:10,12:10,13:10,...spec.primeFaces};
     const best=SUITS.map(s=>Math.max(0,...pile.filter(c=>c.suit===s).map(c=>value[c.rank]||10)));
     return best.every(Boolean)?best.reduce((a,b)=>a+b,0):0;
   }
@@ -3124,20 +3347,20 @@ html,body,#app{background:#005d0b;color:#fff}
   function scoreHand(state){
     const s=scoreSpec(state.rules),piles=state.players.map(p=>p.captured);
     const counts=piles.map(p=>p.length),spades=piles.map(p=>p.filter(c=>c.suit==='S').length);
-    const suitCounts=piles.map(p=>p.filter(c=>c.suit===s.suit).length),primes=piles.map(primeValue);
+    const suitCounts=piles.map(p=>p.filter(c=>c.suit===s.suit).length),primes=piles.map(p=>primeValue(p,s));
     return [0,1].map(i=>{
       const p=piles[i],other=1-i;
       const cards=counts[i]>counts[other]?s.cards:0;
-      const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):suitCounts[i]>suitCounts[other]?s.suitPoints:0;
+      const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):s.overSpades?Math.max(0,spades[i]-s.overSpades):suitCounts[i]>suitCounts[other]?s.suitPoints:0;
       const big=p.some(c=>c.id===s.big)?s.bigPoints:0,little=p.some(c=>c.id===s.little)?s.littlePoints:0;
       const aces=p.filter(c=>c.rank===1).length*s.ace,faces=p.filter(c=>c.rank>=11&&c.rank<=13).length*s.face;
       const tens=p.filter(c=>c.rank===10&&c.id!==s.big).length*s.tens;
-      const prime=primes[i]>primes[other]?s.prime:0;
+      const prime=primes[i]>primes[other]?s.prime:0,last=state.lastCapture===i?s.last:0;
       const net=state.rules.sweepCancel?Math.max(0,state.players[i].sweeps-state.players[other].sweeps):state.players[i].sweeps;
       const sweeps=net*state.rules.sweepPoints;
-      return {cards,spades:spadesPoints,big,little,aces,sweeps,total:cards+spadesPoints+big+little+aces+sweeps+faces+tens+prime,
+      return {cards,spades:spadesPoints,big,little,aces,sweeps,total:cards+spadesPoints+big+little+aces+sweeps+faces+tens+prime+last,
         cardCount:counts[i],spadeCount:spades[i],sweepCount:state.players[i].sweeps,
-        ...(s.face?{faces}:{}),...(s.tens?{tens}:{}),...(s.prime?{prime}:{})};
+        ...(s.face?{faces}:{}),...(s.tens?{tens}:{}),...(s.prime?{prime}:{}),...(s.last?{last}:{})};
     });
   }
   function finishHand(state){
@@ -3516,7 +3739,7 @@ html,body,#app{background:#005d0b;color:#fff}
         if(c.suit==='S'){spades++;if(rules.spadeScoring&&c.id==='S11')special++;}
         special+=(c.rank===1?1:0)+(c.id==='D10'?2:0)+(c.id==='S2'?1:0);
       }
-      if(rules.scoreProfile&&rules.scoreProfile!=='cassino')return {count:pile.length,spades:pile.filter(c=>c.suit===spec.suit).length,special:pile.reduce((n,c)=>n+specialPoints(c,spec),0),prime:primeValue(pile)};
+      if(rules.scoreProfile&&rules.scoreProfile!=='cassino')return {count:pile.length,spades:pile.filter(c=>c.suit===spec.suit).length,special:pile.reduce((n,c)=>n+specialPoints(c,spec),0),prime:primeValue(pile,spec)};
       return {count:pile.length,spades,special,prime:0};
     }
     const a=tally(p.captured),b=tally(q.captured);
@@ -3528,8 +3751,8 @@ html,body,#app{background:#005d0b;color:#fff}
       return points*Math.tanh(diff/Math.max(1,left*.26));
     };
     let score=p.score-q.score+a.special-b.special+majority(a.count-b.count,remaining,spec.cards)
-      +(spec.perSpade?a.spades-b.spades:majority(a.spades-b.spades,remainingSpades,spec.suitPoints))+(spec.prime?Math.tanh((a.prime-b.prime)/30)*spec.prime:0)
-      +(p.sweeps-q.sweeps)*rules.sweepPoints+.045*(a.count-b.count);
+      +(spec.perSpade?a.spades-b.spades:spec.overSpades?Math.max(0,a.spades-spec.overSpades)-Math.max(0,b.spades-spec.overSpades):majority(a.spades-b.spades,remainingSpades,spec.suitPoints))+(spec.prime?Math.tanh((a.prime-b.prime)/30)*spec.prime:0)
+      +(p.sweeps-q.sweeps)*rules.sweepPoints+.045*(a.count-b.count)+(state.lastCapture===null?0:(state.lastCapture===root?1:-1)*spec.last/(1+(state.stock.length+p.hand.length+q.hand.length)*.1));
     const vals=state.players.map(pl=>pl.hand.map(c=>cardValues(c,rules)));
     const matches=(i,v)=>vals[i].some(values=>values.includes(v));
     // Possible loose sums and exact build values, for mobility, capture
@@ -3771,7 +3994,7 @@ html,body,#app{background:#005d0b;color:#fff}
     }
     return {tested:count,completed,zeroScore,failures,validation};
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, teamModesFor, seatAssignments, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, ruleActivity, activeRules, teamModesFor, seatAssignments, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
@@ -3793,7 +4016,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.7';
+  const APP_VERSION = '0.9.0';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -5385,10 +5608,11 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   function ruleExplanation(key,options=[]){
     if(detailSetting!==key)return '';
-    return '<div class="inline-setting-info rule-option-help">'+helpFor(key,options).map(([label,description])=>'<p><b>'+escapeHtml(label)+'</b> — '+escapeHtml(description)+'</p>').join('')+'</div>';
+    const inactive=E.ruleActivity(draft).disabled[key];
+    return '<div class="inline-setting-info rule-option-help">'+(inactive?'<p class="inactive-rule-note"><b>Inactive:</b> this setting has no effect under the current configuration. Your preference is retained.</p>':'')+helpFor(key,options).map(([label,description])=>'<p><b>'+escapeHtml(label)+'</b> — '+escapeHtml(description)+'</p>').join('')+'</div>';
   }
   function ruleSwitch(key,title,disabled=false,hint=''){
-    disabled=disabled||!!draft.presetBlocker;
+    disabled=disabled||!!draft.presetBlocker||!!E.ruleActivity(draft).disabled[key];
     const checked=key==='buildObligation'?!draft.buildAnything:!!draft[key];
     return '<div class="rules-setting rules-switch'+(disabled?' is-inactive':'')+'"><div class="rules-setting-label"><span class="rules-label">'+escapeHtml(title)+'</span>'+
       (hint?'<small>'+escapeHtml(hint)+'</small>':'')+'</div>'+ruleInfo(key,title)+
@@ -5398,36 +5622,25 @@ html,body,#app{background:#005d0b;color:#fff}
   function ruleValue(key){
     if(key==='faceMode')return !draft.royal?'classic':draft.faceValues==='extended'?'extended':draft.faceValues==='italian'?'italian':'royal';
     if(key==='scoreMode')return draft.scoreProfile==='cassino'&&draft.spadeScoring?'spade':draft.scoreProfile;
+    if(key==='forcedCapture')return E.ruleActivity(draft).forcedOptions.includes(draft.forcedCapture)?draft.forcedCapture:'optional';
     if(key==='aceMode')return draft.royalAces?14:(draft.aceValue||1);
     if(key==='independentBuilds')return !draft.pirateBuilds||draft.buildLimit==='1'?'1':draft.buildLimit;
     return draft[key];
   }
   function ruleSelect(key,title,options,disabled=false,hint=''){
-    disabled=disabled||!!draft.presetBlocker;
+    const activity=E.ruleActivity(draft);
+    disabled=disabled||!!draft.presetBlocker||!!activity.disabled[key];
     const value=ruleValue(key);
     return '<div class="rules-setting rules-select'+(disabled?' is-inactive':'')+'"><label class="rules-setting-label" for="rule-'+key+'"><span class="rules-label">'+escapeHtml(title)+'</span>'+
       (hint?'<small>'+escapeHtml(hint)+'</small>':'')+'</label>'+ruleInfo(key,title)+
       '<select id="rule-'+key+'" data-setting="'+key+'" aria-label="'+escapeHtml(title)+'" '+(disabled?'disabled':'')+'>'+
-      options.map(option=>{const pair=Array.isArray(option)?option:[option,option];return '<option value="'+escapeHtml(pair[0])+'" '+(String(value)===String(pair[0])?'selected':'')+'>'+escapeHtml(pair[1])+'</option>';}).join('')+
+      options.map(option=>{const pair=Array.isArray(option)?option:[option,option];const blocked=key==='forcedCapture'&&!activity.forcedOptions.includes(pair[0]);return '<option value="'+escapeHtml(pair[0])+'" '+(String(value)===String(pair[0])?'selected':'')+(blocked?' disabled':'')+'>'+escapeHtml(pair[1])+'</option>';}).join('')+
       '</select>'+ruleExplanation(key,options)+'</div>';
   }
   function ruleGroup(title,content){
     return '<h4 class="rules-subheading">'+title+'</h4><div class="rules-group">'+content+'</div>';
   }
-  function effectiveDraftRules(){
-    const r=E.normalizeRules(draft);
-    // Keep preferences in the editor; deactivate only when exporting to the engine.
-    if(!r.builds){
-      for(const key of ['additiveBuilding','negativeBuilds','colorArithmetic','multipleBuilds','buildAnything','allowTrailWithOwnBuild','pirateBuilds','pirateCaptures','subtractiveBuilds','singleCardBuild','mergeSameValue','absorbMatching','tableOnlyBuild','additiveBuilds'])r[key]=false;
-      if(r.pileAccess==='build')r.pileAccess='none';
-      if(r.pileAccess==='both')r.pileAccess='capture';
-    }
-    if(!r.subtractiveBuilds)r.negativeBuilds=false;
-    if(!r.multipleBuilds){r.mergeSameValue=false;r.absorbMatching=false;}
-    if(!r.additiveCapture)r.additiveBuilds=false;
-    if(!r.sweepPoints)r.sweepCancel=false;
-    return r;
-  }
+  function effectiveDraftRules(){return E.activeRules(draft);}
   function faceLabel(){return !draft.royal?'Rank matching':draft.faceValues==='extended'?'J=12 · Q=13 · K=14':draft.faceValues==='italian'?'J=8 · Q=9 · K=10':'J=11 · Q=12 · K=13';}
   function dealLabel(){return draft.dealMode==='full'?'All cards at start':draft.dealMode==='draw'?draft.handSize+' cards · replace after play':draft.dealMode==='bid'?'Opening bid':draft.handSize+'-card batches';}
   function buildLabel(){return !draft.builds?'Disabled':(draft.multipleBuilds?'Single & multi builds':'Single builds')+' · '+(draft.buildAnything?'No reserved card':'Reserved card required')+(draft.buildRange==='custom'?' · Values '+(draft.buildMin??'—')+'–'+(draft.buildMax??'—'):'');}
@@ -5450,7 +5663,7 @@ html,body,#app{background:#005d0b;color:#fff}
   function renderBuildRangeFields(disabled){
     if(draft.buildRange!=='custom')return '';
     const vals=E.availableValues(draft);
-    const locked=disabled||!!draft.presetBlocker||!vals.length;
+    const locked=disabled||!!draft.presetBlocker||!vals.length||E.ruleActivity(draft).disabled.buildRange;
     const field=(key,title)=>{
       const choices=buildBoundChoices(key),val=draft[key]??'';
       return '<div class="build-bound"><label for="range-'+key+'">'+title+'</label><div class="build-bound-combo">'+
@@ -5504,10 +5717,10 @@ html,body,#app{background:#005d0b;color:#fff}
     const legend=free?
       '<span style="color:#346da8">You</span><span style="color:#656961">Individual opponents</span>':
       Array.from({length:n/(mode==='pairs'?2:3)},(_,i)=>'<span style="color:'+colors[i]+'">'+(i===0?'Your team':'Team '+(i+1))+'</span>').join('');
-    const notice=n===2&&mode==='pairs'?'One pair, no opposing team. Select Free for all to play.':n>2?'Seating preview — multiplayer gameplay is not implemented yet.':'';
+    const notice=n===2&&mode==='pairs'?'One pair, no opposing team. Select Free for all to play.':n>2?'Multiplayer seating preview only; see compatibility status below.':'';
     return '<div class="setup-table-figure"><svg viewBox="0 0 320 220" class="setup-table-svg" role="img" aria-labelledby="setup-table-title setup-table-desc">'+
       '<title id="setup-table-title">'+escapeHtml(playerSetupSummary(rules))+' seating</title><desc id="setup-table-desc">You sit at the south seat. '+escapeHtml(labels.join('; '))+'.</desc>'+
-      groups+'</svg><div class="setup-seat-legend polar-seat-legend">'+legend+'</div>'+(notice?'<p class="setup-preview-note">'+escapeHtml(notice)+'</p>':'')+'</div>';
+      groups+'</svg><div class="setup-seat-legend polar-seat-legend">'+legend+'</div><span class="sr-only">'+escapeHtml(notice)+'</span></div>';
   }
   function playerSetupContent(){
     return '<div class="rules-group player-setup-group">'+playerCountSetting()+
@@ -5569,7 +5782,7 @@ html,body,#app{background:#005d0b;color:#fff}
       ruleExplanation('customValues')+renderValuePicker(card)+'</div>';
   }
   function targetSetting(){return ruleSelect('winningScore','Winning score',[11,16,21,31,41,50,51,61,100,101,121].map(n=>[n,n+' pts']),!!draft.matchDeals);}
-  function forcedSetting(){return ruleSelect('forcedCapture','Compulsory captures',[['optional','Optional'],['faces','Face cards only'],['direct','Direct matches'],['all','Any legal match']]);}
+  function forcedSetting(){const inactive=!E.ruleActivity(draft).forcedOptions.includes(draft.forcedCapture);return ruleSelect('forcedCapture','Compulsory captures',[['optional','Optional'],['faces','Face cards only'],['direct','Direct matches'],['all','Any legal match']],false,inactive?'Previous preference inactive; restores when available.':'');}
   function renderPresetPicker(){
     const chosen=E.PRESET_CATALOG.find(p=>p.id===draftPreset),groups=[...new Set(E.PRESET_CATALOG.map(p=>p.group))];
     const options=groups.map(group=>'<optgroup label="'+escapeHtml(group)+'">'+E.PRESET_CATALOG.filter(p=>p.group===group).map(p=>'<option value="'+p.id+'" '+(draftPreset===p.id?'selected':'')+'>'+escapeHtml(p.name+(p.status==='preview'?' — preview':''))+'</option>').join('')+'</optgroup>').join('');
@@ -5634,7 +5847,7 @@ html,body,#app{background:#005d0b;color:#fff}
         ruleSwitch('pirateCaptures','Allow unrelated captures',!building)+ruleSwitch('allowTrailWithOwnBuild','Allow trailing',!building));
     const turnContent='<p class="rules-description">Play one hand card per action. The opponent normally plays next.</p><div class="rules-group">'+
       ruleSwitch('extraAfterSweep','Extra turn after opponent sweep')+'</div>';
-    const scoreContent='<div class="rules-group">'+ruleSelect('scoreMode','Scoring system',[['cassino','Classic Cassino'],['spade','Spade Cassino'],['wippen','Wippen'],['diloti','Diloti'],['kontsina','Kontsina'],['tablic','Tablić / Tabinet'],['scopa','Scopa']])+
+    const scoreContent='<div class="rules-group">'+ruleSelect('scoreMode','Scoring system',[['cassino','Classic Cassino'],['spade','Spade Cassino'],['wippen','Wippen'],['diloti','Diloti'],['kontsina','Kontsina'],['tablic','Tablić / Tabinet'],['scopa','Scopa'],['northeast','Connecticut / New York'],['swedish','Swedish Kasino'],['overspader','Överspader'],['hurrikan','Hurrikan']])+
       ruleSelect('matchDeals','Match length',[[0,'Target score'],[1,'1 deal'],[2,'2 deals'],[3,'3 deals'],[4,'4 deals'],[6,'6 deals']])+targetSetting()+
       ruleSelect('sweepPoints','Points per sweep',[0,1,10,50])+ruleSwitch('sweepCancel','Cancel opposing sweeps',!draft.sweepPoints)+
       ruleSwitch('ignoreOpeningSweep','No opening sweep points',!draft.sweepPoints)+ruleSwitch('ignoreFinalSweep','No final sweep points',!draft.sweepPoints)+
@@ -5653,7 +5866,7 @@ html,body,#app{background:#005d0b;color:#fff}
   }
   function issueArea(message){
     if(/multiplayer gameplay|team arrangement|single team with no opponent|four-player partnerships/i.test(message))return 'players';
-    if(/capture method|compulsory direct/i.test(message))return 'capture';
+    if(/capture method|compulsory direct|cannot make any capture|Rank-only cards/i.test(message))return 'capture';
     if(/build|obligation/i.test(message))return 'build';
     if(/score|sweep/i.test(message))return 'score';
     if(/Italian face|custom card values|numerical card values/i.test(message))return 'values';
@@ -5998,9 +6211,9 @@ html,body,#app{background:#005d0b;color:#fff}
     } else {
       draft = E.normalizeRules(game.rules);
       draftPreset = Object.keys(E.PRESETS).sort((x,y)=>Number(E.PRESETS[y].name===draft.name)-Number(E.PRESETS[x].name===draft.name)).find(key => {
-        const preset = E.rulesFor(key);
+        const preset=E.activeRules(E.rulesFor(key)),current=E.activeRules(draft);
         return Object.keys(E.DEFAULT_RULES).every(prop =>
-          prop === 'name' || prop === 'difficulty' || JSON.stringify(preset[prop]) === JSON.stringify(draft[prop]));
+          prop === 'name' || prop === 'difficulty' || JSON.stringify(preset[prop]) === JSON.stringify(current[prop]));
       }) || 'custom';
       customDraft = draftPreset === 'custom' ? {...draft} : customRules ? {...customRules} : null;
     }
@@ -6063,11 +6276,11 @@ html,body,#app{background:#005d0b;color:#fff}
       if(![2,3,4,5,6].includes(value)||draft.playerCount===value)return;
       draft.playerCount=value;
       if(!E.teamModesFor(value).includes(draft.teamMode))draft.teamMode='freeForAll';
-      fitHandSize();commitDraftEdit();return;
+      rulesIssuesOpen=false;fitHandSize();commitDraftEdit();return;
     }
     if(prop==='teamMode'){
       if(!E.teamModesFor(draft.playerCount).includes(value)||draft.teamMode===value)return;
-      draft.teamMode=value;commitDraftEdit();return;
+      draft.teamMode=value;rulesIssuesOpen=false;commitDraftEdit();return;
     }
     if(prop==='deckMode'){
       if(!['40','52','54','custom'].includes(value)||draft.deckMode===value)return;
@@ -6083,17 +6296,18 @@ html,body,#app{background:#005d0b;color:#fff}
       if(value&&!draft.cardValueOverrides)draft.cardValueOverrides=E.initialCardValues(draft);
       draft.customizeCardValues=!!value;valuePickerOpen=false;commitDraftEdit();return;
     }
-    if(draft.customizeCardValues&&['faceMode','aceMode','royalBigLittle','jokerValue'].includes(prop))return;
+    if(E.ruleActivity(draft).disabled[prop])return;
+    if(prop==='forcedCapture'&&!E.ruleActivity(draft).forcedOptions.includes(value))return;
     if(prop==='handSize'&&(!Number.isInteger(value)||value<1||value>handMaximum()))return;
     if(prop==='buildRange'&&!['all','9-13','10-13','custom'].includes(value))return;
     if(['buildMin','buildMax'].includes(prop)&&(!draft.builds||draft.buildRange!=='custom'||!buildBoundChoices(prop).includes(value)))return;
-    if(String(ruleValue(prop))===String(value))return;
+    if(String(ruleValue(prop))===String(value)&&!(prop==='forcedCapture'&&draft.forcedCapture!==value))return;
     if(prop==='faceMode'){
       if(!['classic','royal','extended','italian'].includes(value))return;
       draft.royal=value!=='classic';
       draft.faceValues=value==='classic'||value==='royal'?'standard':value;
     }else if(prop==='scoreMode'){
-      if(!['cassino','spade','wippen','diloti','kontsina','tablic','scopa'].includes(value))return;
+      if(!['cassino','spade','wippen','diloti','kontsina','tablic','scopa','northeast','swedish','overspader','hurrikan'].includes(value))return;
       draft.scoreProfile=value==='spade'?'cassino':value;draft.spadeScoring=value==='spade';
     }else if(prop==='aceMode'){
       if(![1,11,14].includes(value))return;
@@ -6176,7 +6390,7 @@ html,body,#app{background:#005d0b;color:#fff}
     }
   }
   function applyBuildBound(key,value,exceptInput){
-    if(!draft||draft.presetBlocker||!draft.builds||draft.buildRange!=='custom'||!['buildMin','buildMax'].includes(key)||!buildBoundChoices(key).includes(value))return false;
+    if(!draft||draft.presetBlocker||E.ruleActivity(draft).disabled.buildRange||draft.buildRange!=='custom'||!['buildMin','buildMax'].includes(key)||!buildBoundChoices(key).includes(value))return false;
     if(draft[key]!==value){draft[key]=value;refreshNumericRuleEdit();}
     syncBuildBounds(exceptInput);return true;
   }
@@ -6213,7 +6427,7 @@ html,body,#app{background:#005d0b;color:#fff}
       const output=app.querySelector('#player-count-output');if(output)output.textContent=String(n);
       for(const tick of app.querySelectorAll('[data-player-tick]'))tick.classList.toggle('active',Number(tick.dataset.playerTick)===n);
       const select=app.querySelector('#rule-teamMode');
-      if(select)select.innerHTML=playerTeamOptions(n).map(([value,label])=>'<option value="'+value+'" '+(value===mode?'selected':'')+'>'+label+'</option>').join('');
+      if(select){select.innerHTML=playerTeamOptions(n).map(([value,label])=>'<option value="'+value+'" '+(value===mode?'selected':'')+'>'+label+'</option>').join('');select.disabled=allowed.length<2;select.closest('.rules-setting')?.classList.toggle('is-inactive',select.disabled);}
       const diagram=app.querySelector('#player-seating-preview');if(diagram)diagram.innerHTML=seatingDiagram(preview);
       const summary=app.querySelector('#rules-area-players .rules-page-heading small');if(summary)summary.textContent=playerSetupSummary(preview);
       const eyebrow=app.querySelector('.rules-header .rules-eyebrow');if(eyebrow)eyebrow.textContent=playerHeader(preview);

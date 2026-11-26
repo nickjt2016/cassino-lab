@@ -1309,3 +1309,10 @@ html,body,#app{background:#005d0b;color:#fff}
 .setup-table-figure .setup-table-svg{max-width:340px}
 .setup-seat-legend.polar-seat-legend{gap:7px 16px;font-weight:650;margin-top:0}
 .setup-seat-legend.polar-seat-legend span{display:inline}
+
+/* v0.9.0: fixed seating preview dimensions for every arrangement. */
+.setup-table-figure .setup-table-svg{aspect-ratio:320/220}
+.setup-seat-legend.polar-seat-legend{height:20px;min-height:20px;flex-wrap:nowrap;align-items:center;line-height:14px;margin:0}
+.setup-seat-legend.polar-seat-legend span{white-space:nowrap}
+@media(max-width:320px){.setup-seat-legend.polar-seat-legend{gap:6px;font-size:10px}}
+.inactive-rule-note{color:#776b53}

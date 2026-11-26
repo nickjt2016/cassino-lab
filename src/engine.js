@@ -52,7 +52,8 @@
   },
   "wippen": {
     "name": "Wippen",
-    "scoreProfile": "wippen"
+    "scoreProfile": "wippen",
+    "sweepPoints": 1
   },
   "suipi": {
     "name": "Suipi",
@@ -162,11 +163,14 @@
     "presetBlocker": "Pluck actions are not implemented."
   },
   "nordic": {
-    "name": "Nordic Kasino",
+    "name": "Swedish Kasino",
     "builds": false,
     "multipleBuilds": false,
     "royal": true,
-    "presetBlocker": "Card-specific values and regional scoring require implementation."
+    "aceValue": 14,
+    "scoreProfile": "swedish",
+    "sweepPoints": 1,
+    "winningScore": 16
   },
   "mulle": {
     "name": "Mulle",
@@ -314,8 +318,21 @@
     "presetBlocker": "Opening declarations and bonus scoring are not implemented."
   },
   "hurrikan": {
-    "name": "Hurrikan",
-    "presetBlocker": "Regional rules require verification."
+    "name": "Hurrikan (single match)",
+    "deckSize": 40,
+    "handSize": 6,
+    "royal": true,
+    "faceValues": "italian",
+    "builds": false,
+    "multipleBuilds": false,
+    "captureGroups": "one",
+    "forcedCapture": "all",
+    "directPriority": true,
+    "initialTableRule": "any",
+    "scoreProfile": "hurrikan",
+    "sweepPoints": 1,
+    "ignoreFinalSweep": false,
+    "winningScore": 16
   },
   "escoba": {
     "name": "Escoba",
@@ -436,6 +453,53 @@
   "tuxedo": {
     "name": "Tuxedo",
     "presetBlocker": "Special Rook deck and exact rules are not implemented."
+  },
+  "cassinoSweep": {
+    "name": "Cassino with sweeps",
+    "sweepPoints": 1
+  },
+  "cassinoFifty": {
+    "name": "50-point Cassino",
+    "winningScore": 50
+  },
+  "cassinoTrail": {
+    "name": "Cassino (relaxed trailing)",
+    "allowTrailWithOwnBuild": true
+  },
+  "cassinoBuildSums": {
+    "name": "Cassino (single-build sums)",
+    "additiveBuilds": true
+  },
+  "cassinoNortheast": {
+    "name": "Connecticut / New York Cassino",
+    "scoreProfile": "northeast"
+  },
+  "scopa21": {
+    "name": "Scopa (21 points)",
+    "deckSize": 40,
+    "handSize": 3,
+    "royal": true,
+    "faceValues": "italian",
+    "builds": false,
+    "multipleBuilds": false,
+    "captureGroups": "one",
+    "forcedCapture": "all",
+    "directPriority": true,
+    "initialTableRule": "no-three-kings",
+    "scoreProfile": "scopa",
+    "sweepPoints": 1,
+    "ignoreFinalSweep": true,
+    "winningScore": 21
+  },
+  "swedishOver": {
+    "name": "Swedish Kasino (Överspader)",
+    "builds": false,
+    "multipleBuilds": false,
+    "royal": true,
+    "aceValue": 14,
+    "scoreProfile": "overspader",
+    "sweepPoints": 1,
+    "winningScore": 21
   }
 });
   const PRESET_CATALOG = Object.freeze([
@@ -451,7 +515,7 @@
     "id": "royal",
     "name": "Royal Cassino",
     "group": "Cassino",
-    "note": "Numerical face cards.",
+    "note": "House-rule Royal Cassino: numerical face cards. Full Puerto Rican Royal endgame and all-match rules are not yet supported.",
     "status": "playable",
     "partial": false
   },
@@ -483,7 +547,7 @@
     "id": "wippen",
     "name": "Wippen",
     "group": "Small variations",
-    "note": "Belgian scoring: two points for each majority.",
+    "note": "Belgian Cassino: 2 points each for card and spade majorities; 1 per sweep.",
     "status": "playable",
     "partial": false
   },
@@ -491,7 +555,7 @@
     "id": "suipi",
     "name": "Suipi",
     "group": "Small variations",
-    "note": "Eight-card hands, restricted starting table, compulsory direct matches and a two-deal match. Samoan house rules vary.",
+    "note": "Eight-card, two-deal Samoan house-rule implementation; compulsory direct matches and restricted opening. Regional build protection rules vary.",
     "status": "playable",
     "partial": false
   },
@@ -547,7 +611,7 @@
     "id": "diloti",
     "name": "Diloti",
     "group": "Major variations",
-    "note": "Two-player Greek declarations, six-card hands and 10-point sweeps.",
+    "note": "Two-player six-card declarations, compulsory face matches, and 10-point sweeps. Uses the app's one-independent-build rule.",
     "status": "playable",
     "partial": false
   },
@@ -601,11 +665,11 @@
   },
   {
     "id": "nordic",
-    "name": "Nordic Kasino",
+    "name": "Swedish Kasino",
     "group": "Major variations",
-    "note": "Special capture values; usually no building.",
-    "status": "preview",
-    "partial": true
+    "note": "Swedish Kasino without building, with dual-value aces and a last-capture point. Uses the documented replay-on-tie variant.",
+    "status": "playable",
+    "partial": false
   },
   {
     "id": "mulle",
@@ -721,10 +785,10 @@
   },
   {
     "id": "hurrikan",
-    "name": "Hurrikan",
+    "name": "Hurrikan (single match)",
     "group": "Major variations",
-    "note": "German Scopa relative.",
-    "status": "preview",
+    "note": "Two-player German Scopa variant: six-card hands, heart bonuses, adjusted prime values. Uses a single match; final sweeps count. Double-game settlement is not modeled.",
+    "status": "playable",
     "partial": false
   },
   {
@@ -966,8 +1030,65 @@
     "note": "Peripheral or historical fishing-game research.",
     "status": "preview",
     "partial": false
+  },
+  {
+    "id": "cassinoSweep",
+    "name": "Cassino with sweeps",
+    "group": "Small variations",
+    "note": "Classic rules with a point for every table clear.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "cassinoFifty",
+    "name": "50-point Cassino",
+    "group": "Small variations",
+    "note": "Documented longer target-score variant.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "cassinoTrail",
+    "name": "Cassino (relaxed trailing)",
+    "group": "Small variations",
+    "note": "May trail while owning a build, provided its capture card is retained.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "cassinoBuildSums",
+    "name": "Cassino (single-build sums)",
+    "group": "Small variations",
+    "note": "Single builds can contribute their announced value to a capture sum.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "cassinoNortheast",
+    "name": "Connecticut / New York Cassino",
+    "group": "Small variations",
+    "note": "Regional scoring: most cards 1, 10♦ 3, 2♠ 2; other Cassino points unchanged.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "scopa21",
+    "name": "Scopa (21 points)",
+    "group": "Major variations",
+    "note": "Documented longer Scopa match.",
+    "status": "playable",
+    "partial": false
+  },
+  {
+    "id": "swedishOver",
+    "name": "Swedish Kasino (Överspader)",
+    "group": "Major variations",
+    "note": "Swedish Kasino with one point for each spade beyond six; replay tied targets.",
+    "status": "playable",
+    "partial": false
   }
 ]);
+
   const DIFFICULTY_INFO = Object.freeze([
   [
     "casual",
@@ -1047,6 +1168,75 @@
       rules.buildRange==='10-13'?values.filter(v=>v>=10&&v<=13):
       rules.buildRange==='custom'?values.filter(v=>v>=rules.buildMin&&v<=rules.buildMax):values;
   }
+  function ruleActivity(input={}){
+    const r=normalizeRules(input),deck=makeDeck(r),numeric=availableValues(r).length>0;
+    const building=r.builds,arithmetic=r.additiveBuilding!==false||r.subtractiveBuilds;
+    const noBuild=!building||!numeric;
+    const canCreate=arithmetic||r.multipleBuilds||r.singleCardBuild;
+    const faces=deck.some(c=>c.rank>=11&&c.rank<=13);
+    const capturableFaces=deck.some(c=>c.rank>=11&&c.rank<=13&&(r.directCapture||r.additiveCapture&&cardValues(c,r).length));
+    const disabled={
+      faceMode:r.customizeCardValues||!faces,
+      aceMode:r.customizeCardValues||!deck.some(c=>c.rank===1),
+      royalBigLittle:r.customizeCardValues||!deck.some(c=>c.id==='S2'||c.id==='D10'),
+      jokerValue:r.customizeCardValues||!r.jokerCount,
+      teamMode:teamModesFor(r.playerCount).length<2,
+      handSize:r.dealMode==='full'||deck.length<r.playerCount,
+      remainderMode:r.dealMode==='draw',
+      initialTableRule:r.initialTableSize===0,
+      directPriority:!r.directCapture||(!r.additiveCapture&&!r.builds&&r.captureGroups==='one'),
+      additiveBuilds:noBuild||!canCreate||!r.additiveCapture,
+      additiveBuilding:noBuild,subtractiveBuilds:noBuild,multipleBuilds:noBuild,singleCardBuild:noBuild,
+      negativeBuilds:noBuild||!r.subtractiveBuilds,
+      colorArithmetic:noBuild||!arithmetic,
+      buildRange:noBuild||!canCreate,
+      raiseOwnBuild:noBuild||!arithmetic,raiseOpponentBuild:noBuild||!arithmetic,
+      mergeSameValue:noBuild||!r.multipleBuilds,absorbMatching:noBuild||!r.multipleBuilds,
+      buildObligation:noBuild||!canCreate,independentBuilds:noBuild||!canCreate,
+      pirateCaptures:noBuild||!canCreate,allowTrailWithOwnBuild:noBuild||!canCreate,
+      winningScore:!!r.matchDeals,
+      sweepCancel:!r.sweepPoints,ignoreOpeningSweep:!r.sweepPoints,ignoreFinalSweep:!r.sweepPoints
+    };
+    const forcedOptions=['optional',...(capturableFaces?['faces']:[]),...(r.directCapture?['direct']:[]),...(r.directCapture||r.additiveCapture?['all']:[])];
+    return {disabled,forcedOptions};
+  }
+  function activeRules(input={}){
+    const r=normalizeRules(input),{disabled,forcedOptions}=ruleActivity(r);
+    for(const key of ['additiveBuilding','subtractiveBuilds','multipleBuilds','singleCardBuild','negativeBuilds','colorArithmetic','raiseOwnBuild','raiseOpponentBuild','mergeSameValue','absorbMatching','pirateCaptures','allowTrailWithOwnBuild','additiveBuilds','directPriority','sweepCancel','ignoreOpeningSweep','ignoreFinalSweep']){
+      if(disabled[key])r[key]=false;
+    }
+    if(!r.builds){
+      r.buildAnything=false;r.pirateBuilds=false;r.tableOnlyBuild=false;
+      if(r.pileAccess==='build')r.pileAccess='none';
+      if(r.pileAccess==='both')r.pileAccess='capture';
+    }
+    if(disabled.buildRange){r.buildRange='all';r.buildMin=null;r.buildMax=null;}
+    if(disabled.buildObligation)r.buildAnything=false;
+    if(disabled.independentBuilds)r.pirateBuilds=false;
+    if(!r.pirateBuilds)r.buildLimit='1';
+    if(!forcedOptions.includes(r.forcedCapture))r.forcedCapture='optional';
+    if(r.scoreProfile!=='cassino')r.spadeScoring=false;
+    return r;
+  }
+  // Conservative proof that a capture-only game cannot ever make a
+  // capture. A matching pair or a matching sum anywhere in the entire
+  // deck is enough to leave the configuration available.
+  function potentialTableCapture(deck,rules){
+    for(const played of deck){
+      const values=cardValues(played,rules);
+      const remaining=deck.filter(c=>c.id!==played.id);
+      if(rules.directCapture&&remaining.some(c=>values.length?cardValues(c,rules).some(v=>values.includes(v)):rankMatch(c,played,rules)))return true;
+      if(!rules.additiveCapture||!values.length)continue;
+      let one=0,many=0;
+      for(const c of remaining){
+        const vals=cardValues(c,rules),oldOne=one,oldMany=many;
+        for(const v of vals){one|=1<<v;many|=(oldOne|oldMany)<<v;}
+        one&=0x7fffffff;many&=0x7fffffff;
+      }
+      if(values.some(v=>many&(1<<v)))return true;
+    }
+    return false;
+  }
   function validateRules(input={}) {
     const r=normalizeRules(input),errors=[],warnings=[],unavailable=[];
     const allowed={playerCount:[2,3,4,5,6],teamMode:['freeForAll','pairs','triples'],deckMode:['40','52','54','custom'],initialTableSize:[0,3,4,8],
@@ -1054,7 +1244,7 @@
       faceValues:['standard','extended','italian'],aceValue:[1,11,14],jokerCount:[0,1,2],jokerValue:Array.from({length:30},(_,i)=>i+1),
       captureGroups:['one','unlimited'],forcedCapture:['optional','faces','direct','all'],captureExtent:['choice','maximal','maximum'],
       buildRange:['all','9-13','10-13','custom'],buildLimit:['1','2','unlimited'],pileAccess:['none','build','capture','both'],
-      actionsPerTurn:['single','multiple'],handCardsPerTurn:['one','multiple'],scoreProfile:['cassino','wippen','diloti','kontsina','tablic','scopa'],matchDeals:[0,1,2,3,4,6],initialTableRule:['any','distinct-nonpoints','no-three-faces','no-three-kings'],residueOwner:['lastCapture','dealer']};
+      actionsPerTurn:['single','multiple'],handCardsPerTurn:['one','multiple'],scoreProfile:['cassino','wippen','diloti','kontsina','tablic','scopa','northeast','swedish','overspader','hurrikan'],matchDeals:[0,1,2,3,4,6],initialTableRule:['any','distinct-nonpoints','no-three-faces','no-three-kings'],residueOwner:['lastCapture','dealer']};
     for(const [k,options] of Object.entries(allowed))if(!options.includes(r[k]))errors.push('Invalid setting: '+k+'.');
     for(const [k,v] of Object.entries(DEFAULT_RULES))if(typeof v==='boolean'&&typeof r[k]!=='boolean')errors.push('Invalid switch: '+k+'.');
     if(!Number.isInteger(r.winningScore)||r.winningScore<1||!Number.isInteger(r.sweepPoints)||r.sweepPoints<0)errors.push('Score settings must be nonnegative whole numbers, with a positive winning score.');
@@ -1102,6 +1292,22 @@
     if(r.initialTableSize>openingCapacity(deck,r.initialTableRule))errors.push('The selected deck cannot satisfy the starting table restrictions.');
     if(r.builds&&!availableValues(r).length)warnings.push('There are no numerical card values; building is unavailable in this deck.');
     if(!r.directCapture&&!availableValues(r).length)errors.push('Rank-only cards cannot make additive captures when direct matching is off.');
+    const activeConstruction=r.builds&&availableValues(r).length&&(r.additiveBuilding!==false||r.subtractiveBuilds||r.multipleBuilds||r.singleCardBuild);
+    if(!activeConstruction&&(r.directCapture||r.additiveCapture)&&!potentialTableCapture(deck,r)){
+      const message='This deck and capture configuration cannot make any capture.';
+      if(!r.matchDeals&&r.residueOwner==='lastCapture')errors.push(message+' A target-score match cannot finish.');
+      else warnings.push(message+' Check the residue and match-length rules.');
+    }
+    if(r.deckMode==='custom'||r.deckMode==='40'){
+      const spec=scoreSpec(r),missing=[];
+      if(spec.bigPoints&&!deck.some(c=>c.id===spec.big))missing.push(bonusLabel(spec.big));
+      if(spec.littlePoints&&!deck.some(c=>c.id===spec.little))missing.push(bonusLabel(spec.little));
+      if(spec.ace&&!deck.some(c=>c.rank===1))missing.push('aces');
+      if((spec.suitPoints||spec.perSpade)&&!deck.some(c=>c.suit===spec.suit))missing.push('the scoring suit');
+      if(spec.overSpades&&deck.filter(c=>c.suit==='S').length<=spec.overSpades)missing.push('excess spades');
+      if(spec.prime&&!SUITS.every(suit=>deck.some(c=>c.suit===suit)))missing.push('primiera');
+      if(missing.length)warnings.push('Some scoring categories are unavailable with this deck: '+missing.join(', ')+'.');
+    }
     if(validPlayerCount&&r.playerCount>2)unavailable.push('Multiplayer gameplay for 3–6 players is not implemented yet. Player Setup is a preview.');
     if(r.dealMode==='bid')unavailable.push('Opening bidding is not implemented.');
     if(r.multiHandCapture||r.handCardsPerTurn==='multiple')unavailable.push('Multi-card hand actions are not implemented.');
@@ -1248,7 +1454,7 @@
     }
     const count=state.rules.dealMode==='full'?state.stock.length:Math.min(state.stock.length,2*(state.rules.handSize||4));
     // Alternate from the nondealer, including a legal smaller/unequal final batch.
-    for(let i=0;i<count;i++)state.players[i%2].hand.push(state.stock.pop());
+    for(let i=0;i<count;i++)state.players[(1-state.dealer+i)%2].hand.push(state.stock.pop());
   }
   function cardsInElement(element) {
     return element.type === 'loose' ? [element.card] : element.groups.flat();
@@ -1401,8 +1607,8 @@
   function capturePolicy(state,action,card,selected){
     const rules=state.rules;
     if(action.kind==='trail'&&rules.forcedCapture&&rules.forcedCapture!=='optional'&&(rules.forcedCapture!=='faces'||card.rank>=11&&card.rank<=13)){
-      for(const move of rawCaptureMoves(state,card)){
-        if(rules.forcedCapture==='direct'&&(move.targetIds.length!==1||!state.table.some(e=>e.id===move.targetIds[0]&&e.type==='loose')))continue;
+      const candidates=rules.forcedCapture==='direct'?state.table.filter(e=>e.type==='loose').map(e=>({kind:'capture',cardId:card.id,targetIds:[e.id]})):rawCaptureMoves(state,card);
+      for(const move of candidates){
         if(validateAction(state,move,true).ok)return 'This card has a compulsory legal capture.';
       }
     }
@@ -1638,7 +1844,9 @@
     if(action.kind==='capture'&&state.rules.directPriority&&state.rules.directCapture!==false){
       const vals=cardValues(card,state.rules);
       const matching=state.table.filter(x=>x.type==='loose'&&(vals.length?cardValues(x.card,state.rules).some(v=>vals.includes(v)):rankMatch(x.card,card,state.rules)));
-      if(matching.length&&(selected.length!==1||!matching.some(x=>x.id===selected[0].id)))return {ok:false,reason:'A direct matching card takes priority over sums.'};
+      const legalMatching=matching.filter(x=>(!own.length||state.rules.pirateCaptures)&&
+        !ownBuildObligation(state,state.table.filter(e=>e.id!==x.id),remainingHand,player));
+      if(legalMatching.length&&(selected.length!==1||!legalMatching.some(x=>x.id===selected[0].id)))return {ok:false,reason:'A legal direct matching card takes priority over sums.'};
     }
     const resultTable = action.kind === 'trail'
       ? [...state.table, { id: 'preview', type: 'loose', card }]
@@ -1754,9 +1962,13 @@
     return { ok: true, description };
   }
   function scoreSpec(rules){
-    const base={cards:3,suit:'S',suitPoints:1,perSpade:!!rules.spadeScoring,big:'D10',bigPoints:2,little:'S2',littlePoints:1,ace:1,face:0,tens:0,prime:0};
+    const base={cards:3,suit:'S',suitPoints:1,perSpade:!!rules.spadeScoring,big:'D10',bigPoints:2,little:'S2',littlePoints:1,ace:1,face:0,tens:0,prime:0,last:0,overSpades:0,primeFaces:null};
     const schemes={
       wippen:{cards:2,suitPoints:2,perSpade:false},
+      northeast:{cards:1,bigPoints:3,littlePoints:2,perSpade:false},
+      swedish:{cards:1,suitPoints:2,perSpade:false,last:1},
+      overspader:{cards:1,suitPoints:0,perSpade:false,last:1,overSpades:6},
+      hurrikan:{cards:1,suit:'H',suitPoints:1,perSpade:false,big:'H7',bigPoints:1,littlePoints:0,ace:0,prime:1,primeFaces:{11:8,12:9,13:10}},
       diloti:{cards:4,suitPoints:0,perSpade:false,little:'C2'},
       kontsina:{cards:2,suit:'C',suitPoints:1,perSpade:false,bigPoints:1,little:'C2',ace:0},
       tablic:{suitPoints:0,perSpade:false,little:'C2',face:1,tens:1},
@@ -1769,6 +1981,7 @@
   function scoreCategories(rules){
     const s=scoreSpec(rules),rows=[['cards','Most cards ('+s.cards+')']];
     if(s.perSpade)rows.push(['spades','Spades (1 each; J♠ bonus)']);
+    else if(s.overSpades)rows.push(['spades','Spades beyond '+s.overSpades+' (1 each)']);
     else if(s.suitPoints)rows.push(['spades','Most '+({S:'spades',C:'clubs',D:'diamonds',H:'hearts'})[s.suit]+' ('+s.suitPoints+')']);
     if(s.bigPoints)rows.push(['big',bonusLabel(s.big)+' ('+s.bigPoints+')']);
     if(s.littlePoints)rows.push(['little',bonusLabel(s.little)+' ('+s.littlePoints+')']);
@@ -1776,6 +1989,7 @@
     if(s.face)rows.push(['faces','Face cards ('+s.face+' each)']);
     if(s.tens)rows.push(['tens','Other tens ('+s.tens+' each)']);
     if(s.prime)rows.push(['prime','Primiera ('+s.prime+')']);
+    if(s.last)rows.push(['last','Last capture ('+s.last+')']);
     rows.push(['sweeps','Sweeps ('+(rules.sweepPoints||0)+(rules.sweepCancel?', net':'')+')'],['total','This hand (total)']);
     return rows;
   }
@@ -1784,17 +1998,19 @@
     const points=n=>n+' point'+(n===1?'':'s');
     const lines=[['Most cards',points(s.cards)]];
     if(s.perSpade){lines.push(['Each spade','1 point'],['Jack of spades (J♠)','1 extra point']);}
+    else if(s.overSpades)lines.push(['Spades beyond '+s.overSpades,'1 point per additional spade.']);
     else if(s.suitPoints)lines.push(['Most '+suitNames[s.suit],points(s.suitPoints)]);
     if(s.bigPoints)lines.push([bonusLabel(s.big),points(s.bigPoints)]);
     if(s.littlePoints)lines.push([bonusLabel(s.little),points(s.littlePoints)]);
     if(s.ace)lines.push(['Each ace',points(s.ace)]);
     if(s.face)lines.push(['Each face card',points(s.face)]);
     if(s.tens)lines.push(['Each other ten',points(s.tens)]);
-    if(s.prime)lines.push(['Primiera',points(s.prime)+' for the best four-suit combination (7=21, 6=18, A=16, 5=15, 4=14, 3=13, 2=12, faces=10).']);
+    if(s.prime)lines.push(['Primiera',points(s.prime)+' for the best four-suit combination (7=21, 6=18, A=16, 5=15, 4=14, 3=13, 2=12, '+(s.primeFaces?'J=8, Q=9, K=10':'faces=10')+').']);
+    if(s.last)lines.push(['Last capture',points(s.last)]);
     return lines;
   }
-  function primeValue(pile){
-    const value={1:16,2:12,3:13,4:14,5:15,6:18,7:21,11:10,12:10,13:10};
+  function primeValue(pile,spec={}){
+    const value={1:16,2:12,3:13,4:14,5:15,6:18,7:21,11:10,12:10,13:10,...spec.primeFaces};
     const best=SUITS.map(s=>Math.max(0,...pile.filter(c=>c.suit===s).map(c=>value[c.rank]||10)));
     return best.every(Boolean)?best.reduce((a,b)=>a+b,0):0;
   }
@@ -1804,20 +2020,20 @@
   function scoreHand(state){
     const s=scoreSpec(state.rules),piles=state.players.map(p=>p.captured);
     const counts=piles.map(p=>p.length),spades=piles.map(p=>p.filter(c=>c.suit==='S').length);
-    const suitCounts=piles.map(p=>p.filter(c=>c.suit===s.suit).length),primes=piles.map(primeValue);
+    const suitCounts=piles.map(p=>p.filter(c=>c.suit===s.suit).length),primes=piles.map(p=>primeValue(p,s));
     return [0,1].map(i=>{
       const p=piles[i],other=1-i;
       const cards=counts[i]>counts[other]?s.cards:0;
-      const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):suitCounts[i]>suitCounts[other]?s.suitPoints:0;
+      const spadesPoints=s.perSpade?spades[i]+(p.some(c=>c.id==='S11')?1:0):s.overSpades?Math.max(0,spades[i]-s.overSpades):suitCounts[i]>suitCounts[other]?s.suitPoints:0;
       const big=p.some(c=>c.id===s.big)?s.bigPoints:0,little=p.some(c=>c.id===s.little)?s.littlePoints:0;
       const aces=p.filter(c=>c.rank===1).length*s.ace,faces=p.filter(c=>c.rank>=11&&c.rank<=13).length*s.face;
       const tens=p.filter(c=>c.rank===10&&c.id!==s.big).length*s.tens;
-      const prime=primes[i]>primes[other]?s.prime:0;
+      const prime=primes[i]>primes[other]?s.prime:0,last=state.lastCapture===i?s.last:0;
       const net=state.rules.sweepCancel?Math.max(0,state.players[i].sweeps-state.players[other].sweeps):state.players[i].sweeps;
       const sweeps=net*state.rules.sweepPoints;
-      return {cards,spades:spadesPoints,big,little,aces,sweeps,total:cards+spadesPoints+big+little+aces+sweeps+faces+tens+prime,
+      return {cards,spades:spadesPoints,big,little,aces,sweeps,total:cards+spadesPoints+big+little+aces+sweeps+faces+tens+prime+last,
         cardCount:counts[i],spadeCount:spades[i],sweepCount:state.players[i].sweeps,
-        ...(s.face?{faces}:{}),...(s.tens?{tens}:{}),...(s.prime?{prime}:{})};
+        ...(s.face?{faces}:{}),...(s.tens?{tens}:{}),...(s.prime?{prime}:{}),...(s.last?{last}:{})};
     });
   }
   function finishHand(state){
@@ -2196,7 +2412,7 @@
         if(c.suit==='S'){spades++;if(rules.spadeScoring&&c.id==='S11')special++;}
         special+=(c.rank===1?1:0)+(c.id==='D10'?2:0)+(c.id==='S2'?1:0);
       }
-      if(rules.scoreProfile&&rules.scoreProfile!=='cassino')return {count:pile.length,spades:pile.filter(c=>c.suit===spec.suit).length,special:pile.reduce((n,c)=>n+specialPoints(c,spec),0),prime:primeValue(pile)};
+      if(rules.scoreProfile&&rules.scoreProfile!=='cassino')return {count:pile.length,spades:pile.filter(c=>c.suit===spec.suit).length,special:pile.reduce((n,c)=>n+specialPoints(c,spec),0),prime:primeValue(pile,spec)};
       return {count:pile.length,spades,special,prime:0};
     }
     const a=tally(p.captured),b=tally(q.captured);
@@ -2208,8 +2424,8 @@
       return points*Math.tanh(diff/Math.max(1,left*.26));
     };
     let score=p.score-q.score+a.special-b.special+majority(a.count-b.count,remaining,spec.cards)
-      +(spec.perSpade?a.spades-b.spades:majority(a.spades-b.spades,remainingSpades,spec.suitPoints))+(spec.prime?Math.tanh((a.prime-b.prime)/30)*spec.prime:0)
-      +(p.sweeps-q.sweeps)*rules.sweepPoints+.045*(a.count-b.count);
+      +(spec.perSpade?a.spades-b.spades:spec.overSpades?Math.max(0,a.spades-spec.overSpades)-Math.max(0,b.spades-spec.overSpades):majority(a.spades-b.spades,remainingSpades,spec.suitPoints))+(spec.prime?Math.tanh((a.prime-b.prime)/30)*spec.prime:0)
+      +(p.sweeps-q.sweeps)*rules.sweepPoints+.045*(a.count-b.count)+(state.lastCapture===null?0:(state.lastCapture===root?1:-1)*spec.last/(1+(state.stock.length+p.hand.length+q.hand.length)*.1));
     const vals=state.players.map(pl=>pl.hand.map(c=>cardValues(c,rules)));
     const matches=(i,v)=>vals[i].some(values=>values.includes(v));
     // Possible loose sums and exact build values, for mobility, capture
@@ -2451,7 +2667,7 @@
     }
     return {tested:count,completed,zeroScore,failures,validation};
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, teamModesFor, seatAssignments, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, ruleActivity, activeRules, teamModesFor, seatAssignments, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
