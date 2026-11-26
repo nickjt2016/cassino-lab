@@ -226,3 +226,7 @@ The build requirements are now named **Builds must combine same-value table card
 ### 0.8.3 — typed hand size and capture terminology
 
 Cards per hand can be set with the slider or the editable integer box. Typing keeps the slider, deck summary, custom preset selection and compatibility status synchronized; out-of-range values are clamped on commit. The capture toggles now distinguish single card matches, sum captures and single builds used within a capture sum. Multiple builds must still match the played card exactly. Multi-group captures remain separately configurable.
+
+### 0.8.4 — building controls and custom value limits
+
+Construction settings remain together and are disabled rather than hidden when building is off. Addition, subtraction, multi builds and single-hand-card builds are independently configurable. A custom inclusive build range has editable numerical endpoints and dropdowns drawn from the selected deck’s available values; bounds adjust to available values when card values or deck composition change. Raising and lowering require both the applicable arithmetic setting and the appropriate owner-specific permission. Existing rules and saves default to additive building enabled. No new game presets or non-French deck types are introduced.

@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.8.3';
+  const APP_VERSION = '0.8.4';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1355,7 +1355,8 @@
     [
       "10–13",
       "Restrict builds to available capture values from 10 through 13."
-    ]
+    ],
+    ["Custom","Set an inclusive minimum and maximum by typing a value or choosing from the dropdown. Only numerical values available in the selected deck can be endpoints or legal build values."]
   ],
   "independentBuilds": [
     [
@@ -1461,6 +1462,10 @@
       "Create and capture numerical builds using the enabled construction rules."
     ]
   ],
+  "additiveBuilding": [
+    ["Off","Do not add different card values to construct or raise a build. Same-value groups can still be combined if multi builds are allowed."],
+    ["On","Add the values of the played card and table cards, such as 3 + 5 to make an 8-build. This also permits raising a single build when the relevant modification permission is enabled."]
+  ],
   "multipleBuilds": [
     [
       "Off",
@@ -1474,41 +1479,41 @@
   "subtractiveBuilds": [
     [
       "Off",
-      "Building and build modifications use addition."
+      "Do not create a build by subtraction or lower the value of a single build."
     ],
     [
       "On",
-      "Two cards can create a build at their positive difference; a single build can also be lowered by subtracting a played card."
+      "Example: 9 − 2 makes a 7-build. You may also lower a single 9-build to 7 with a 2, if the appropriate modification permission is enabled."
     ]
   ],
   "singleCardBuild": [
     [
       "Off",
-      "A new build requires at least one table card."
+      "A new build cannot consist of only the card played from your hand; it must involve at least one table card or existing build."
     ],
     [
       "On",
-      "Declare a hand card alone as a build, subject to build obligations."
+      "Declare just the card played from your hand as a new single build, without selecting any table cards. It must have an allowed build value and meet any build obligation."
     ]
   ],
   "raiseOwnBuild": [
     [
       "Off",
-      "Do not change the announced value of your own build."
+      "You cannot raise or lower your own existing single build. Combining same-value groups does not change its value."
     ],
     [
       "On",
-      "Change the value of your own single build with an eligible hand card."
+      "Raise your own single build by adding a hand card, or lower it by subtraction, when the corresponding building option is enabled. Multi builds cannot be raised or lowered."
     ]
   ],
   "raiseOpponentBuild": [
     [
       "Off",
-      "Do not change an opponent's build value."
+      "You cannot raise or lower an opponent’s existing single build. Combining same-value groups is governed separately."
     ],
     [
       "On",
-      "Modify an opponent's single build and take ownership under the ordinary rules."
+      "Raise an opponent’s single build by addition, or lower it by subtraction, when the corresponding building option is enabled. The modified build becomes yours. Multi builds cannot be raised or lowered."
     ]
   ],
   "mergeSameValue": [
@@ -1650,7 +1655,7 @@
     const r=E.normalizeRules(draft);
     // Keep preferences in the editor; deactivate only when exporting to the engine.
     if(!r.builds){
-      for(const key of ['multipleBuilds','buildAnything','allowTrailWithOwnBuild','pirateBuilds','pirateCaptures','subtractiveBuilds','singleCardBuild','mergeSameValue','absorbMatching','tableOnlyBuild','additiveBuilds'])r[key]=false;
+      for(const key of ['additiveBuilding','multipleBuilds','buildAnything','allowTrailWithOwnBuild','pirateBuilds','pirateCaptures','subtractiveBuilds','singleCardBuild','mergeSameValue','absorbMatching','tableOnlyBuild','additiveBuilds'])r[key]=false;
       if(r.pileAccess==='build')r.pileAccess='none';
       if(r.pileAccess==='both')r.pileAccess='capture';
     }
@@ -1661,7 +1666,37 @@
   }
   function faceLabel(){return !draft.royal?'Rank matching':draft.faceValues==='extended'?'J=12 · Q=13 · K=14':draft.faceValues==='italian'?'J=8 · Q=9 · K=10':'J=11 · Q=12 · K=13';}
   function dealLabel(){return draft.dealMode==='full'?'All cards at start':draft.dealMode==='draw'?draft.handSize+' cards · replace after play':draft.dealMode==='bid'?'Opening bid':draft.handSize+'-card batches';}
-  function buildLabel(){return !draft.builds?'Disabled':(draft.multipleBuilds?'Single & multiple builds':'Single builds')+' · '+(draft.buildAnything?'No reserved card':'Reserved card required');}
+  function buildLabel(){return !draft.builds?'Disabled':(draft.multipleBuilds?'Single & multi builds':'Single builds')+' · '+(draft.buildAnything?'No reserved card':'Reserved card required')+(draft.buildRange==='custom'?' · Values '+(draft.buildMin??'—')+'–'+(draft.buildMax??'—'):'');}
+  function nearestBuildValue(values,value){
+    if(!values.length)return null;
+    if(!Number.isFinite(Number(value))||value==null||value==='')return values[0];
+    return values.reduce((best,v)=>Math.abs(v-Number(value))<Math.abs(best-Number(value))?v:best,values[0]);
+  }
+  function fitBuildBounds(){
+    if(draft.buildRange!=='custom')return;
+    const vals=E.availableValues(draft);
+    draft.buildMin=nearestBuildValue(vals,draft.buildMin);
+    draft.buildMax=nearestBuildValue(vals,draft.buildMax??vals[vals.length-1]);
+    if(draft.buildMin!=null&&draft.buildMax<draft.buildMin)draft.buildMax=draft.buildMin;
+  }
+  function buildBoundChoices(key){
+    const vals=E.availableValues(draft);
+    return vals.filter(v=>key==='buildMin'?draft.buildMax==null||v<=draft.buildMax:draft.buildMin==null||v>=draft.buildMin);
+  }
+  function renderBuildRangeFields(disabled){
+    if(draft.buildRange!=='custom')return '';
+    const vals=E.availableValues(draft);
+    const locked=disabled||!!draft.presetBlocker||!vals.length;
+    const field=(key,title)=>{
+      const choices=buildBoundChoices(key),val=draft[key]??'';
+      return '<div class="build-bound"><label for="range-'+key+'">'+title+'</label><div class="build-bound-combo">'+
+        '<input id="range-'+key+'" type="number" inputmode="numeric" step="1" min="'+(choices[0]??1)+'" max="'+(choices[choices.length-1]??30)+'" data-setting="buildBoundText" data-bound="'+key+'" aria-label="Type '+title.toLowerCase()+' build value" value="'+escapeHtml(val)+'" '+(locked?'disabled':'')+'>'+
+        '<select data-setting="buildBoundChoice" data-bound="'+key+'" aria-label="Choose '+title.toLowerCase()+' build value" '+(locked?'disabled':'')+'>'+
+        choices.map(v=>'<option value="'+v+'" '+(v===val?'selected':'')+'>'+v+'</option>').join('')+'</select></div></div>';
+    };
+    return '<div class="build-range-editor'+(locked?' is-inactive':'')+'">'+field('buildMin','Minimum')+field('buildMax','Maximum')+
+      '<small>'+(vals.length?'Only values available in this deck can be used.':'No numerical card values are available.')+'</small></div>';
+  }
   function handMaximum(){
     const players=draft.playerCount===2?2:4;
     return Math.floor(E.makeDeck(draft).length/players);
@@ -1764,16 +1799,20 @@
       ruleSwitch('customizeCardValues','Customize card values')+renderValueEditor()+'</div>';
     const captureContent=ruleGroup('What can be captured',ruleSwitch('directCapture','Allow single card captures',false,'8 takes 8')+ruleSwitch('additiveCapture','Allow multiple card / sum captures',false,'8 takes 5 + 3')+ruleSwitch('additiveBuilds','Allow single builds in sum captures',!building||!hasSums,'8 takes a single 6-build + 2'))+
       ruleGroup('Capture requirements',forcedSetting()+ruleSwitch('directPriority','Direct matches take priority',!draft.directCapture)+ruleSelect('captureGroups','Groups per capture',[['one','One group'],['unlimited','Multiple groups']])+ruleSelect('captureExtent','Capture extent',[['choice','Selective'],['maximal','Maximal'],['maximum','Maximum cards']]));
-    const buildContent='<div class="rules-group">'+ruleSwitch('builds','Allow building')+'</div>'+
-      (!building?'<p class="rules-description">Enable building to edit its rules. Your build preferences are retained.</p>':'')+
-      (building?ruleGroup('Construction',ruleSwitch('multipleBuilds','Multiple builds',false,'Stack equal-value groups')+
-        ruleSwitch('subtractiveBuilds','Subtractive building',false,'9 − 2 makes a 7-build')+ruleSwitch('singleCardBuild','Single-card declarations')+
-        ruleSelect('buildRange','Allowed build values',[['all','All capturable'],['9-13','9–13'],['10-13','10–13']]))+
-      ruleGroup('Modifying builds',ruleSwitch('raiseOwnBuild','Modify own build value')+ruleSwitch('raiseOpponentBuild','Modify opponent build value')+
+    const arithmetic=draft.additiveBuilding!==false||draft.subtractiveBuilds;
+    const buildContent='<div class="rules-group">'+ruleSwitch('builds','Allow building')+
+      ruleSwitch('additiveBuilding','Allow additive building',!building,'3 + 5 makes an 8-build')+
+      ruleSwitch('subtractiveBuilds','Allow subtractive building',!building,'9 − 2 makes a 7-build')+
+      ruleSwitch('multipleBuilds','Allow multi builds',!building,'Stack equal-value groups')+
+      ruleSwitch('singleCardBuild','Allow single hand card builds',!building)+
+      ruleSelect('buildRange','Allowed build values',[['all','All capturable'],['9-13','9–13'],['10-13','10–13'],['custom','Custom']],!building)+
+      renderBuildRangeFields(!building)+'</div>'+
+      ruleGroup('Modifying builds',ruleSwitch('raiseOwnBuild','Can modify your own single build',!building||!arithmetic)+
+        ruleSwitch('raiseOpponentBuild',"Can modify opponent's single build",!building||!arithmetic)+
         ruleSwitch('mergeSameValue','Builds must combine same-value builds',!multiple)+ruleSwitch('absorbMatching','Builds must combine same-value table cards',!multiple))+
-      ruleGroup('While owning a build',ruleSwitch('buildObligation','Keep a capturing card',false,'Reserve a distinct card for each stack')+
-        ruleSelect('independentBuilds','Independent builds per player',[['1','One'],['2','Up to two'],['unlimited','Unlimited']])+
-        ruleSwitch('pirateCaptures','Allow unrelated captures')+ruleSwitch('allowTrailWithOwnBuild','Allow trailing')):'');
+      ruleGroup('While owning a build',ruleSwitch('buildObligation','Keep a capturing card',!building,'Reserve a distinct card for each stack')+
+        ruleSelect('independentBuilds','Independent builds per player',[['1','One'],['2','Up to two'],['unlimited','Unlimited']],!building)+
+        ruleSwitch('pirateCaptures','Allow unrelated captures',!building)+ruleSwitch('allowTrailWithOwnBuild','Allow trailing',!building));
     const turnContent='<p class="rules-description">Play one hand card per action. The opponent normally plays next.</p><div class="rules-group">'+
       ruleSwitch('extraAfterSweep','Extra turn after opponent sweep')+'</div>';
     const scoreContent='<div class="rules-group">'+targetSetting()+ruleSelect('sweepPoints','Points per sweep',[0,1,10,50])+ruleSwitch('sweepCancel','Cancel opposing sweeps',!draft.sweepPoints)+
@@ -2158,11 +2197,11 @@
     } else {
       draft = E.rulesFor(key,{difficulty});
     }
-    draftPreset = key;
+    draft=E.normalizeRules(draft);fitBuildBounds();draftPreset = key;
     render('overlay');
   }
   function commitDraftEdit(){
-    draft=E.normalizeRules(draft);
+    draft=E.normalizeRules(draft);fitBuildBounds();
     draftPreset='custom';draft.name='Custom Fishing';customDraft={...draft};
     labResult=null;render('overlay');
   }
@@ -2215,6 +2254,8 @@
     }
     if(draft.customizeCardValues&&['faceMode','aceMode','royalBigLittle','jokerValue'].includes(prop))return;
     if(prop==='handSize'&&(!Number.isInteger(value)||value<1||value>handMaximum()))return;
+    if(prop==='buildRange'&&!['all','9-13','10-13','custom'].includes(value))return;
+    if(['buildMin','buildMax'].includes(prop)&&(!draft.builds||draft.buildRange!=='custom'||!buildBoundChoices(prop).includes(value)))return;
     if(String(ruleValue(prop))===String(value))return;
     if(prop==='faceMode'){
       if(!['classic','royal','extended','italian'].includes(value))return;
@@ -2257,7 +2298,10 @@
   }
   function applyTypedHandSize(value){
     if(!draft||draft.presetBlocker||draft.dealMode==='full'||handMaximum()<1||!Number.isInteger(value)||value<1||value>handMaximum()||draft.handSize===value)return false;
-    draft.handSize=value;draftPreset='custom';draft.name='Custom Fishing';customDraft={...draft};labResult=null;
+    draft.handSize=value;refreshNumericRuleEdit();return true;
+  }
+  function refreshNumericRuleEdit(){
+    draftPreset='custom';draft.name='Custom Fishing';customDraft={...draft};labResult=null;
     // Updating just the affected elements keeps the numeric field focused
     // and avoids replacing a tapped Start button during a blur event.
     const picker=app.querySelector('#variation-picker');
@@ -2265,6 +2309,7 @@
     const desc=app.querySelector('.preset-description');if(desc)desc.textContent='Your own combination of fishing-game mechanics.';
     const summary=app.querySelector('#rules-area-deal .rules-page-heading small');
     if(summary)summary.textContent=draft.deckSize+' cards · '+dealLabel()+' · '+draft.initialTableSize+' on table';
+    const buildSummary=app.querySelector('#rules-area-build .rules-page-heading small');if(buildSummary)buildSummary.textContent=buildLabel();
     const status=app.querySelector('.rules-footer');
     if(status){
       // Keep the Start and Cancel buttons mounted. Replace just the status
@@ -2291,12 +2336,34 @@
     const value=normalizedHandSize(target.value,draft.handSize,handMaximum());
     applyTypedHandSize(value);syncHandSizeControls(value);target.value=String(value);
   }
+  function syncBuildBounds(exceptInput){
+    for(const key of ['buildMin','buildMax']){
+      const choices=buildBoundChoices(key),input=app.querySelector('#range-'+key);
+      const select=app.querySelector('[data-setting="buildBoundChoice"][data-bound="'+key+'"]');
+      if(input){input.min=String(choices[0]??1);input.max=String(choices[choices.length-1]??30);if(input!==exceptInput)input.value=String(draft[key]??'');}
+      if(select){select.innerHTML=choices.map(v=>'<option value="'+v+'" '+(v===draft[key]?'selected':'')+'>'+v+'</option>').join('');}
+    }
+  }
+  function applyBuildBound(key,value,exceptInput){
+    if(!draft||draft.presetBlocker||!draft.builds||draft.buildRange!=='custom'||!['buildMin','buildMax'].includes(key)||!buildBoundChoices(key).includes(value))return false;
+    if(draft[key]!==value){draft[key]=value;refreshNumericRuleEdit();}
+    syncBuildBounds(exceptInput);return true;
+  }
+  function finishBuildBound(target){
+    const key=target.dataset.bound;
+    if(!['buildMin','buildMax'].includes(key))return;
+    const choices=buildBoundChoices(key),raw=target.value.trim();
+    const value=raw?nearestBuildValue(choices,raw):draft[key];
+    if(value!=null&&applyBuildBound(key,value))target.value=String(value);
+  }
   app.addEventListener('change', ev => {
     const target = ev.target;
     if (!(target instanceof HTMLElement) || !target.dataset.setting || target.disabled || modal !== 'settings') return;
     const prop = target.dataset.setting;
     if(prop==='preset')return selectVariation(target.value);
     if(prop==='handSizeText')return finishHandSizeText(target);
+    if(prop==='buildBoundText')return finishBuildBound(target);
+    if(prop==='buildBoundChoice')return applyBuildBound(target.dataset.bound,Number(target.value));
     if(prop==='deckCard')return updateOneDeckCard(target.dataset.cardId,target.checked);
     if(prop==='primaryValue'||prop==='secondaryValue')return updateCardValue(prop,target.value);
     updateDraftSetting(prop,target.type === 'checkbox' ? target.checked :
@@ -2308,6 +2375,9 @@
     if(target?.dataset?.setting==='handSize'){
       syncHandSizeControls(Number(target.value));return;
     }
+    if(target?.dataset?.setting==='buildBoundText'){
+      if(target.value!=='')applyBuildBound(target.dataset.bound,Number(target.value),target);return;
+    }
     if(target?.dataset?.setting==='handSizeText'){
       const value=Number(target.value);
       if(target.value!==''&&Number.isInteger(value)&&value>=1&&value<=handMaximum()){
@@ -2317,8 +2387,9 @@
   });
   app.addEventListener('keydown',ev=>{
     const target=ev.target;
-    if(modal==='settings'&&target?.dataset?.setting==='handSizeText'&&ev.key==='Enter'){
-      ev.preventDefault();finishHandSizeText(target);target.blur();
+    if(modal==='settings'&&ev.key==='Enter'){
+      if(target?.dataset?.setting==='handSizeText'){ev.preventDefault();finishHandSizeText(target);target.blur();}
+      else if(target?.dataset?.setting==='buildBoundText'){ev.preventDefault();finishBuildBound(target);target.blur();}
     }
   });
   app.addEventListener('click', event => {

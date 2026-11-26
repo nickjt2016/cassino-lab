@@ -19,9 +19,9 @@
     dealMode: 'batch', remainderMode: 'equal', faceValues: 'standard', aceValue: 1,
     jokerCount: 0, jokerValue: 15, directCapture: true, additiveCapture: true,
     captureGroups: 'unlimited', forcedCapture: 'optional', captureExtent: 'choice',
-    additiveBuilds: false, multiHandCapture: false, subtractiveBuilds: false,
+    additiveBuilds: false, multiHandCapture: false, additiveBuilding: true, subtractiveBuilds: false,
     singleCardBuild: false, raiseOwnBuild: true, raiseOpponentBuild: true,
-    buildRange: 'all', buildLimit: 'unlimited', mergeSameValue: false, absorbMatching: false,
+    buildRange: 'all', buildMin: null, buildMax: null, buildLimit: 'unlimited', mergeSameValue: false, absorbMatching: false,
     tableOnlyBuild: false, pileAccess: 'none', actionsPerTurn: 'single', handCardsPerTurn: 'one', extraAfterSweep: false,
     presetBlocker:'', scoreProfile:'cassino', matchDeals:0, initialTableRule:'any', directPriority:false,
     ignoreOpeningSweep:false, ignoreFinalSweep:false, residueOwner:'lastCapture'
@@ -1014,6 +1014,9 @@
       r.deckSize=deck.length;r.jokerCount=deck.filter(c=>c.suit==='X').length;
     }
     if(r.customizeCardValues&&r.cardValueOverrides==null)r.cardValueOverrides=initialCardValues(r);
+    if(r.buildRange==='custom'&&(r.buildMin==null||r.buildMax==null)){
+      const values=availableValues(r);if(r.buildMin==null)r.buildMin=values[0]??null;if(r.buildMax==null)r.buildMax=values[values.length-1]??null;
+    }
     return r;
   }
   function availableValues(rules) {
@@ -1022,7 +1025,8 @@
   function buildTargets(rules) {
     const values=availableValues(rules);
     return rules.buildRange==='9-13'?values.filter(v=>v>=9&&v<=13):
-      rules.buildRange==='10-13'?values.filter(v=>v>=10&&v<=13):values;
+      rules.buildRange==='10-13'?values.filter(v=>v>=10&&v<=13):
+      rules.buildRange==='custom'?values.filter(v=>v>=rules.buildMin&&v<=rules.buildMax):values;
   }
   function validateRules(input={}) {
     const r=normalizeRules(input),errors=[],warnings=[],unavailable=[];
@@ -1030,7 +1034,7 @@
       dealMode:['batch','draw','full','bid'],remainderMode:['equal','uneven','strict'],
       faceValues:['standard','extended','italian'],aceValue:[1,11,14],jokerCount:[0,1,2],jokerValue:Array.from({length:30},(_,i)=>i+1),
       captureGroups:['one','unlimited'],forcedCapture:['optional','faces','direct','all'],captureExtent:['choice','maximal','maximum'],
-      buildRange:['all','9-13','10-13'],buildLimit:['1','2','unlimited'],pileAccess:['none','build','capture','both'],
+      buildRange:['all','9-13','10-13','custom'],buildLimit:['1','2','unlimited'],pileAccess:['none','build','capture','both'],
       actionsPerTurn:['single','multiple'],handCardsPerTurn:['one','multiple'],scoreProfile:['cassino','wippen','diloti','kontsina','tablic','scopa'],matchDeals:[0,1,2,3,4,6],initialTableRule:['any','distinct-nonpoints','no-three-faces','no-three-kings'],residueOwner:['lastCapture','dealer']};
     for(const [k,options] of Object.entries(allowed))if(!options.includes(r[k]))errors.push('Invalid setting: '+k+'.');
     for(const [k,v] of Object.entries(DEFAULT_RULES))if(typeof v==='boolean'&&typeof r[k]!=='boolean')errors.push('Invalid switch: '+k+'.');
@@ -1056,10 +1060,17 @@
     if(r.builds&&r.tableOnlyBuild&&r.actionsPerTurn==='single')errors.push('Table-only building requires multiple actions per turn.');
     if(r.builds&&(r.mergeSameValue||r.absorbMatching)&&!r.multipleBuilds)errors.push('Mandatory merging and absorption require multiple builds.');
     if(r.builds&&r.buildRange!=='all'){
-      const targets=buildTargets(r), min=r.buildRange==='9-13'?9:10;
-      if(!targets.length)errors.push('No cards can capture a build in the selected range.');
-      else if(targets.length<14-min)warnings.push('Only these build values are available: '+targets.join(', ')+'.');
+      const values=availableValues(r),targets=buildTargets(r);
+      if(r.buildRange==='custom'&&(!Number.isInteger(r.buildMin)||!Number.isInteger(r.buildMax)||r.buildMin>r.buildMax||!values.includes(r.buildMin)||!values.includes(r.buildMax)))
+        errors.push('Custom build minimum and maximum must be available card values, with minimum no greater than maximum.');
+      else if(!targets.length)errors.push('No cards can capture a build in the selected range.');
+      else {
+        const min=r.buildRange==='custom'?r.buildMin:r.buildRange==='9-13'?9:10,max=r.buildRange==='custom'?r.buildMax:13;
+        if(targets.length<max-min+1)warnings.push('Only these build values are available: '+targets.join(', ')+'.');
+      }
     }
+    if(r.builds&&r.additiveBuilding===false&&!r.subtractiveBuilds&&!r.multipleBuilds&&!r.singleCardBuild)
+      warnings.push('No method of creating a build is enabled. Enable at least one construction option.');
     if(!r.builds&&(r.tableOnlyBuild||r.subtractiveBuilds||r.additiveBuilds||r.mergeSameValue||r.absorbMatching))warnings.push('Build-specific rules are inactive while building is off.');
     if(r.builds&&r.buildAnything)warnings.push('Unbacked builds are experimental; a stranded build may be collected at hand end.');
     if(r.forcedCapture==='direct'&&!r.directCapture)warnings.push('Compulsory direct matching has no effect on table cards when direct matching is off.');
@@ -1384,6 +1395,18 @@
     }
     return null;
   }
+  // When addition is disabled, a same-value card can still form its
+  // own group in a multiple build, or be declared alone.
+  function constructionPartition(cards,target,desired,rules){
+    if(rules.additiveBuilding!==false)return findValuePartition(cards,target,desired,rules);
+    if(!cards.length||cards.some(x=>!cardValues(x.card,rules).includes(target)))return null;
+    if(desired==='single'&&cards.length!==1||desired==='multiple'&&cards.length<2)return null;
+    return cards.map(x=>[x.card]);
+  }
+  function canModifyValue(oldValue,played,newValue,rules){
+    return rules.additiveBuilding!==false&&oldValue+played===newValue||
+      !!rules.subtractiveBuilds&&oldValue-played===newValue;
+  }
   function describeBuild(selection, card, remainingHand, rules, requestedValue, requestedMode) {
     if (!rules.builds) return { ok:false, reason:'Building is disabled.' };
     const playedValues = cardValues(card, rules);
@@ -1391,7 +1414,7 @@
     if (!Number.isInteger(requestedValue) || requestedValue < 1 || requestedValue > maxBuildValue(rules)) {
       return {ok:false, reason:'Choose a valid build value.'};
     }
-    if(rules.buildRange&&rules.buildRange!=='all'&&!buildTargets(rules).includes(requestedValue))return {ok:false,reason:'That build value is outside the permitted range.'};
+    if((rules.buildRange&&rules.buildRange!=='all'||rules.buildAnything)&&!buildTargets(rules).includes(requestedValue))return {ok:false,reason:'That build value is outside the permitted range.'};
     if (!rules.buildAnything && !hasValue(remainingHand, requestedValue, rules)) {
       return {ok:false,reason:`Keep a ${requestedValue} in hand to capture your build (or turn Build Obligation off).`};
     }
@@ -1408,13 +1431,13 @@
       const lower=builds.filter(b=>b.value!==requestedValue);
       const matching=builds.filter(b=>b.value===requestedValue);
       if(!lower.length&&rules.mergeSameValue){
-        const extra=findValuePartition([{card},...loose],requestedValue,'any',rules);
+        const extra=constructionPartition([{card},...loose],requestedValue,'any',rules);
         if(extra)return {ok:true,build:{value:requestedValue,groups:matching.flatMap(b=>b.groups).concat(extra),kind:'multiple',operation:'merge'}};
       }
       if(lower.length!==1||!matching.length||lower[0].groups.length!==1||
-        !playedValues.some(v=>lower[0].value+v===requestedValue))
-        return {ok:false,reason:'Raise one single build and merge only matching-value builds.'};
-      const extra=loose.length?findValuePartition(loose,requestedValue,'any',rules):[];
+        !playedValues.some(v=>canModifyValue(lower[0].value,v,requestedValue,rules)))
+        return {ok:false,reason:'Raise or lower one single build and combine only same-value builds.'};
+      const extra=loose.length?constructionPartition(loose,requestedValue,'any',rules):[];
       if(!extra)return {ok:false,reason:'Table cards must form complete matching groups.'};
       const groups=[...matching.flatMap(b=>b.groups),lower[0].groups[0].concat(card),...extra];
       return {ok:true,build:{value:requestedValue,groups,kind:'multiple',operation:'merge'}};
@@ -1422,7 +1445,7 @@
     if(requestedMode==='merge')return {ok:false,reason:'Select a single build to raise and a matching build to merge.'};
     if (!builds.length) {
       if (!loose.length && !rules.singleCardBuild) return {ok:false,reason:'Select at least one table card to build.'};
-      let groups = findValuePartition([{card}, ...loose], requestedValue,
+      let groups = constructionPartition([{card}, ...loose], requestedValue,
         requestedMode === 'single' ? 'single' : requestedMode === 'multiple' ? 'multiple' : 'any', rules);
       if(!groups&&rules.subtractiveBuilds&&loose.length===1&&requestedMode!=='multiple'&&playedValues.some(v=>cardValues(loose[0].card,rules).some(w=>Math.abs(w-v)===requestedValue)))groups=[[card,loose[0].card]];
       if (!groups) return {ok:false,reason:'Selected cards do not form the requested build.'};
@@ -1432,16 +1455,16 @@
     const current = builds[0];
     if (requestedValue === current.value && requestedMode !== 'raise') {
       if (!rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
-      const groups = findValuePartition([{card}, ...loose], current.value, 'any', rules);
+      const groups = constructionPartition([{card}, ...loose], current.value, 'any', rules);
       if (!groups) return {ok:false,reason:'The additional group must equal the build value.'};
       return {ok:true,build:{value:current.value,groups:current.groups.concat(groups),kind:'multiple',operation:'extend'}};
     }
     if (requestedMode === 'extend') return {ok:false,reason:'Extending preserves the build value.'};
-    if (current.groups.length > 1) return {ok:false,reason:'A multiple build cannot be raised.'};
-    if (!playedValues.some(v => current.value + v === requestedValue || rules.subtractiveBuilds&&current.value-v===requestedValue)) {
+    if (current.groups.length > 1) return {ok:false,reason:'A multiple build cannot be raised or lowered.'};
+    if (!playedValues.some(v => canModifyValue(current.value,v,requestedValue,rules))) {
       return {ok:false,reason:'The played card must change this build to its new value.'};
     }
-    const extraGroups = loose.length ? findValuePartition(loose, requestedValue, 'any', rules) : [];
+    const extraGroups = loose.length ? constructionPartition(loose, requestedValue, 'any', rules) : [];
     if (!extraGroups) return {ok:false,reason:'Table cards must form extra complete groups when raising.'};
     if (extraGroups.length && !rules.multipleBuilds) return {ok:false,reason:'Multiple builds are disabled.'};
     return {ok:true,build:{value:requestedValue,groups:[current.groups[0].concat(card),...extraGroups],kind:extraGroups.length?'multiple':'single',operation:requestedValue<current.value?'lower':'raise'}};
@@ -1483,7 +1506,7 @@
       if(outcome.ok){
         const changed=selected.filter(e=>e.type==='build'&&e.value!==outcome.build.value);
         if(changed.some(e=>e.owner===player?state.rules.raiseOwnBuild===false:state.rules.raiseOpponentBuild===false))
-          return {ok:false,reason:'Changing the value of that owner’s build is disabled.'};
+          return {ok:false,reason:'Raising or lowering the selected single build is disabled.'};
         if(state.rules.mergeSameValue&&remainingTable.some(e=>e.type==='build'&&e.value===outcome.build.value))
           return {ok:false,reason:'Combine all same-value builds in this move.'};
         if(state.rules.absorbMatching&&remainingTable.some(e=>e.type==='loose'&&cardValues(e.card,state.rules).includes(outcome.build.value)))
@@ -1518,7 +1541,7 @@
   function legalBuildOptions(state, cardId, targetIds) {
     if (!state.rules.builds || !cardId) return [];
     const hand = state.players[state.turn].hand;
-    const values = state.rules.buildAnything ? Array.from({length:maxBuildValue(state.rules)},(_,i)=>i+1) : [...new Set(hand.filter(c => c.id !== cardId).flatMap(c => cardValues(c, state.rules)))];
+    const values = state.rules.buildAnything ? buildTargets(state.rules) : [...new Set(hand.filter(c => c.id !== cardId).flatMap(c => cardValues(c, state.rules)))];
     const selection = (targetIds || []).map(id => state.table.find(e => e.id === id));
     const buildCount=selection.filter(e=>e&&e.type==='build').length;
     const possibilities = [];
@@ -1545,7 +1568,9 @@
     if(selected.length!==1||selected[0].groups.length!==1)return options;
     const card=state.players[state.turn].hand.find(c=>c.id===cardId);
     if(!card)return options;
-    for(const value of cardValues(card,state.rules).map(v=>v+selected[0].value)){
+    for(const value of new Set(cardValues(card,state.rules).flatMap(v=>[
+      ...(state.rules.additiveBuilding!==false?[v+selected[0].value]:[]),
+      ...(state.rules.subtractiveBuilds&&selected[0].value>v?[selected[0].value-v]:[])]))){
       const matching=state.table.filter(b=>b.type==='build'&&b.owner===state.turn&&b.value===value&&!ids.includes(b.id));
       // Prefer the existing matching stack as the visual base.
       if(matching.length)options.push(...legalBuildOptions(state,cardId,[...matching.map(b=>b.id),...ids])
@@ -1762,7 +1787,7 @@
       targetSets.push([b.id]);
       for (const l of relevant) targetSets.push([b.id, l.id]);
       if(b.groups.length===1&&state.rules.multipleBuilds)for(const other of builds){
-        if(other===b||!cardValues(card,state.rules).some(v=>b.value+v===other.value))continue;
+        if(other===b||!cardValues(card,state.rules).some(v=>canModifyValue(b.value,v,other.value,state.rules)))continue;
         targetSets.push([other.id,b.id]);
         for(const l of relevant)targetSets.push([other.id,b.id,l.id]);
       }
@@ -1900,7 +1925,7 @@
       const played=cardValues(card,rules);
       if(!played.length)continue;
       const targets=rules.buildAnything
-        ? Array.from({length:maxBuildValue(rules)},(_,i)=>i+1)
+        ? buildTargets(rules)
         : [...new Set(hand.filter(c=>c.id!==card.id).flatMap(c=>cardValues(c,rules)))];
       function* options(ids,target){
         if(stop()||(visibleOnly&&seen.has(key(card.id,ids))))return;
@@ -1919,9 +1944,9 @@
         for(const build of builds){
           if(stop())return;
           const extend=rules.multipleBuilds&&build.value===target;
-          const raise=build.groups.length===1&&played.some(v=>build.value+v===target||rules.subtractiveBuilds&&build.value-v===target);
+          const raise=build.groups.length===1&&played.some(v=>canModifyValue(build.value,v,target,rules));
           if(!extend&&!raise)continue;
-          const initial=extend?values:played.filter(v=>build.value+v===target||rules.subtractiveBuilds&&build.value-v===target).map(v=>build.value+v===target?v:-v);
+          const initial=extend?values:played.filter(v=>canModifyValue(build.value,v,target,rules)).map(v=>build.value+v===target?v:-v);
           // When raising, matching existing builds can be included as
           // intact groups. They never contribute to the increase in value.
           const matching=raise&&rules.multipleBuilds?builds.filter(b=>b!==build&&b.value===target)
@@ -2288,7 +2313,7 @@
     }
     return {tested:count,completed,zeroScore,failures,validation};
   }
-  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, allCards, cardKey, initialCardValues, standardCardValues, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
+  return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
     captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
