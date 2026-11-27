@@ -1409,7 +1409,7 @@ html,body,#app{background:#005d0b;color:#fff}
 /* v0.10.4 — tap-to-cycle team arrangement; seat colors are the legend. */
 .rules-setting .team-cycle-control{width:clamp(96px,32vw,150px);min-width:0;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid #cbbd9a;border-radius:7px;background:#f3ecda;color:#25281e;padding:6px 9px;font:inherit;font-size:12px;text-align:left;cursor:pointer;touch-action:manipulation}
 .rules-setting .team-cycle-control svg{flex:none;color:#526c54}
-.rules-setting .team-cycle-control:disabled{opacity:1;cursor:default;justify-content:center;background:#f3ecda;color:#5e5642}
+.rules-setting .team-cycle-control:disabled{opacity:1;cursor:default;justify-content:flex-start;background:#f3ecda;color:#5e5642}
 .rules-setting .team-cycle-control:focus-visible{outline:2px solid #195b40;outline-offset:2px}
 @media(max-width:350px){.rules-setting .team-cycle-control{width:108px;font-size:11px}}
 
@@ -4167,7 +4167,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.11';
+  const APP_VERSION = '0.10.12';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;

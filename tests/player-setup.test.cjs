@@ -144,3 +144,16 @@ test('Two-player seating preview has blue and red; multiplayer FFA CPUs are grey
   assert.deepEqual(colors,['#346da8',...Array(n-1).fill(n===2?'#ac4847':'#777b73')]);
  }
 });
+
+test('Fixed team options retain the same left alignment as cycling controls',()=>{
+ const css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
+ assert.match(css,/\.rules-setting \.team-cycle-control\{[^}]*padding:6px 9px;[^}]*text-align:left/);
+ assert.match(css,/\.rules-setting \.team-cycle-control:disabled\{[^}]*justify-content:flex-start/);
+ const h=harness();h.open('newgame');
+ for(const n of [2,3,5]){
+  h.set('playerCount',n);
+  const control=h.html().match(/<button[^>]*id="rule-teamMode"[\s\S]*?<\/button>/)[0];
+  assert.match(control,/\bdisabled\b/);assert.doesNotMatch(control,/<svg/);
+  assert.match(control,n===2?/>1 vs\. 1<\/span>/:/>FFA<\/span>/);
+ }
+});
