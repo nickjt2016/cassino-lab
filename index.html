@@ -1483,6 +1483,40 @@ html,body,#app{background:#005d0b;color:#fff}
 @media(max-height:700px){.shell .table-area{--build-card-width:clamp(42px,12.7vw,57px)}}
 @media(orientation:landscape) and (max-height:450px){.shell .table-area{--build-card-width:clamp(34px,6.2vw,53px);--build-lane:clamp(53px,10vw,80px)}}
 
+/* v0.10.15 — the primary build column is reserved; the secondary one
+   borrows the rightmost portion of the loose-card lane only when needed.
+   Both lanes share the same 14%..98% vertical bounds. */
+.shell .table-stage{--build-columns:1}
+.shell .table-stage .table-cards,
+.shell .table-stage:has(.table-builds:not(:empty)) .table-cards,
+.shell .table-stage:not(:has(.table-builds:not(:empty))) .table-cards{
+  --row-budget:max(0px,calc(84cqh - 16px));
+  width:calc(100% - var(--build-lane)*var(--build-columns))!important;
+  max-width:calc(100% - var(--build-lane)*var(--build-columns))!important;
+}
+.shell .table-stage .table-builds:not(:empty),
+.shell .table-stage .table-builds.builds-collapsed:not(:empty){
+  width:calc(var(--build-lane)*var(--build-columns) - 3px);
+  max-width:calc(var(--build-lane)*var(--build-columns) - 3px);
+  height:84%;max-height:84%;top:56%!important;
+  display:block;padding:0;overflow:hidden!important;
+}
+.shell .table-stage .table-builds .build-item{
+  position:absolute;right:calc(2px + var(--build-lane)*var(--build-column,0));
+  width:max-content;max-height:none;transform:none!important;
+}
+.shell .table-stage .build-item.is-collapsed .build-summary{
+  width:calc(var(--build-card-width)*var(--build-scale,1));
+  height:auto;aspect-ratio:.715;
+  font-size:calc(clamp(8px,2.5vw,12px)*var(--build-scale,1));
+  padding:calc(3px*var(--build-scale,1)) calc(1px*var(--build-scale,1));
+  gap:calc(2px*var(--build-scale,1));overflow:hidden;
+}
+.shell .table-stage .build-summary strong{
+  font-size:calc(clamp(18px,6vw,30px)*var(--build-scale,1));
+}
+.shell .build-inspections{top:14%;bottom:2%;z-index:15}
+
 </style></head><body><div id="app"></div>
 <script>/* Fishing Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -4265,7 +4299,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.14';
+  const APP_VERSION = '0.10.15';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -5191,21 +5225,101 @@ html,body,#app{background:#005d0b;color:#fff}
       rail.appendChild(preview);
     }
   }
-  function layoutBuilds(previousScroll=0,revealNewest=false){
+  // Recalculate from uncollapsed geometry every time. Releasing space
+  // therefore restores as many full piles as possible without hysteresis.
+  function planBuildColumns(piles,available,summaryHeight,gap=5){
+    const n=piles.length,H=Math.max(0,available),S=Math.max(0,summaryHeight);
+    if(!n)return {columns:1,scale:1,gap,slots:[]};
+    // Heights are quantized upwards to quarter pixels so a packed column
+    // cannot overflow its measured height because of fractional card sizes.
+    const collapsed=piles.map(p=>p.height>H);
+    const order=piles.map((p,i)=>i).sort((a,b)=>piles[b].cards-piles[a].cards||piles[b].height-piles[a].height||a-b);
+    const pack=()=>{
+      const heights=piles.map((p,i)=>collapsed[i]?S:p.height);
+      const total=heights.reduce((a,b)=>a+b,0)+gap*(n-1);
+      if(total<=H+1e-7)return {columns:1,assignment:heights.map(()=>0),heights};
+      if(n===1||heights.some(h=>h>H))return null;
+      const cap=Math.floor((H+gap)*4+1e-7);
+      const weights=heights.map(h=>Math.ceil((h+gap)*4-1e-7));
+      const sum=weights.reduce((a,b)=>a+b,0);
+      if(sum>2*cap)return null;
+      // Exact subset packing: among feasible partitions, put the largest
+      // number of stacks in the primary (rightmost) column. Stable ties
+      // retain the earlier build IDs' order within each column.
+      const dp=Array(cap+1).fill(null);
+      dp[0]={count:0,mask:0n};
+      for(let i=0;i<n;i++){
+        const w=weights[i];
+        for(let j=cap;j>=w;j--){
+          const prev=dp[j-w];
+          if(!prev)continue;
+          const count=prev.count+1;
+          if(!dp[j]||count>dp[j].count)dp[j]={count,mask:prev.mask|(1n<<BigInt(i))};
+        }
+      }
+      let best=null;
+      for(let j=Math.max(0,sum-cap);j<=cap;j++){
+        if(dp[j]&&(!best||dp[j].count>=best.count))best=dp[j];
+      }
+      if(!best)return null;
+      return {columns:2,assignment:heights.map((_,i)=>(best.mask&(1n<<BigInt(i)))?0:1),heights};
+    };
+    // Try both full-size columns before collapsing additional piles. Each
+    // collapsed pile saves at least as much space as the smaller stacks.
+    let result=pack();
+    for(const i of order){
+      if(result)break;
+      if(!collapsed[i]){collapsed[i]=true;result=pack();}
+    }
+    let scale=1,usedGap=gap;
+    if(!result){
+      // Even all single-card summaries are too tall. Only now reduce their
+      // physical size and the gaps, and use the smallest reduction needed.
+      const firstCount=Math.ceil(n/2);
+      const needed=firstCount*S+(firstCount-1)*gap;
+      scale=needed>0?Math.min(1,H/needed):1;
+      usedGap=gap*scale;
+      result={columns:n===1?1:2,assignment:piles.map((_,i)=>i<firstCount?0:1),heights:piles.map(()=>S*scale)};
+      collapsed.fill(true);
+    }
+    const y=[0,0];
+    const slots=result.assignment.map((column,i)=>{
+      const slot={column,y:y[column],height:result.heights[i],collapsed:collapsed[i]};
+      y[column]+=slot.height+usedGap;
+      return slot;
+    });
+    return {columns:result.columns,scale,gap:usedGap,slots};
+  }
+  function layoutBuilds(){
     const lane=app.querySelector?.('.table-builds');
-    if(!lane)return;
+    const stage=lane?.parentElement;
+    if(!stage||!lane)return;
     const items=[...lane.querySelectorAll('.build-item')];
+    stage.style.setProperty('--build-columns','1');
     lane.classList.remove('builds-collapsed');
-    items.forEach(node=>node.classList.remove('is-collapsed'));
+    items.forEach(node=>{
+      node.classList.remove('is-collapsed');
+      node.style.removeProperty('--build-scale');
+    });
     if(items.length){
-      const css=globalThis.getComputedStyle?.(lane);
-      const gap=parseFloat(css?.rowGap)||5;
-      const available=Math.max(0,lane.clientHeight-(parseFloat(css?.paddingTop)||0)-(parseFloat(css?.paddingBottom)||0));
-      const heights=items.map(node=>node.querySelector('.build-pile')?.getBoundingClientRect().height||0);
-      const collapsed=buildsNeedCollapse(heights,available,gap);
-      lane.classList.toggle('builds-collapsed',collapsed);
-      items.forEach(node=>node.classList.toggle('is-collapsed',collapsed));
-      if(collapsed)lane.scrollTop=revealNewest?lane.scrollHeight:previousScroll;
+      const inset=Math.min(6,lane.clientHeight/4);
+      const available=Math.max(0,lane.clientHeight-2*inset);
+      const piles=items.map(node=>{
+        const pile=node.querySelector('.build-pile');
+        const rect=pile.getBoundingClientRect();
+        return {height:rect.height,width:rect.width,cards:Number(pile.style.getPropertyValue('--layers'))||1};
+      });
+      const summaryHeight=piles[0].width/.715;
+      const plan=planBuildColumns(piles,available,summaryHeight,5);
+      stage.style.setProperty('--build-columns',String(plan.columns));
+      lane.classList.toggle('builds-collapsed',plan.slots.some(slot=>slot.collapsed));
+      items.forEach((node,i)=>{
+        const slot=plan.slots[i];
+        node.classList.toggle('is-collapsed',slot.collapsed);
+        node.style.setProperty('--build-column',String(slot.column));
+        node.style.setProperty('--build-scale',String(plan.scale));
+        node.style.top=(inset+slot.y)+'px';
+      });
     }
     syncBuildInspections();
   }

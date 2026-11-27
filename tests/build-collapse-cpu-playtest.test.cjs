@@ -97,29 +97,49 @@ test('Build summaries show owner, value, single/multi and the real number of car
  assert.equal(h.collapse([90,90],185,5),false);
  assert.equal(h.collapse([90,90,90],185,5),true);
 });
-test('Actual layout collapses overflowing builds, expands selected summaries and restores them on deselection',()=>{
+test('Two-column packing keeps the maximum number of full piles and fills the right column first',()=>{
+ const source=section('  function planBuildColumns(','  function layoutBuilds(');
+ const plan=new Function(source+';return planBuildColumns;')();
+ const pile=cards=>({cards,height:80+(cards-1)*20});
+ const arrange=(cards,height)=>plan(cards.map(pile),height,80,5);
+ const check=(r,height)=>{
+   for(let c=0;c<r.columns;c++){
+     const slots=r.slots.filter(s=>s.column===c);
+     for(let i=0;i<slots.length;i++){
+       assert.ok(slots[i].y+slots[i].height<=height+1e-6);
+       if(i)assert.ok(slots[i].y>=slots[i-1].y+slots[i-1].height);
+     }
+   }
+ };
+ let r=arrange([8],180);
+ assert.equal(r.columns,1);assert.ok(r.slots[0].collapsed);
+ r=arrange([3,3],180);
+ assert.equal(r.columns,2);assert.ok(r.slots.every(s=>!s.collapsed));
+ r=arrange([4,3,2],230);
+ assert.equal(r.slots.filter(s=>s.column===0).length,2);
+ assert.ok(r.slots.every(s=>!s.collapsed));
+ r=arrange([6,4,3],220);
+ assert.ok(r.slots[0].collapsed);assert.equal(r.slots.filter(s=>s.collapsed).length,1);assert.equal(r.scale,1);
+ r=arrange([2,2,2,2,2],150);
+ assert.ok(r.scale<1);assert.ok(r.slots.every(s=>s.collapsed));check(r,150);
+ r=arrange([2,2],220);
+ assert.equal(r.columns,1);assert.ok(r.slots.every(s=>!s.collapsed));
+ for(let n=1;n<=28;n++)for(let h=35;h<410;h+=13)check(arrange(Array.from({length:n},(_,i)=>1+(i*7+n)%12),h),h);
+ assert.match(css,/width:calc\(100% - var\(--build-lane\)\*var\(--build-columns\)\)!important/);
+ assert.match(css,/right:calc\(2px \+ var\(--build-lane\)\*var\(--build-column,0\)\)/);
+});
+test('Selected collapsed summary expands in an overlay and deselecting removes the preview',()=>{
  const {f,s,pickedTable}=buildFixture();
- const classes=(...initial)=>{const set=new Set(initial);return {contains:k=>set.has(k),remove:k=>set.delete(k),toggle:(k,on)=>on?set.add(k):set.delete(k)};};
- const items=[100,105].map((height,i)=>({dataset:{id:'b'+i},classList:classes('build-item'),disabled:false,
-   getAttribute:()=> 'Build '+i,querySelector:()=>({getBoundingClientRect:()=>({height}),cloneNode:()=>({height})})}));
- const lane={classList:classes(),clientHeight:230,scrollHeight:260,scrollTop:0,querySelectorAll(sel){return sel.includes('selected')?items.filter(n=>n.classList.contains('is-collapsed')&&n.classList.contains('selected')):items;}};
+ const items=[{dataset:{id:'b1'},disabled:false,getAttribute:()=> 'Build 1',querySelector:()=>({cloneNode:()=>({height:100})})}];
+ let selected=true;
+ const lane={querySelectorAll:()=>selected?items:[]};
  const rail={dataset:{},children:[],replaceChildren(){this.children=[];},appendChild(node){this.children.push(node);}};
  const host={querySelector:sel=>sel==='.table-builds'?lane:sel==='.build-inspections'?rail:null};
  const doc={createElement:()=>({dataset:{},setAttribute(){},appendChild(pile){this.pile=pile;}})};
- const h=f(E,s,pickedTable,String,()=>'',c=>c.rank,c=>c.suit,host,doc,{getComputedStyle:()=>({rowGap:'5px',paddingTop:'5px',paddingBottom:'5px'})});
- h.layout();assert.ok(!lane.classList.contains('builds-collapsed'));
- lane.clientHeight=180;h.layout(0,true);
- assert.ok(lane.classList.contains('builds-collapsed'));assert.equal(lane.scrollTop,260);
- assert.ok(items.every(n=>n.classList.contains('is-collapsed')));
- items[0].classList.toggle('selected',true);h.inspect();
- assert.equal(rail.children.length,1);assert.equal(rail.children[0].dataset.action,'inspect-build');
- assert.equal(rail.children[0].pile.height,100);
- items[0].classList.toggle('selected',false);h.inspect();assert.equal(rail.children.length,0);
- lane.clientHeight=250;h.layout();assert.ok(!lane.classList.contains('builds-collapsed'));
- assert.match(css,/\.shell \.build-item\.is-collapsed \.build-pile\{display:none/);
- assert.match(css,/\.shell \.build-inspection\{[^}]*max-height:100%;[^}]*box-shadow:/);
- assert.match(css,/\.shell \.table-stage \.table-builds:not\(:empty\)\{[\s\S]*?height:84%;max-height:84%/);
- assert.match(css,/\.shell \.table-stage \.table-builds\.builds-collapsed:not\(:empty\)\{overflow-y:auto/);
+ const h=f(E,s,pickedTable,String,()=>'',c=>c.rank,c=>c.suit,host,doc,{});
+ h.inspect();assert.equal(rail.children.length,1);
+ assert.equal(rail.children[0].dataset.action,'inspect-build');assert.equal(rail.children[0].pile.height,100);
+ selected=false;h.inspect();assert.equal(rail.children.length,0);
 });
 test('Collapsed source and destination animations use a visible summary or preview, not hidden pile geometry',()=>{
  assert.match(app,/const previews=new Map\(\[\.\.\.app\.querySelectorAll\('\.build-inspection'\)\]/);
