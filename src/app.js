@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.6';
+  const APP_VERSION = '0.10.7';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -123,6 +123,7 @@
   // Cards are physically dealt from the visible stock on the left of the felt.
   // Track actual card IDs so draw-mode only animates replacement cards.
   let pendingDeal = null;
+  let activeHandDeal = null;
   let pendingStockOrigin = null;
   let dealAnimation = Promise.resolve();
   let dealing = false;
@@ -155,6 +156,7 @@
     if (!app || !app.querySelectorAll) return null;
     const positions = new Map();
     app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]').forEach(node => {
+      if(node.dataset.action==='hand'&&node.querySelector?.('.playing-card')?.style?.visibility==='hidden')return;
       const key = node.dataset.action + ':' + node.dataset.id;
       const rect = node.getBoundingClientRect();
       if (rect.width && rect.height) positions.set(key, {x:rect.left+rect.width/2,y:rect.top+rect.height/2});
@@ -180,6 +182,7 @@
     let cpu=0;
     const shifts=[];
     nodes.forEach(node => {
+      if(node.dataset.action==='hand'&&node.querySelector?.('.playing-card')?.style?.visibility==='hidden')return;
       const key = node.classList.contains('card-back') ? 'cpu-back:'+(cpu++) : node.dataset.action+':'+node.dataset.id;
       const from=previous.get(key);
       if(!from || !node.animate) return;
@@ -204,7 +207,7 @@
     }
   }
   // Dealt cards never materialize in the hand. Until the deck animation
-  // reaches them, their DOM destinations remain hidden but retain layout space.
+  // reaches them, their faces remain hidden; the hand grows on each landing.
   function dealTargets(deal, includeTable = true) {
     if (!app.querySelectorAll) return [];
     const items=[];
@@ -221,7 +224,7 @@
       const seats=deal.cpuBySeat.map((indices,i)=>indices.map(j=>app.querySelectorAll('[data-cpu-seat="'+(i+1)+'"] .card-back')[j]));
       for(let i=0;i<Math.max(human.length,...seats.map(s=>s.length));i++){
         for(const seat of seats)if(seat[i])items.push({node:seat[i],faceUp:false});
-        if(human[i])items.push({node:human[i],faceUp:true});
+        if(human[i])items.push({node:human[i],faceUp:true,humanId:deal.humanIds[i]});
       }
       return items;
     }
@@ -249,19 +252,27 @@
     const start=pendingStockOrigin || (deckRect && {
       x:deckRect.left+deckRect.width/2,y:deckRect.top+deckRect.height/2
     });
+    const geometry=humanHandGeometry();
+    const progress=geometry&&deal.humanIds?.length?makeHandDealProgress(deal,geometry):null;
+    activeHandDeal=progress;
     pendingDeal=null;
     pendingStockOrigin=null;
     if(!motionAllowed() || !start || !items.length || !document.body || !document.createElement){
+      activeHandDeal=null;
+      layoutHumanHand();
       items.forEach(item=>{item.node.style.visibility='';});
       return Promise.resolve();
     }
     const generation=motionGeneration;
-    const measured=items.map(item=>({...item,rect:item.node.getBoundingClientRect()}));
-    const flyOne=({node,faceUp,rect},index)=>new Promise(resolve=>{
+    // Incoming cards land in the prefix of the deal, not the final sorted hand.
+    const landingRects=progress?handDealLandingRects(progress,geometry):new Map();
+    const measured=items.map(item=>({...item,rect:landingRects.get(item.humanId)||item.node.getBoundingClientRect()}));
+    const flyOne=({node,faceUp,rect,humanId},index)=>new Promise(resolve=>{
         if(generation!==motionGeneration || !node.isConnected){
           node.style.visibility='';resolve();return;
         }
         if(!rect.width || !rect.height || !node.animate){
+          if(humanId&&progress)advanceHandDeal(progress,humanId,false);
           node.style.visibility='';resolve();return;
         }
         const dest={x:rect.left+rect.width/2,y:rect.top+rect.height/2};
@@ -295,11 +306,12 @@
               {transform:end,opacity:1}
             ],{duration:440,delay:index*94,easing:'cubic-bezier(.22,.74,.24,1)'});
             if(generation!==motionGeneration)return;
+            if(humanId&&progress)advanceHandDeal(progress,humanId,true);
             ghost.style.transform=end;
             ghost.style.opacity='1';
             ghost.getAnimations().forEach(a=>a.cancel());
             if(faceUp){
-              await run([{transform:end+' rotateY(0deg)'},{transform:end+' rotateY(90deg)'}],{duration:100,easing:'ease-in'});
+              await run([{transform:end+' rotateY(0deg)'},{transform:end+' rotateY(90deg)'}],{duration:humanId?75:100,easing:'ease-in'});
               if(generation!==motionGeneration)return;
               const face=node.cloneNode(true);
               face.style.visibility='visible';
@@ -308,14 +320,18 @@
               face.style.margin='0';
               ghost.replaceChildren(face);
               ghost.getAnimations().forEach(a=>a.cancel());
-              await run([{transform:end+' rotateY(-90deg)'},{transform:end+' rotateY(0deg)'}],{duration:110,easing:'ease-out'});
+              await run([{transform:end+' rotateY(-90deg)'},{transform:end+' rotateY(0deg)'}],{duration:humanId?75:110,easing:'ease-out'});
             }
           }finally{done();}
         })();
     });
     const stockCount=app.querySelector('.draw-stock-count');
     if(stockCount?.animate)stockCount.animate([{scale:1.06},{scale:1}],{duration:250});
-    return Promise.all(measured.map(flyOne)).then(()=>{});
+    return Promise.all(measured.map(flyOne)).then(()=>{
+      if(generation===motionGeneration&&activeHandDeal===progress)activeHandDeal=null;
+      // The ordinary next-turn render sorts the completed hand from its
+      // actual landed positions.
+    });
   }
   // The next player becomes interactive only after the outgoing move and
   // any replacement deal finish. The hand itself is the visible turn cue.
@@ -334,6 +350,7 @@
     });
     document.getElementById?.('app')?.getAnimations?.({subtree:true}).forEach(animation=>animation.cancel());
     pendingDeal=null;
+    activeHandDeal=null;
     pendingStockOrigin=null;
     dealAnimation=Promise.resolve();
   }
@@ -960,7 +977,7 @@
     rows.forEach((indices,row)=>{
       const len=indices.length;
       if(!len)return;
-      const step=len>1?(overflow?(w-cw)/(len-1):cw+g):0;
+      const step=len>1?(len>capacity?(w-cw)/(len-1):cw+g):0;
       const left=(w-cw-step*(len-1))/2;
       // The corner occupies about 45% of the face. In crowded rows
       // reduce only the index enough to fit the exposed shoulder.
@@ -969,27 +986,92 @@
     });
     return {capacity,rows:rows.map(r=>r.length),cards,overflow};
   }
-  function layoutHumanHand(){
+  function humanHandGeometry(){
     const lane=app.querySelector?.('.human-hand');
-    if(!lane||!globalThis.getComputedStyle)return;
+    if(!lane||!globalThis.getComputedStyle)return null;
     const nodes=[...lane.querySelectorAll('.hand-item')];
-    if(!nodes.length)return;
+    if(!nodes.length)return null;
     const metrics=getComputedStyle(lane);
     const inset=parseFloat(metrics.paddingLeft)||0;
     const width=lane.clientWidth-inset-(parseFloat(metrics.paddingRight)||0);
-    const face=nodes[0].querySelector('.playing-card');
-    const rect=face?.getBoundingClientRect();
-    if(!rect?.width||!rect.height||width<=0)return;
+    const rect=nodes[0].querySelector('.playing-card')?.getBoundingClientRect();
+    if(!rect?.width||!rect.height||width<=0)return null;
     const gap=parseFloat(metrics.columnGap)||4;
-    const plan=handPlan(nodes.length,width,rect.width,rect.height,gap,lane.clientHeight);
-    const slots=sortedHandSlots(plan);
-    nodes.forEach((node,i)=>{
-      const p=slots[i];
-      node.style.left=(inset+p.x)+'px';
-      node.style.top=p.y+'px';
-      node.style.zIndex=String(p.col+1);
-      node.style.setProperty('--hand-index-scale',String(p.indexScale));
+    return {lane,nodes,inset,width,cardWidth:rect.width,cardHeight:rect.height,gap,height:lane.clientHeight};
+  }
+  function planForHand(count,g){
+    return handPlan(count,g.width,g.cardWidth,g.cardHeight,g.gap,g.height);
+  }
+  function makeHandDealProgress(deal,g){
+    const incomingIds=[...deal.humanIds],incoming=new Set(incomingIds);
+    const baseIds=g.nodes.map(node=>node.dataset.id).filter(id=>!incoming.has(id));
+    return {baseIds,incomingIds,arrived:0};
+  }
+  function dealHandSlots(baseIds,arrivedIds,g){
+    // Map the retained sorted cards back to their current growth slots.
+    const basePlan=planForHand(baseIds.length,g),baseSlots=sortedHandSlots(basePlan);
+    const ids=basePlan.cards.map(slot=>baseIds[baseSlots.indexOf(slot)]).concat(arrivedIds);
+    const plan=planForHand(ids.length,g);
+    return new Map(ids.map((id,i)=>[id,plan.cards[i]]));
+  }
+  function handDealLandingRects(progress,g){
+    const origin=g.lane.getBoundingClientRect(),result=new Map();
+    progress.incomingIds.forEach((id,i)=>{
+      const slot=dealHandSlots(progress.baseIds,progress.incomingIds.slice(0,i+1),g).get(id);
+      result.set(id,{left:origin.left+g.inset+slot.x,top:origin.top+slot.y,width:g.cardWidth,height:g.cardHeight});
     });
+    return result;
+  }
+  function writeHandSlot(node,p,g){
+    node.style.left=(g.inset+p.x)+'px';
+    node.style.top=p.y+'px';
+    node.style.zIndex=String(p.col+1);
+    node.style.setProperty('--hand-index-scale',String(p.indexScale));
+  }
+  function layoutHumanHand(){
+    const g=humanHandGeometry();
+    if(!g)return;
+    const progress=activeHandDeal||(pendingDeal?.humanIds?.length?makeHandDealProgress(pendingDeal,g):null);
+    if(progress){
+      const slots=dealHandSlots(progress.baseIds,progress.incomingIds.slice(0,progress.arrived),g);
+      g.nodes.forEach(node=>{const p=slots.get(node.dataset.id);if(p)writeHandSlot(node,p,g);});
+      return;
+    }
+    const plan=planForHand(g.nodes.length,g);
+    const slots=sortedHandSlots(plan);
+    g.nodes.forEach((node,i)=>writeHandSlot(node,slots[i],g));
+  }
+  function advanceHandDeal(progress,id,animate=true){
+    if(activeHandDeal!==progress)return;
+    const next=progress.incomingIds.indexOf(id)+1;
+    if(next<=progress.arrived)return;
+    const g=humanHandGeometry();
+    if(!g){progress.arrived=next;return;}
+    const previous=dealHandSlots(progress.baseIds,progress.incomingIds.slice(0,progress.arrived),g);
+    const oldRects=new Map(),active=animateLayout.active||(animateLayout.active=new WeakMap());
+    for(const node of g.nodes){
+      if(!previous.has(node.dataset.id))continue;
+      if(animate)oldRects.set(node,node.getBoundingClientRect());
+      active.get(node)?.cancel();
+      active.delete(node);
+    }
+    progress.arrived=next;
+    const slots=dealHandSlots(progress.baseIds,progress.incomingIds.slice(0,next),g);
+    for(const node of g.nodes){
+      const slot=slots.get(node.dataset.id);
+      if(slot)writeHandSlot(node,slot,g);
+    }
+    if(!animate||!motionAllowed())return;
+    // Read geometry first; translate only cards already dealt.
+    const shifts=[];
+    for(const [node,from] of oldRects){
+      const to=node.getBoundingClientRect(),dx=from.left-to.left,dy=from.top-to.top;
+      if(node.animate&&(Math.abs(dx)>.5||Math.abs(dy)>.5))shifts.push({node,dx,dy});
+    }
+    for(const {node,dx,dy} of shifts){
+      const animation=node.animate([{translate:dx+'px '+dy+'px'},{translate:'0px 0px'}],{duration:150,easing:'cubic-bezier(.2,.8,.2,1)'});
+      if(animation)active.set(node,animation);
+    }
   }
   // Size actual cards, not transformed hitboxes. Keep row counts bounded
   // so a full hand still leaves space for the table and legal move buttons.

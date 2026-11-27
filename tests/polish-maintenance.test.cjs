@@ -61,10 +61,10 @@ test('Cancelling motion cancels descendant animations and clears pending deal re
   let cancelled=0,removed=0;
   const node={getAnimations(opts){assert.equal(opts.subtree,true);return [{cancel(){cancelled++;}},{cancel(){cancelled++;}}];},remove(){removed++;}};
   const api=new Function('document',section('  function cancelMotion()','  function takeMotionSnapshot')+
-    "\nlet motionGeneration=1,turnInMotion=true,pendingDeal={},pendingStockOrigin={},dealAnimation=null;return {cancel:cancelMotion,state:()=>({motionGeneration,turnInMotion,pendingDeal,pendingStockOrigin,dealAnimation})};")({querySelectorAll:()=>[node]});
+    "\nlet motionGeneration=1,turnInMotion=true,pendingDeal={},activeHandDeal={},pendingStockOrigin={},dealAnimation=null;return {cancel:cancelMotion,state:()=>({motionGeneration,turnInMotion,pendingDeal,activeHandDeal,pendingStockOrigin,dealAnimation})};")({querySelectorAll:()=>[node]});
   api.cancel();assert.equal(cancelled,2);assert.equal(removed,1);
   const state=api.state();assert.equal(state.motionGeneration,2);assert.equal(state.turnInMotion,false);
-  assert.equal(state.pendingDeal,null);assert.equal(state.pendingStockOrigin,null);assert.ok(state.dealAnimation instanceof Promise);
+  assert.equal(state.pendingDeal,null);assert.equal(state.activeHandDeal,null);assert.equal(state.pendingStockOrigin,null);assert.ok(state.dealAnimation instanceof Promise);
 });
 test('Offline cache uses four canonical asset keys and skips unknown non-navigation requests',()=>{
   assert.match(sw,/const ASSETS = \['\.\/index\.html', '\.\/manifest\.webmanifest', '\.\/icon\.svg', '\.\/version\.json'\]/);
@@ -120,9 +120,19 @@ test('Only selection, not a sticky touch hover, controls card elevation',()=>{
     assert.doesNotMatch(styles,/(?:\.hand-item|\.table-item|\.build-item):hover[^{}]*\{[^}]*transform:/);
   }
   assert.match(css,/\.shell \.hand-item:not\(\.selected\),\s*\.shell \.table-item:not\(\.selected\),\s*\.shell \.build-item:not\(\.selected\)\s*\{transform:translateY\(0\);/);
-  assert.match(css,/\.shell \.hand-item\.selected,\.shell \.table-item\.selected\s*\{transform:translateY\(-2px\);/);
-  assert.match(css,/\.shell \.build-item\.selected\s*\{transform:translateY\(-3px\);/);
+  assert.match(css,/\.shell \.hand-item\.selected,\.shell \.table-item\.selected\s*\{transform:translateY\(-5px\);/);
+  assert.match(css,/\.shell \.build-item\.selected\s*\{transform:translateY\(-6px\);/);
   const render=section('  function render(mode','  const SETTING_INFO');
   assert.match(render,/const oldLayout=mode!=='selection'&&motionAllowed\(\)\?layoutPositions\(\):null/);
   assert.match(render,/if\(mode==='selection'&&syncSelection\(controlsMarkup,actionsMarkup\)\)return;/);
+});
+
+test('Selected cards lift smoothly and the tap flash is confined to its existing card layer',()=>{
+ const css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
+ assert.match(css,/transition:transform 190ms cubic-bezier/);
+ assert.match(css,/-webkit-tap-highlight-color:transparent;isolation:isolate/);
+ assert.match(css,/\.hand-item::after,[\s\S]*?position:absolute;inset:0;z-index:8/);
+ assert.match(css,/\.hand-item:active:not\(:disabled\)::after/);
+ assert.match(app,/node\.style\.zIndex=String\(p\.col\+1\)/);
+ assert.doesNotMatch(css,/\.hand-item\.selected\s*\{[^}]*z-index/);
 });

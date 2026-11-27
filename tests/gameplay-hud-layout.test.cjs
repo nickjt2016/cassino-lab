@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const E=require('../src/engine.js'),app=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
 const section=(x,y)=>app.slice(app.indexOf(x),app.indexOf(y,app.indexOf(x)+x.length));
 function ui(prefs,game){
- return new Function('prefs','game','E','escapeHtml','renderBack','checkpoint',section('  function renderToolbar(','  function renderHome(')+'return {toolbar:renderToolbar,sort:sortedHand,mode:handSortMode,slots:sortedHandSlots,hand:handPlan,plan:rowPlan,style:cardRowStyle,seats:renderCpuSeats,color:gameSeatColor};')(prefs,game,E,String,()=>'<span class="card-back"></span>',null);
+ return new Function('prefs','game','E','escapeHtml','renderBack','checkpoint',section('  function renderToolbar(','  function renderHome(')+'return {toolbar:renderToolbar,sort:sortedHand,mode:handSortMode,slots:sortedHandSlots,dealSlots:dealHandSlots,landings:handDealLandingRects,hand:handPlan,plan:rowPlan,style:cardRowStyle,seats:renderCpuSeats,color:gameSeatColor};')(prefs,game,E,String,()=>'<span class="card-back"></span>',null);
 }
 test('Manual hand layout preference no longer changes toolbar or layout',()=>{
  const s=E.newMatch(),p={cardLayout:'fitRow',undo:true},h=ui(p,s);
@@ -28,8 +28,12 @@ test('Fixed hand geometry: center one row, fill the top before the bottom, then 
   const p=plan(n);
   for(const row of [0,1]){
    const cards=p.cards.filter(c=>c.row===row);
-   assert.ok(Math.abs(cards[0].x)<1e-8);
-   assert.ok(Math.abs(cards.at(-1).x+55-360)<1e-8);
+   if(cards.length>p.capacity){
+    assert.ok(Math.abs(cards[0].x)<1e-8);
+    assert.ok(Math.abs(cards.at(-1).x+55-360)<1e-8);
+   }else{
+    assert.ok(Math.abs(cards[0].x-(360-(cards.length*55+(cards.length-1)*4))/2)<1e-8);
+   }
    assert.ok(cards.every((c,i)=>i===0||c.x>cards[i-1].x));
   }
  }
@@ -127,4 +131,39 @@ test('Even overlapping hands read in sorted order across top row then bottom row
    assert.ok(slots.every((c,i)=>i===0||c.row>slots[i-1].row||c.x>slots[i-1].x));
  }
  assert.match(app,/const slots=sortedHandSlots\(plan\)/);
+});
+
+test('Deal prefixes fill the first row, then the second, then alternate appended cards',()=>{
+ const h=ui({},E.newMatch()),g={width:360,cardWidth:55,cardHeight:55/.715,gap:4,height:166,inset:4,lane:{getBoundingClientRect:()=>({left:10,top:100})}};
+ const incoming=Array.from({length:26},(_,i)=>'card'+i);
+ for(let n=1;n<=incoming.length;n++){
+  const ids=incoming.slice(0,n),slots=h.dealSlots([],ids,g),last=slots.get(ids.at(-1));
+  const expected=n<=6?0:n<=12?1:(n-13)%2;
+  assert.equal(last.row,expected);
+  const row=[...slots.values()].filter(s=>s.row===expected);
+  assert.equal(last.col,row.length-1);
+  assert.ok(row.every((s,i)=>i===0||s.x>row[i-1].x));
+ }
+ const one=h.dealSlots([],incoming.slice(0,1),g).get(incoming[0]);
+ const two=h.dealSlots([],incoming.slice(0,2),g);
+ assert.ok(two.get(incoming[0]).x<one.x);
+ assert.ok(h.dealSlots([],incoming.slice(0,7),g).get(incoming[0]).y<one.y);
+ const before=h.dealSlots([],incoming.slice(0,12),g),after=h.dealSlots([],incoming.slice(0,13),g);
+ for(let i=6;i<12;i++)assert.deepEqual(after.get(incoming[i]),before.get(incoming[i]));
+ const rects=h.landings({baseIds:[],incomingIds:incoming,arrived:0},g);
+ for(let i=0;i<incoming.length;i++){
+  const slot=h.dealSlots([],incoming.slice(0,i+1),g).get(incoming[i]),rect=rects.get(incoming[i]);
+  assert.ok(Math.abs(rect.left-(10+4+slot.x))<1e-8);assert.ok(Math.abs(rect.top-(100+slot.y))<1e-8);
+ }
+});
+test('Replacement draws preserve existing sorted row membership and append into the growth slot',()=>{
+ const h=ui({},E.newMatch()),g={width:360,cardWidth:55,cardHeight:55/.715,gap:4,height:166};
+ const base=Array.from({length:13},(_,i)=>'base'+i);
+ const previous=h.dealSlots(base,[],g),next=h.dealSlots(base,['draw'],g);
+ const slots=h.slots(h.hand(13,g.width,g.cardWidth,g.cardHeight,g.gap,g.height));
+ for(let i=0;i<base.length;i++){
+  assert.deepEqual(previous.get(base[i]),slots[i]);
+  assert.equal(next.get(base[i]).row,previous.get(base[i]).row);
+ }
+ assert.equal(next.get('draw').row,1);assert.equal(next.get('draw').col,6);
 });

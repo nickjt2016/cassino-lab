@@ -22,3 +22,11 @@ test('Build piles align vertically and table is not cluttered with a sweep-clear
   assert.match(css,/transform:translateY\(calc\(var\(--layer\)\*var\(--stack-step\)\)\)!important/);
   assert.doesNotMatch(app,/Table cleared/);
 });
+
+test('Human flights land in incremental slots and move only the already-dealt hand cards',()=>{
+ assert.match(app,/const landingRects=progress\?handDealLandingRects\(progress,geometry\)/);
+ assert.match(app,/rect:landingRects\.get\(item\.humanId\)\|\|item\.node\.getBoundingClientRect\(\)/);
+ assert.match(app,/if\(humanId&&progress\)advanceHandDeal\(progress,humanId,true\);/);
+ assert.match(app,/if\(!previous\.has\(node\.dataset\.id\)\)continue/);
+ assert.match(app,/activeHandDeal=null;\s*\/\/ The ordinary next-turn render sorts/);
+});

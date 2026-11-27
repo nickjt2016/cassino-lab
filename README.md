@@ -278,3 +278,7 @@ The hand keeps a fixed two-row height and consistent card size/gap. One row is c
 ### 0.10.6 — hand sorting
 
 The top-bar sort button cycles between Suit → value and Value → suit. The default is suit first, and the preference persists locally. Suits order S, H, C, D, then jokers. Values ascend using the minimum numerical value assigned by active rules; rank-only cards use their printed rank for sorting only. Ties use the other sort key, then printed rank and card ID. The sorted view reads across the top row then the bottom row, including overlap, without changing the engine hand order or selected card identity. The button is disabled while it is not the human's actionable turn so card-flight destinations cannot move mid-animation.
+
+### 0.10.7 — sequential hand dealing and selection polish
+
+Human cards fly into the slot for the number of cards dealt so far: fill the top row from left to right, fill the bottom, then append alternately to top and bottom with row-specific overlap. Already-dealt cards glide into the next layout during landing. Replacement draws also append to their incremental slots. The completed hand returns to the selected rule-aware sort order at the next-turn render. Selected loose cards lift 5px (builds 6px) with a smooth 190ms transform; card-local touch highlights follow the card's original stacking order. The rules engine, CPU timing and table-card flights are unchanged.
