@@ -416,7 +416,7 @@ html,body,#app{background:#005d0b;color:#fff}
   min-height:44px; padding:8px 16px;
   border-radius:15px; box-shadow:0 4px 12px #002b0d77;
 }
-.felt:has(.contextual-controls) .turn-banner{opacity:.32;}
+
 @media(max-height:700px) {
  .contextual-controls {top:68%;width:min(93%,450px)}
  .contextual-controls .main-actions{max-height:min(21dvh,125px);gap:5px}
@@ -1257,8 +1257,6 @@ html,body,#app{background:#005d0b;color:#fff}
 .playing-card:has(.card-assigned-values) .card-big{top:53%;font-size:60cqw}
 .playing-card.rank-joker .card-corner b{font-size:19cqw;letter-spacing:-.04em}
 .playing-card.rank-joker .card-big{color:#1b5140;font-size:62cqw;top:54%}
-.human-hand.wide-hand{width:100%;max-width:100%;justify-content:flex-start;overflow-x:auto;overflow-y:visible;scrollbar-width:thin;overscroll-behavior-x:contain;gap:7px;padding:9px 8px 5px;touch-action:pan-x}
-.human-hand.wide-hand .playing-card:not(.mini){width:clamp(45px,13.5vw,67px)!important}
 .opponent-hand.wide-hand{max-width:100%;min-width:0;gap:0;overflow:hidden;padding:0 2px;justify-content:center}
 .opponent-hand.wide-hand .card-back{flex-shrink:1;min-width:12px;margin-left:clamp(-17px,-3vw,-7px)}
 .opponent-hand.wide-hand .card-back:first-child{margin-left:0}
@@ -1328,15 +1326,14 @@ html,body,#app{background:#005d0b;color:#fff}
 .multiplayer-game .multi-seat-hand{display:flex;justify-content:center;align-items:center;width:100%;min-width:0;max-width:100%;gap:0;min-height:28px;height:32px;overflow:hidden;margin:0;padding:0}
 .multiplayer-game .multi-seat-hand .card-back{flex:0 1 18px;min-width:8px;width:18px;height:26px;margin-left:-5px;box-sizing:border-box}
 .multiplayer-game .multi-seat-hand .card-back:first-child{margin-left:0}
-.multi-seat-meta{font-size:9px;line-height:1.2;text-align:center;min-height:22px;overflow-wrap:normal;color:#ede4ca}
 .multi-results-scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:6px;margin:10px 0}
 .multi-results-scores>div{background:#f5f0df;border:1px solid #d2c49f;border-top:4px solid var(--side-color);border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 3px;min-width:0;text-align:center}
 .multi-results-scores b{font-size:23px;color:#142719}.multi-results-scores small,.multi-results-scores span{font-size:10px;line-height:1.3;color:#4e492b}
 .multi-score-scroll{max-width:100%;overflow-x:auto}
 .dialog .multi-result-table{min-width:max-content;font-size:12px}
 .dialog .multi-result-table th,.dialog .multi-result-table td{padding:7px 6px;white-space:nowrap}
-@media(max-width:360px){.multi-cpu-seats{gap:2px}.multi-seat-caption b{font-size:10px}.multi-seat-caption{font-size:9px}.multi-seat-meta{font-size:8px}}
-@media(max-height:480px) and (orientation:landscape){.multi-cpu-seat{flex-direction:row;gap:4px;padding:2px 3px}.multi-seat-caption{width:auto}.multiplayer-game .multi-seat-hand{height:26px;min-height:26px}.multi-seat-meta{font-size:8px;min-height:0}}
+@media(max-width:360px){.multi-cpu-seats{gap:2px}.multi-seat-caption b{font-size:10px}.multi-seat-caption{font-size:9px}}
+@media(max-height:480px) and (orientation:landscape){.multi-cpu-seat{flex-direction:row;gap:4px;padding:2px 3px}.multi-seat-caption{width:auto}.multiplayer-game .multi-seat-hand{height:26px;min-height:26px}}
 
 /* v0.10.2 — named saved variants, device-level row fitting. */
 .saved-variant-controls{margin:8px 0 5px}
@@ -1351,34 +1348,44 @@ html,body,#app{background:#005d0b;color:#fff}
 .variant-editor .variant-save-primary{background:#195b40;border-color:#195b40;color:#fffaf1;min-width:70px}
 .variant-message{font-size:11px;line-height:1.4;color:#245a3c;margin:5px 1px}
 .variant-message.variant-error{color:#98372c}
-.card-layout-setup{margin-top:10px}
-/* The normal layout is completely unchanged. When fitting is enabled,
-   flex items have zero minimum width and shrink equally in the actual
-   available lane, rather than scaling a group with incorrect hitboxes. */
-.shell.fit-card-rows .human-hand,
-.shell.fit-card-rows .human-hand.wide-hand{
-  width:100%;max-width:100%;box-sizing:border-box;min-width:0;
-  flex-direction:row!important;flex-wrap:nowrap!important;
-  align-items:center;justify-content:center;gap:var(--fit-gap,4px);
-  padding:9px 5px 5px;overflow:visible;touch-action:auto;
+/* v0.10.3 — fixed turn/action strip and two non-scrolling card layouts. */
+.shell .felt{justify-content:flex-start;gap:0;--score-gap:clamp(4px,1.1dvh,9px)}
+.shell .opponent-area{position:relative;top:auto;left:auto;right:auto;order:0;flex:0 0 auto}
+.shell .table-area{position:relative;order:1;flex:1 1 0;min-height:0;height:0;container-type:size;padding:0}
+.shell .table-stage{top:50%!important;min-height:0;height:100%;max-height:100%;margin:0!important;transform:translateY(-50%)}
+.shell .turn-action-area{order:2;flex:0 0 auto;display:grid;grid-template-rows:max-content minmax(0,1fr);gap:2px;align-items:center;height:clamp(66px,10dvh,86px);min-width:0;position:relative;z-index:16}
+.shell .turn-action-area .turn-banner{position:static;top:auto;left:auto;transform:none;width:100%;min-height:1.2em;line-height:1.2;opacity:1;align-self:start}
+.shell .move-action-slot{display:flex;align-items:center;justify-content:center;min-height:0;height:100%;min-width:0}
+.shell .move-action-slot .contextual-controls{position:relative;inset:auto;translate:none;transform:none;order:unset;flex:0 1 auto;width:min(96%,490px);max-height:100%;min-height:0;margin:0;padding:0;display:flex;align-items:center;justify-content:center}
+.shell .move-action-slot .contextual-controls .main-actions{max-height:100%;min-height:0;width:100%;overflow-y:auto;overscroll-behavior:contain}
+.shell .human-area{order:3;position:relative;inset:auto;flex:0 0 auto;gap:var(--score-gap);margin:0;padding:0 0 var(--score-gap)}
+.shell .your-score-tag{margin:0;align-self:center;border:1px solid #ffffff35;border-top:3px solid var(--seat-color,#346da8);background:#102e268c;color:#fff;border-radius:10px;flex:none}
+.shell .game-stats{order:4;margin:0 0 4px;flex:0 0 auto}
+.shell .game-toolbar .toolbar-left,.shell .game-toolbar .header-actions{flex:0 0 auto;gap:clamp(2px,.7vw,6px)}
+.shell .game-toolbar .game-back,.shell .game-toolbar .game-help{width:clamp(26px,8.2vw,42px)}
+.shell .game-toolbar .opponent-tag{flex:0 1 auto;min-width:0;max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shell .game-toolbar .card-layout-toggle{flex:0 0 auto;min-width:50px;min-height:28px;height:100%;max-height:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px 4px;border:1px solid #d8c48180;border-radius:7px;background:#004a1280;color:#f4df8d;font:700 9px/1 system-ui,sans-serif;white-space:nowrap;touch-action:manipulation}
+.shell .game-toolbar .card-layout-toggle svg{display:block;flex:none}
+.shell .multi-cpu-seat{justify-content:center;gap:5px;padding:4px 2px}
+.shell .multi-seat-caption{min-height:0;flex:none}
+/* Each lane uses a responsive cap and available physical width/height.
+   The same actual card dimensions drive hit testing and flight geometry. */
+.shell .human-hand,.shell .table-stage .table-cards{
+  --row-cols:var(--portrait-cols,1);--row-rows:var(--portrait-rows,1);--row-gap:var(--multi-gap,4px);
+  --row-card-width:min(var(--row-max-width),max(2px,calc((100% - (var(--row-cols) - 1)*var(--row-gap))/var(--row-cols))),max(2px,calc((var(--row-budget) - (var(--row-rows) - 1)*var(--row-gap))*.715/var(--row-rows))));
+  display:flex;box-sizing:border-box;min-width:0;align-items:center;align-content:center!important;flex-direction:row!important;flex-wrap:wrap!important;gap:var(--row-gap);overflow:visible;touch-action:auto;scrollbar-width:none;
 }
-.shell.fit-card-rows .human-hand .hand-item{
-  flex:1 1 0;min-width:0;max-width:clamp(46px,15.1vw,67px);width:100%;padding:0;
-}
-.shell.fit-card-rows .human-hand .playing-card:not(.mini){
-  width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;
-}
-.shell.fit-card-rows .table-stage .table-cards{
-  flex-wrap:nowrap!important;gap:var(--fit-gap,4px);
-  align-items:center!important;align-content:center!important;
-  overflow:visible;padding-inline:2px;
-}
-.shell.fit-card-rows .table-stage .table-cards .table-item{
-  flex:1 1 0!important;min-width:0;max-width:64px;width:100%;padding:0;
-}
-.shell.fit-card-rows .table-stage .table-cards .table-item .playing-card:not(.mini){
-  width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;
-}
+.shell .human-hand{--row-max-width:clamp(46px,15.1vw,67px);--row-budget:min(29dvh,220px);width:100%;max-width:100%;min-height:0;justify-content:center;padding:4px 2px 0}
+.shell .table-stage .table-cards{--row-max-width:64px;--row-budget:max(12px,calc(100cqh - 16px));height:auto;max-height:none;padding:4px 2px}
+.shell.fit-card-rows .human-hand,.shell.fit-card-rows .table-stage .table-cards{--row-cols:var(--row-count,1);--row-rows:1;--row-gap:var(--one-gap,4px);flex-wrap:nowrap!important}
+.shell .human-hand .hand-item,.shell .table-stage .table-cards .table-item{flex:0 0 var(--row-card-width)!important;width:var(--row-card-width);min-width:0;max-width:none;padding:0;margin:0}
+.shell .human-hand .playing-card:not(.mini),.shell .table-stage .table-cards .table-item .playing-card:not(.mini){display:block;width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;margin:0}
 @media(orientation:landscape) and (max-height:500px){
-  .shell.fit-card-rows .human-hand .hand-item{max-width:clamp(35px,6.1vw,53px)}
+ .shell .human-hand,.shell .table-stage .table-cards{--row-cols:var(--wide-cols,1);--row-rows:var(--wide-rows,1)}
+ .shell .human-hand{--row-max-width:clamp(35px,6.1vw,53px);--row-budget:min(24dvh,120px)}
+ .shell .turn-action-area{height:clamp(43px,13dvh,57px)}
+ .shell .turn-action-area .turn-banner{font-size:12px}
+ .shell .game-toolbar .card-layout-toggle{min-height:23px;gap:0;font-size:8px}
+ .shell .game-toolbar .card-layout-toggle svg{height:10px}
+ .shell .multi-cpu-seat{gap:3px;padding:2px 3px}
 }

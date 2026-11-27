@@ -36,13 +36,13 @@ test('Selection updates existing hand/build faces and leaves the board mounted',
 });
 test('Dialog changes preserve the live board and existing modal shell',()=>{
   const actions={querySelector:()=>({})};
-  const shell={classList:{toggle(){}},querySelector:()=>actions};
+  const shell={classList:{toggle(){}},querySelector:s=>s==='.header-actions'?actions:null};
   const panel={innerHTML:'old',setAttribute(k,v){this.label=v;}};
   let removed=0,inserted=0;
   const overlay={querySelector:()=>panel,remove(){removed++;}};
   const host={querySelector:s=>s==='.shell'?shell:overlay,insertAdjacentHTML(){inserted++;}};
   const api=new Function('app','document',section('  function syncGameOverlay(','  function render(mode')+
-    "\nlet modal='menu',prefs={undo:true,animations:true};const renderDialogBody=()=>'<p>menu</p>',restoreVariationsScroll=()=>{};return {sync:syncGameOverlay,close:()=>modal=''};")(host,{});
+    "\nlet modal='menu',prefs={undo:true,animations:true};const cardLayoutPreference=()=> 'multiRow';const renderDialogBody=()=>'<p>menu</p>',restoreVariationsScroll=()=>{};return {sync:syncGameOverlay,close:()=>modal=''};")(host,{});
   assert.ok(api.sync());assert.equal(panel.label,'menu');assert.equal(panel.innerHTML,'<p>menu</p>');assert.equal(inserted,0);
   api.close();assert.ok(api.sync());assert.equal(removed,1);
 });
@@ -94,7 +94,7 @@ test('Rapid selection restarts movement from the displayed position, not an old 
     }};
   const host={querySelectorAll:s=>s.includes('data-action')?[node]:[]};
   const helper=section('  function animateLayout(','  // Dealt cards');
-  const slide=new Function('app','motionAllowed',helper+';return animateLayout;')(host,()=>true);
+  const slide=new Function('app','motionAllowed','game',helper+';return animateLayout;')(host,()=>true,{players:[{},{}]});
   slide(new Map([['table:t1',{x:200,y:135}]]));
   assert.equal(flights[0].frames[0].translate,'75px 0px');
   offset=30;

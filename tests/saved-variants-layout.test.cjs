@@ -9,7 +9,7 @@ function harness(storage,current=E.rulesFor(),old=null){
  const state=app.slice(app.indexOf('  function openSettings('),app.indexOf("  app.addEventListener('change'"));
  return new Function('E','localStorage','current','customRules',
  "let game={rules:current},draft=null,draftPreset='classic',customDraft=null;let variationsScrollTop=0,detailSetting='',settingsOrigin='home',screen='home',modal='';let prefs={cardLayout:'default'};const savePrefs=()=>{},render=()=>{},escapeHtml=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');"+
- markup+state+"return {open:openSettings,choose:selectVariation,set:updateDraftSetting,html:renderSettings,save:saveNamedVariant,remove:removeNamedVariant,edit:beginVariantEditor,info:k=>{detailSetting=k;},deck:updateDeckCards,values:updateCardValue,selectCard:k=>{valueCardKey=k;},list:()=>JSON.parse(JSON.stringify(savedVariants)),rules:()=>JSON.parse(JSON.stringify(draft)),effective:effectiveDraftRules,preset:()=>draftPreset,source:()=>savedVariantSource,layout:setCardLayout,layoutValue:cardLayoutPreference,difficulty:v=>{draft.difficulty=v;}};")(E,storage,current,old);
+ markup+state+"return {open:openSettings,choose:selectVariation,set:updateDraftSetting,html:renderSettings,save:saveNamedVariant,remove:removeNamedVariant,edit:beginVariantEditor,info:k=>{detailSetting=k;},deck:updateDeckCards,values:updateCardValue,selectCard:k=>{valueCardKey=k;},list:()=>JSON.parse(JSON.stringify(savedVariants)),rules:()=>JSON.parse(JSON.stringify(draft)),effective:effectiveDraftRules,preset:()=>draftPreset,source:()=>savedVariantSource,difficulty:v=>{draft.difficulty=v;}};")(E,storage,current,old);
 }
 test('Multiple named variants persist independently, including custom decks and card values',()=>{
  const store=memory(),h=harness(store);h.open('newgame');
@@ -59,16 +59,4 @@ test('Saved names are escaped; saving a draft does not bypass compatibility',()=
  const saved=h.save('<My "variant">');assert.equal(saved.ok,true);
  assert.match(h.html(),/&lt;My &quot;variant&quot;&gt;/);
  assert.match(h.html(),/data-action="apply-settings"[^>]*disabled/);
-});
-test('Card layout is a separate preference, exposed in setup and the game menu',()=>{
- const h=harness(memory());h.open('newgame');const before=h.rules();
- h.layout('fitRow');assert.equal(h.layoutValue(),'fitRow');assert.deepEqual(h.rules(),before);
- assert.match(h.html(),/<option value="fitRow" selected>Fit in one row<\/option>/);
- h.info('cardLayout');assert.match(h.html(),/Reduce card sizes as needed/);
- h.layout('default');assert.equal(h.layoutValue(),'default');
- assert.match(app,/data-action="toggle-card-layout"/);
- assert.match(app,/shell\.classList\.toggle\('fit-card-rows'/);
- assert.match(css,/\.shell\.fit-card-rows \.human-hand \.hand-item\{\s*flex:1 1 0;min-width:0/);
- assert.match(css,/\.shell\.fit-card-rows \.table-stage \.table-cards\{\s*flex-wrap:nowrap!important/);
- assert.match(css,/\.shell\.fit-card-rows \.table-stage \.table-cards \.table-item\{\s*flex:1 1 0!important;min-width:0/);
 });

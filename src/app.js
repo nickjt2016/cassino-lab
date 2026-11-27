@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.2';
+  const APP_VERSION = '0.10.3';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -58,7 +58,7 @@
   let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
-  let prefs = { sound: true, animations: true, undo: true, cardLayout:'default' };
+  let prefs = { sound: true, animations: true, undo: true, cardLayout:'multiRow' };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_STORE) || '{}') }; } catch (_) {}
   let audioContext = null;
   const app = document.getElementById('app');
@@ -926,10 +926,37 @@
       </div>
       <div class="opponent-tag" aria-label="${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer has ${computerScore} points`}">${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer · ${computerScore} pts`}</div>
       <div class="header-actions">
+        ${renderLayoutToggle(active)}
         <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
         ${prefs.undo?`<button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo" ${checkpoint?'':'disabled'}>↶</button>`:''}
       </div>
     </header>`;
+  }
+  function cardLayoutPreference(){
+    return prefs.cardLayout==='oneRow'||prefs.cardLayout==='fitRow'?'oneRow':'multiRow';
+  }
+  function cardLayoutLabel(){return cardLayoutPreference()==='oneRow'?'One row':'Multi row';}
+  function renderLayoutToggle(active){
+    const label=cardLayoutLabel(),one=cardLayoutPreference()==='oneRow';
+    return '<button type="button" class="card-layout-toggle" data-action="toggle-card-layout" aria-label="Card layout: '+label+'. Tap to switch." title="Switch card layout" aria-pressed="'+one+'" '+(active?'':'disabled')+'>'+
+      '<svg viewBox="0 0 20 13" width="20" height="13" aria-hidden="true">'+(one?
+        '<path d="M1 3h4v7H1z M8 3h4v7H8z M15 3h4v7h-4z" fill="none" stroke="currentColor" stroke-width="1.3"/>':
+        '<path d="M2 1h4v4H2z M8 1h4v4H8z M14 1h4v4h-4z M2 8h4v4H2z M8 8h4v4h-4z M14 8h4v4h-4z" fill="none" stroke="currentColor" stroke-width="1.3"/>')+
+      '</svg><span>'+label+'</span></button>';
+  }
+  // Size actual cards, not transformed hitboxes. Keep row counts bounded
+  // so a full hand still leaves space for the table and legal move buttons.
+  function rowPlan(count,table=false){
+    const n=Math.max(1,Math.floor(count)||1);
+    const portraitRows=Math.min(table?4:3,Math.ceil(n/6));
+    const wideRows=Math.min(table?3:2,Math.ceil(n/12));
+    return {count:n,portraitRows,portraitCols:Math.ceil(n/portraitRows),
+      wideRows,wideCols:Math.ceil(n/wideRows),gap:n>18?2:n>10?3:n>6?4:7,oneGap:n>18?1:n>10?2:n>5?3:6};
+  }
+  function cardRowStyle(count,table=false){
+    const p=rowPlan(count,table);
+    return '--row-count:'+p.count+';--portrait-cols:'+p.portraitCols+';--portrait-rows:'+p.portraitRows+
+      ';--wide-cols:'+p.wideCols+';--wide-rows:'+p.wideRows+';--multi-gap:'+p.gap+'px;--one-gap:'+p.oneGap+'px';
   }
   function gameSeatColor(seat){
     if(game.rules.teamMode==='freeForAll')return seat===0?'#346da8':'#777b73';
@@ -942,11 +969,9 @@
   function renderCpuSeats(){
     return '<div class="multi-cpu-seats" aria-label="Computer seats">'+game.players.slice(1).map((p,i)=>{
       const seat=i+1,active=game.phase==='playing'&&game.turn===seat;
-      const team=game.rules.teamMode==='freeForAll'?'':E.sideFor(game.rules,seat)===0?'Your team':'Team '+(E.sideFor(game.rules,seat)+1);
       return '<div class="multi-cpu-seat'+(active?' current-seat':'')+'" data-cpu-seat="'+seat+'" style="--seat-color:'+gameSeatColor(seat)+'" '+(active?'aria-current="true"':'')+'>'+
         '<div class="multi-seat-caption" data-seat-score="'+seat+'"><b>'+escapeHtml(p.name)+'</b><span>'+p.score+' pts</span></div>'+
-        '<div class="opponent-hand multi-seat-hand" style="--hand-count:'+Math.max(1,p.hand.length)+'" aria-label="'+escapeHtml(p.name)+' has '+p.hand.length+' hidden cards">'+p.hand.map(()=>renderBack()).join('')+'</div>'+
-        '<div class="multi-seat-meta">'+p.hand.length+' cards'+(team?' · '+team:'')+'</div></div>';
+        '<div class="opponent-hand multi-seat-hand" style="--hand-count:'+Math.max(1,p.hand.length)+'" aria-label="'+escapeHtml(p.name)+' has '+p.hand.length+' hidden cards">'+p.hand.map(()=>renderBack()).join('')+'</div></div>';
     }).join('')+'</div>';
   }
   function ownCapturedCards(){
@@ -1004,7 +1029,7 @@
     }
     const controls=felt.querySelector('.contextual-controls');
     if(!controlsMarkup){controls?.remove();}
-    else if(!controls){human.insertAdjacentHTML('beforebegin',controlsMarkup);}
+    else if(!controls){const slot=felt.querySelector('.move-action-slot');if(slot)slot.innerHTML=controlsMarkup;else human.insertAdjacentHTML('beforebegin',controlsMarkup);}
     else if(actionsMarkup!==renderedActionMarkup){controls.querySelector('.main-actions').innerHTML=actionsMarkup;}
     renderedActionMarkup=actionsMarkup;
     const error=felt.querySelector('.game-error');
@@ -1019,9 +1044,17 @@
     if(!shell)return false;
     shell.classList.toggle('animations-on',!!prefs.animations);
     shell.classList.toggle('animations-off',!prefs.animations);
-    const fitRows=cardLayoutPreference()==='fitRow';
-    shell.classList.toggle('fit-card-rows',fitRows);
-    if(fitRows){const hand=shell.querySelector('.human-hand');if(hand)hand.scrollLeft=0;}
+    const layout=cardLayoutPreference();
+    shell.classList.toggle('fit-card-rows',layout==='oneRow');
+    shell.classList.toggle('multi-card-rows',layout==='multiRow');
+    const layoutButton=shell.querySelector('[data-action="toggle-card-layout"]');
+    if(layoutButton&&layoutButton.getAttribute('aria-pressed')!==String(layout==='oneRow')){
+      const template=document.createElement('template');template.innerHTML=renderLayoutToggle(!layoutButton.disabled);
+      const next=template.content.firstElementChild;
+      layoutButton.innerHTML=next.innerHTML;
+      layoutButton.setAttribute('aria-label',next.getAttribute('aria-label'));
+      layoutButton.setAttribute('aria-pressed',next.getAttribute('aria-pressed'));
+    }
     const actions=shell.querySelector('.header-actions');
     if(actions&&!!actions.querySelector('[data-action="undo"]')!==!!prefs.undo){
       // The toolbar markup has one canonical renderer. Reuse just its
@@ -1042,7 +1075,6 @@
     restoreVariationsScroll();
     return true;
   }
-  function fitRowGap(count){return count>18?1:count>10?2:count>5?3:6;}
   function render(mode = 'full') {
     if (!app) return;
     rememberVariationsScroll();
@@ -1083,7 +1115,6 @@
       restoreVariationsScroll();
       return;
     }
-    const oldHandScroll=app.querySelector?.('.human-hand')?.scrollLeft||0;
     const oldLayout=mode!=='selection'&&motionAllowed()?layoutPositions():null;
     const previousBanner=mode==='selection'?null:app.querySelector?.('.turn-banner[data-turn-visible="true"]');
     const previousTurn=previousBanner ? {text:previousBanner.textContent,
@@ -1112,7 +1143,7 @@
     const motion = lastMotion;
     lastMotion = '';
     app.innerHTML = `
-      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}${cardLayoutPreference()==='fitRow'?' fit-card-rows':''}">
+      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}${cardLayoutPreference()==='oneRow'?' fit-card-rows':' multi-card-rows'}">
         ${renderToolbar(active,opponent().score,multiToolbarLabel())}
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
@@ -1120,15 +1151,17 @@
             ${game.players.length>2?renderCpuSeats():`<div class="opponent-hand${opponent().hand.length>5?' wide-hand':''}" style="--hand-count:${Math.max(1,opponent().hand.length)}" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>`}
           </div>
           <div class="table-area">
-            <div class="table-stage"><div class="table-cards" aria-label="Table cards" style="--fit-gap:${fitRowGap(game.table.filter(e=>e.type==='loose').length)}px">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
+            <div class="table-stage"><div class="table-cards" aria-label="Table cards" style="${cardRowStyle(game.table.filter(e=>e.type==='loose').length,true)}">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
-            <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
           </div>
-          ${controlsMarkup}
+          <div class="turn-action-area">
+            <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
+            <div class="move-action-slot">${controlsMarkup}</div>
+          </div>
           <div class="human-area">
             <div class="player-caption sr-only"><b>Your hand</b></div>
-            <div class="human-hand${me().hand.length>5?' wide-hand':''}" style="--fit-gap:${fitRowGap(me().hand.length)}px">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
-            <div class="your-score-tag">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
+            <div class="human-hand" style="${cardRowStyle(me().hand.length)}">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
+            <div class="your-score-tag" style="--seat-color:${gameSeatColor(0)}">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
           <div class="game-stats"><span>${game.rules.teamMode==='freeForAll'?'Cards Captured':'Team Cards'} <b>${ownCapturedCards().length}</b></span><span>${game.rules.teamMode==='freeForAll'?'Spades Captured':'Team Spades'} <b>${ownCapturedCards().filter(c=>c.suit==='S').length}</b></span>
@@ -1143,7 +1176,6 @@
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
-    const currentHand=app.querySelector?.('.human-hand');if(currentHand)currentHand.scrollLeft=oldHandScroll;
     hidePendingDealCards();
     animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))!==0);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
@@ -1626,7 +1658,6 @@
 };
   function helpFor(key,options=[],rules=draft){
     if(key==='scoreMode')return E.scoreHelp(draft);
-    if(key==='cardLayout')return [['Scroll / wrap','Keep ordinary card sizes. Large hands scroll horizontally and table cards wrap into rows.'],['Fit in one row','Reduce card sizes as needed so your entire hand and the individual table cards each fit in one horizontal row without scrolling. Builds retain their own area. Very large groups may be small.']];
     if(key==='playerCount')return [2,3,4,5,6].map(n=>[n+' players','You and '+(n-1)+' computer '+(n===2?'opponent.':'players.')]);
     if(key==='teamMode')return playerTeamHelp(rules.playerCount);
     if(OPTION_HELP[key])return OPTION_HELP[key];
@@ -1920,20 +1951,6 @@
     if(!result.ok){variantMessage=result.reason;variantMessageError=true;}
     render('overlay');
   }
-  function cardLayoutPreference(){
-    return typeof prefs!=='undefined'&&prefs.cardLayout==='fitRow'?'fitRow':'default';
-  }
-  function setCardLayout(value){
-    if(!['default','fitRow'].includes(value)||typeof prefs==='undefined')return;
-    prefs.cardLayout=value;savePrefs();render('overlay');
-  }
-  function renderCardLayoutSetting(){
-    const value=cardLayoutPreference();
-    return '<div class="card-layout-setup"><div class="rules-group"><div class="rules-setting rules-select"><label class="rules-setting-label" for="rule-cardLayout"><span class="rules-label">Card layout</span></label>'+
-      ruleInfo('cardLayout','Card layout')+'<select id="rule-cardLayout" data-setting="cardLayout" aria-label="Card layout">'+
-      [['default','Scroll / wrap'],['fitRow','Fit in one row']].map(([id,label])=>'<option value="'+id+'" '+(value===id?'selected':'')+'>'+label+'</option>').join('')+
-      '</select>'+ruleExplanation('cardLayout')+'</div></div></div>';
-  }
   function renderPresetPicker(){
     const chosen=E.PRESET_CATALOG.find(p=>p.id===draftPreset),saved=savedVariant(draftPreset),groups=[...new Set(E.PRESET_CATALOG.map(p=>p.group))];
     const savedOptions=savedVariants.length?'<optgroup label="Saved variants">'+savedVariants.map(v=>'<option value="'+escapeHtml(v.id)+'" '+(draftPreset===v.id?'selected':'')+'>'+escapeHtml(v.name)+'</option>').join('')+'</optgroup>':'';
@@ -2043,7 +2060,7 @@
   function renderSettings(){
     if(!draft)draft=E.normalizeRules(game.rules);
     return '<div class="dialog-head rules-header"><div><p class="rules-eyebrow">'+escapeHtml(playerHeader())+'</p><h2>'+(settingsOrigin==='newgame'?'New Game':'Game Setup')+'</h2></div><button type="button" data-action="close" class="icon-close" aria-label="Close">×</button></div>'+
-      '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderCardLayoutSetting()+renderAllRules()+'</div>'+rulesFooter();
+      '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderAllRules()+'</div>'+rulesFooter();
   }
 
   function renderMenu() {
@@ -2056,7 +2073,6 @@
         <button data-action="history" class="menu-row"><span>☷</span><b>Move history</b></button>
         <button data-action="toggle-sound" class="menu-row"><span>${prefs.sound ? '♫' : '♪'}</span><b>Sound effects</b><em>${prefs.sound ? 'On' : 'Off'}</em></button>
         <button data-action="toggle-animations" class="menu-row"><span>✦</span><b>Card animations</b><em>${prefs.animations ? 'On' : 'Off'}</em></button>
-        <button data-action="toggle-card-layout" class="menu-row"><span>▤</span><b>Card layout</b><em>${cardLayoutPreference()==='fitRow'?'Fit one row':'Scroll / wrap'}</em></button>
         <button data-action="toggle-undo" class="menu-row" aria-pressed="${prefs.undo}"><span>↶</span><b>Undo button</b><em>${prefs.undo ? 'On' : 'Off'}</em></button>
         <button data-action="new-match" class="menu-row danger-row"><span>↻</span><b>Start new match</b></button>
       </div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Back to table</button></div>`;
@@ -2598,7 +2614,6 @@
     const prop = target.dataset.setting;
     if(prop==='preset')return selectVariation(target.value);
     if(prop==='variantName'){variantNameText=target.value;return;}
-    if(prop==='cardLayout')return setCardLayout(target.value);
     if(prop==='handSizeText')return finishHandSizeText(target);
     if(prop==='buildBoundText')return finishBuildBound(target);
     if(prop==='buildBoundChoice')return applyBuildBound(target.dataset.bound,Number(target.value));
@@ -2721,7 +2736,11 @@
     if (action === 'rules' || action === 'history') { modal = action; render('overlay'); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render('overlay'); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render('overlay'); return; }
-    if (action === 'toggle-card-layout') return setCardLayout(cardLayoutPreference()==='fitRow'?'default':'fitRow');
+    if (action === 'toggle-card-layout') {
+      if(screen!=='game'||modal||busy||dealing||turnInMotion||node.disabled)return;
+      prefs.cardLayout=cardLayoutPreference()==='oneRow'?'multiRow':'oneRow';
+      savePrefs();render('overlay');return;
+    }
     if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render('overlay'); return; }
     if (action === 'close') { modal = ''; render('overlay'); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);

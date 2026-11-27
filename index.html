@@ -423,7 +423,7 @@ html,body,#app{background:#005d0b;color:#fff}
   min-height:44px; padding:8px 16px;
   border-radius:15px; box-shadow:0 4px 12px #002b0d77;
 }
-.felt:has(.contextual-controls) .turn-banner{opacity:.32;}
+
 @media(max-height:700px) {
  .contextual-controls {top:68%;width:min(93%,450px)}
  .contextual-controls .main-actions{max-height:min(21dvh,125px);gap:5px}
@@ -1264,8 +1264,6 @@ html,body,#app{background:#005d0b;color:#fff}
 .playing-card:has(.card-assigned-values) .card-big{top:53%;font-size:60cqw}
 .playing-card.rank-joker .card-corner b{font-size:19cqw;letter-spacing:-.04em}
 .playing-card.rank-joker .card-big{color:#1b5140;font-size:62cqw;top:54%}
-.human-hand.wide-hand{width:100%;max-width:100%;justify-content:flex-start;overflow-x:auto;overflow-y:visible;scrollbar-width:thin;overscroll-behavior-x:contain;gap:7px;padding:9px 8px 5px;touch-action:pan-x}
-.human-hand.wide-hand .playing-card:not(.mini){width:clamp(45px,13.5vw,67px)!important}
 .opponent-hand.wide-hand{max-width:100%;min-width:0;gap:0;overflow:hidden;padding:0 2px;justify-content:center}
 .opponent-hand.wide-hand .card-back{flex-shrink:1;min-width:12px;margin-left:clamp(-17px,-3vw,-7px)}
 .opponent-hand.wide-hand .card-back:first-child{margin-left:0}
@@ -1335,15 +1333,14 @@ html,body,#app{background:#005d0b;color:#fff}
 .multiplayer-game .multi-seat-hand{display:flex;justify-content:center;align-items:center;width:100%;min-width:0;max-width:100%;gap:0;min-height:28px;height:32px;overflow:hidden;margin:0;padding:0}
 .multiplayer-game .multi-seat-hand .card-back{flex:0 1 18px;min-width:8px;width:18px;height:26px;margin-left:-5px;box-sizing:border-box}
 .multiplayer-game .multi-seat-hand .card-back:first-child{margin-left:0}
-.multi-seat-meta{font-size:9px;line-height:1.2;text-align:center;min-height:22px;overflow-wrap:normal;color:#ede4ca}
 .multi-results-scores{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:6px;margin:10px 0}
 .multi-results-scores>div{background:#f5f0df;border:1px solid #d2c49f;border-top:4px solid var(--side-color);border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 3px;min-width:0;text-align:center}
 .multi-results-scores b{font-size:23px;color:#142719}.multi-results-scores small,.multi-results-scores span{font-size:10px;line-height:1.3;color:#4e492b}
 .multi-score-scroll{max-width:100%;overflow-x:auto}
 .dialog .multi-result-table{min-width:max-content;font-size:12px}
 .dialog .multi-result-table th,.dialog .multi-result-table td{padding:7px 6px;white-space:nowrap}
-@media(max-width:360px){.multi-cpu-seats{gap:2px}.multi-seat-caption b{font-size:10px}.multi-seat-caption{font-size:9px}.multi-seat-meta{font-size:8px}}
-@media(max-height:480px) and (orientation:landscape){.multi-cpu-seat{flex-direction:row;gap:4px;padding:2px 3px}.multi-seat-caption{width:auto}.multiplayer-game .multi-seat-hand{height:26px;min-height:26px}.multi-seat-meta{font-size:8px;min-height:0}}
+@media(max-width:360px){.multi-cpu-seats{gap:2px}.multi-seat-caption b{font-size:10px}.multi-seat-caption{font-size:9px}}
+@media(max-height:480px) and (orientation:landscape){.multi-cpu-seat{flex-direction:row;gap:4px;padding:2px 3px}.multi-seat-caption{width:auto}.multiplayer-game .multi-seat-hand{height:26px;min-height:26px}}
 
 /* v0.10.2 — named saved variants, device-level row fitting. */
 .saved-variant-controls{margin:8px 0 5px}
@@ -1358,36 +1355,46 @@ html,body,#app{background:#005d0b;color:#fff}
 .variant-editor .variant-save-primary{background:#195b40;border-color:#195b40;color:#fffaf1;min-width:70px}
 .variant-message{font-size:11px;line-height:1.4;color:#245a3c;margin:5px 1px}
 .variant-message.variant-error{color:#98372c}
-.card-layout-setup{margin-top:10px}
-/* The normal layout is completely unchanged. When fitting is enabled,
-   flex items have zero minimum width and shrink equally in the actual
-   available lane, rather than scaling a group with incorrect hitboxes. */
-.shell.fit-card-rows .human-hand,
-.shell.fit-card-rows .human-hand.wide-hand{
-  width:100%;max-width:100%;box-sizing:border-box;min-width:0;
-  flex-direction:row!important;flex-wrap:nowrap!important;
-  align-items:center;justify-content:center;gap:var(--fit-gap,4px);
-  padding:9px 5px 5px;overflow:visible;touch-action:auto;
+/* v0.10.3 — fixed turn/action strip and two non-scrolling card layouts. */
+.shell .felt{justify-content:flex-start;gap:0;--score-gap:clamp(4px,1.1dvh,9px)}
+.shell .opponent-area{position:relative;top:auto;left:auto;right:auto;order:0;flex:0 0 auto}
+.shell .table-area{position:relative;order:1;flex:1 1 0;min-height:0;height:0;container-type:size;padding:0}
+.shell .table-stage{top:50%!important;min-height:0;height:100%;max-height:100%;margin:0!important;transform:translateY(-50%)}
+.shell .turn-action-area{order:2;flex:0 0 auto;display:grid;grid-template-rows:max-content minmax(0,1fr);gap:2px;align-items:center;height:clamp(66px,10dvh,86px);min-width:0;position:relative;z-index:16}
+.shell .turn-action-area .turn-banner{position:static;top:auto;left:auto;transform:none;width:100%;min-height:1.2em;line-height:1.2;opacity:1;align-self:start}
+.shell .move-action-slot{display:flex;align-items:center;justify-content:center;min-height:0;height:100%;min-width:0}
+.shell .move-action-slot .contextual-controls{position:relative;inset:auto;translate:none;transform:none;order:unset;flex:0 1 auto;width:min(96%,490px);max-height:100%;min-height:0;margin:0;padding:0;display:flex;align-items:center;justify-content:center}
+.shell .move-action-slot .contextual-controls .main-actions{max-height:100%;min-height:0;width:100%;overflow-y:auto;overscroll-behavior:contain}
+.shell .human-area{order:3;position:relative;inset:auto;flex:0 0 auto;gap:var(--score-gap);margin:0;padding:0 0 var(--score-gap)}
+.shell .your-score-tag{margin:0;align-self:center;border:1px solid #ffffff35;border-top:3px solid var(--seat-color,#346da8);background:#102e268c;color:#fff;border-radius:10px;flex:none}
+.shell .game-stats{order:4;margin:0 0 4px;flex:0 0 auto}
+.shell .game-toolbar .toolbar-left,.shell .game-toolbar .header-actions{flex:0 0 auto;gap:clamp(2px,.7vw,6px)}
+.shell .game-toolbar .game-back,.shell .game-toolbar .game-help{width:clamp(26px,8.2vw,42px)}
+.shell .game-toolbar .opponent-tag{flex:0 1 auto;min-width:0;max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shell .game-toolbar .card-layout-toggle{flex:0 0 auto;min-width:50px;min-height:28px;height:100%;max-height:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px 4px;border:1px solid #d8c48180;border-radius:7px;background:#004a1280;color:#f4df8d;font:700 9px/1 system-ui,sans-serif;white-space:nowrap;touch-action:manipulation}
+.shell .game-toolbar .card-layout-toggle svg{display:block;flex:none}
+.shell .multi-cpu-seat{justify-content:center;gap:5px;padding:4px 2px}
+.shell .multi-seat-caption{min-height:0;flex:none}
+/* Each lane uses a responsive cap and available physical width/height.
+   The same actual card dimensions drive hit testing and flight geometry. */
+.shell .human-hand,.shell .table-stage .table-cards{
+  --row-cols:var(--portrait-cols,1);--row-rows:var(--portrait-rows,1);--row-gap:var(--multi-gap,4px);
+  --row-card-width:min(var(--row-max-width),max(2px,calc((100% - (var(--row-cols) - 1)*var(--row-gap))/var(--row-cols))),max(2px,calc((var(--row-budget) - (var(--row-rows) - 1)*var(--row-gap))*.715/var(--row-rows))));
+  display:flex;box-sizing:border-box;min-width:0;align-items:center;align-content:center!important;flex-direction:row!important;flex-wrap:wrap!important;gap:var(--row-gap);overflow:visible;touch-action:auto;scrollbar-width:none;
 }
-.shell.fit-card-rows .human-hand .hand-item{
-  flex:1 1 0;min-width:0;max-width:clamp(46px,15.1vw,67px);width:100%;padding:0;
-}
-.shell.fit-card-rows .human-hand .playing-card:not(.mini){
-  width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;
-}
-.shell.fit-card-rows .table-stage .table-cards{
-  flex-wrap:nowrap!important;gap:var(--fit-gap,4px);
-  align-items:center!important;align-content:center!important;
-  overflow:visible;padding-inline:2px;
-}
-.shell.fit-card-rows .table-stage .table-cards .table-item{
-  flex:1 1 0!important;min-width:0;max-width:64px;width:100%;padding:0;
-}
-.shell.fit-card-rows .table-stage .table-cards .table-item .playing-card:not(.mini){
-  width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;
-}
+.shell .human-hand{--row-max-width:clamp(46px,15.1vw,67px);--row-budget:min(29dvh,220px);width:100%;max-width:100%;min-height:0;justify-content:center;padding:4px 2px 0}
+.shell .table-stage .table-cards{--row-max-width:64px;--row-budget:max(12px,calc(100cqh - 16px));height:auto;max-height:none;padding:4px 2px}
+.shell.fit-card-rows .human-hand,.shell.fit-card-rows .table-stage .table-cards{--row-cols:var(--row-count,1);--row-rows:1;--row-gap:var(--one-gap,4px);flex-wrap:nowrap!important}
+.shell .human-hand .hand-item,.shell .table-stage .table-cards .table-item{flex:0 0 var(--row-card-width)!important;width:var(--row-card-width);min-width:0;max-width:none;padding:0;margin:0}
+.shell .human-hand .playing-card:not(.mini),.shell .table-stage .table-cards .table-item .playing-card:not(.mini){display:block;width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;margin:0}
 @media(orientation:landscape) and (max-height:500px){
-  .shell.fit-card-rows .human-hand .hand-item{max-width:clamp(35px,6.1vw,53px)}
+ .shell .human-hand,.shell .table-stage .table-cards{--row-cols:var(--wide-cols,1);--row-rows:var(--wide-rows,1)}
+ .shell .human-hand{--row-max-width:clamp(35px,6.1vw,53px);--row-budget:min(24dvh,120px)}
+ .shell .turn-action-area{height:clamp(43px,13dvh,57px)}
+ .shell .turn-action-area .turn-banner{font-size:12px}
+ .shell .game-toolbar .card-layout-toggle{min-height:23px;gap:0;font-size:8px}
+ .shell .game-toolbar .card-layout-toggle svg{height:10px}
+ .shell .multi-cpu-seat{gap:3px;padding:2px 3px}
 }
 
 </style></head><body><div id="app"></div>
@@ -4129,7 +4136,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.2';
+  const APP_VERSION = '0.10.3';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -4175,7 +4182,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
-  let prefs = { sound: true, animations: true, undo: true, cardLayout:'default' };
+  let prefs = { sound: true, animations: true, undo: true, cardLayout:'multiRow' };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_STORE) || '{}') }; } catch (_) {}
   let audioContext = null;
   const app = document.getElementById('app');
@@ -5043,10 +5050,37 @@ html,body,#app{background:#005d0b;color:#fff}
       </div>
       <div class="opponent-tag" aria-label="${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer has ${computerScore} points`}">${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer · ${computerScore} pts`}</div>
       <div class="header-actions">
+        ${renderLayoutToggle(active)}
         <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
         ${prefs.undo?`<button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo" ${checkpoint?'':'disabled'}>↶</button>`:''}
       </div>
     </header>`;
+  }
+  function cardLayoutPreference(){
+    return prefs.cardLayout==='oneRow'||prefs.cardLayout==='fitRow'?'oneRow':'multiRow';
+  }
+  function cardLayoutLabel(){return cardLayoutPreference()==='oneRow'?'One row':'Multi row';}
+  function renderLayoutToggle(active){
+    const label=cardLayoutLabel(),one=cardLayoutPreference()==='oneRow';
+    return '<button type="button" class="card-layout-toggle" data-action="toggle-card-layout" aria-label="Card layout: '+label+'. Tap to switch." title="Switch card layout" aria-pressed="'+one+'" '+(active?'':'disabled')+'>'+
+      '<svg viewBox="0 0 20 13" width="20" height="13" aria-hidden="true">'+(one?
+        '<path d="M1 3h4v7H1z M8 3h4v7H8z M15 3h4v7h-4z" fill="none" stroke="currentColor" stroke-width="1.3"/>':
+        '<path d="M2 1h4v4H2z M8 1h4v4H8z M14 1h4v4h-4z M2 8h4v4H2z M8 8h4v4h-4z M14 8h4v4h-4z" fill="none" stroke="currentColor" stroke-width="1.3"/>')+
+      '</svg><span>'+label+'</span></button>';
+  }
+  // Size actual cards, not transformed hitboxes. Keep row counts bounded
+  // so a full hand still leaves space for the table and legal move buttons.
+  function rowPlan(count,table=false){
+    const n=Math.max(1,Math.floor(count)||1);
+    const portraitRows=Math.min(table?4:3,Math.ceil(n/6));
+    const wideRows=Math.min(table?3:2,Math.ceil(n/12));
+    return {count:n,portraitRows,portraitCols:Math.ceil(n/portraitRows),
+      wideRows,wideCols:Math.ceil(n/wideRows),gap:n>18?2:n>10?3:n>6?4:7,oneGap:n>18?1:n>10?2:n>5?3:6};
+  }
+  function cardRowStyle(count,table=false){
+    const p=rowPlan(count,table);
+    return '--row-count:'+p.count+';--portrait-cols:'+p.portraitCols+';--portrait-rows:'+p.portraitRows+
+      ';--wide-cols:'+p.wideCols+';--wide-rows:'+p.wideRows+';--multi-gap:'+p.gap+'px;--one-gap:'+p.oneGap+'px';
   }
   function gameSeatColor(seat){
     if(game.rules.teamMode==='freeForAll')return seat===0?'#346da8':'#777b73';
@@ -5059,11 +5093,9 @@ html,body,#app{background:#005d0b;color:#fff}
   function renderCpuSeats(){
     return '<div class="multi-cpu-seats" aria-label="Computer seats">'+game.players.slice(1).map((p,i)=>{
       const seat=i+1,active=game.phase==='playing'&&game.turn===seat;
-      const team=game.rules.teamMode==='freeForAll'?'':E.sideFor(game.rules,seat)===0?'Your team':'Team '+(E.sideFor(game.rules,seat)+1);
       return '<div class="multi-cpu-seat'+(active?' current-seat':'')+'" data-cpu-seat="'+seat+'" style="--seat-color:'+gameSeatColor(seat)+'" '+(active?'aria-current="true"':'')+'>'+
         '<div class="multi-seat-caption" data-seat-score="'+seat+'"><b>'+escapeHtml(p.name)+'</b><span>'+p.score+' pts</span></div>'+
-        '<div class="opponent-hand multi-seat-hand" style="--hand-count:'+Math.max(1,p.hand.length)+'" aria-label="'+escapeHtml(p.name)+' has '+p.hand.length+' hidden cards">'+p.hand.map(()=>renderBack()).join('')+'</div>'+
-        '<div class="multi-seat-meta">'+p.hand.length+' cards'+(team?' · '+team:'')+'</div></div>';
+        '<div class="opponent-hand multi-seat-hand" style="--hand-count:'+Math.max(1,p.hand.length)+'" aria-label="'+escapeHtml(p.name)+' has '+p.hand.length+' hidden cards">'+p.hand.map(()=>renderBack()).join('')+'</div></div>';
     }).join('')+'</div>';
   }
   function ownCapturedCards(){
@@ -5121,7 +5153,7 @@ html,body,#app{background:#005d0b;color:#fff}
     }
     const controls=felt.querySelector('.contextual-controls');
     if(!controlsMarkup){controls?.remove();}
-    else if(!controls){human.insertAdjacentHTML('beforebegin',controlsMarkup);}
+    else if(!controls){const slot=felt.querySelector('.move-action-slot');if(slot)slot.innerHTML=controlsMarkup;else human.insertAdjacentHTML('beforebegin',controlsMarkup);}
     else if(actionsMarkup!==renderedActionMarkup){controls.querySelector('.main-actions').innerHTML=actionsMarkup;}
     renderedActionMarkup=actionsMarkup;
     const error=felt.querySelector('.game-error');
@@ -5136,9 +5168,17 @@ html,body,#app{background:#005d0b;color:#fff}
     if(!shell)return false;
     shell.classList.toggle('animations-on',!!prefs.animations);
     shell.classList.toggle('animations-off',!prefs.animations);
-    const fitRows=cardLayoutPreference()==='fitRow';
-    shell.classList.toggle('fit-card-rows',fitRows);
-    if(fitRows){const hand=shell.querySelector('.human-hand');if(hand)hand.scrollLeft=0;}
+    const layout=cardLayoutPreference();
+    shell.classList.toggle('fit-card-rows',layout==='oneRow');
+    shell.classList.toggle('multi-card-rows',layout==='multiRow');
+    const layoutButton=shell.querySelector('[data-action="toggle-card-layout"]');
+    if(layoutButton&&layoutButton.getAttribute('aria-pressed')!==String(layout==='oneRow')){
+      const template=document.createElement('template');template.innerHTML=renderLayoutToggle(!layoutButton.disabled);
+      const next=template.content.firstElementChild;
+      layoutButton.innerHTML=next.innerHTML;
+      layoutButton.setAttribute('aria-label',next.getAttribute('aria-label'));
+      layoutButton.setAttribute('aria-pressed',next.getAttribute('aria-pressed'));
+    }
     const actions=shell.querySelector('.header-actions');
     if(actions&&!!actions.querySelector('[data-action="undo"]')!==!!prefs.undo){
       // The toolbar markup has one canonical renderer. Reuse just its
@@ -5159,7 +5199,6 @@ html,body,#app{background:#005d0b;color:#fff}
     restoreVariationsScroll();
     return true;
   }
-  function fitRowGap(count){return count>18?1:count>10?2:count>5?3:6;}
   function render(mode = 'full') {
     if (!app) return;
     rememberVariationsScroll();
@@ -5200,7 +5239,6 @@ html,body,#app{background:#005d0b;color:#fff}
       restoreVariationsScroll();
       return;
     }
-    const oldHandScroll=app.querySelector?.('.human-hand')?.scrollLeft||0;
     const oldLayout=mode!=='selection'&&motionAllowed()?layoutPositions():null;
     const previousBanner=mode==='selection'?null:app.querySelector?.('.turn-banner[data-turn-visible="true"]');
     const previousTurn=previousBanner ? {text:previousBanner.textContent,
@@ -5229,7 +5267,7 @@ html,body,#app{background:#005d0b;color:#fff}
     const motion = lastMotion;
     lastMotion = '';
     app.innerHTML = `
-      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}${cardLayoutPreference()==='fitRow'?' fit-card-rows':''}">
+      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}${cardLayoutPreference()==='oneRow'?' fit-card-rows':' multi-card-rows'}">
         ${renderToolbar(active,opponent().score,multiToolbarLabel())}
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
@@ -5237,15 +5275,17 @@ html,body,#app{background:#005d0b;color:#fff}
             ${game.players.length>2?renderCpuSeats():`<div class="opponent-hand${opponent().hand.length>5?' wide-hand':''}" style="--hand-count:${Math.max(1,opponent().hand.length)}" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>`}
           </div>
           <div class="table-area">
-            <div class="table-stage"><div class="table-cards" aria-label="Table cards" style="--fit-gap:${fitRowGap(game.table.filter(e=>e.type==='loose').length)}px">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
+            <div class="table-stage"><div class="table-cards" aria-label="Table cards" style="${cardRowStyle(game.table.filter(e=>e.type==='loose').length,true)}">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
-            <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
           </div>
-          ${controlsMarkup}
+          <div class="turn-action-area">
+            <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
+            <div class="move-action-slot">${controlsMarkup}</div>
+          </div>
           <div class="human-area">
             <div class="player-caption sr-only"><b>Your hand</b></div>
-            <div class="human-hand${me().hand.length>5?' wide-hand':''}" style="--fit-gap:${fitRowGap(me().hand.length)}px">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
-            <div class="your-score-tag">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
+            <div class="human-hand" style="${cardRowStyle(me().hand.length)}">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
+            <div class="your-score-tag" style="--seat-color:${gameSeatColor(0)}">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
           <div class="game-stats"><span>${game.rules.teamMode==='freeForAll'?'Cards Captured':'Team Cards'} <b>${ownCapturedCards().length}</b></span><span>${game.rules.teamMode==='freeForAll'?'Spades Captured':'Team Spades'} <b>${ownCapturedCards().filter(c=>c.suit==='S').length}</b></span>
@@ -5260,7 +5300,6 @@ html,body,#app{background:#005d0b;color:#fff}
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
-    const currentHand=app.querySelector?.('.human-hand');if(currentHand)currentHand.scrollLeft=oldHandScroll;
     hidePendingDealCards();
     animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))!==0);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
@@ -5743,7 +5782,6 @@ html,body,#app{background:#005d0b;color:#fff}
 };
   function helpFor(key,options=[],rules=draft){
     if(key==='scoreMode')return E.scoreHelp(draft);
-    if(key==='cardLayout')return [['Scroll / wrap','Keep ordinary card sizes. Large hands scroll horizontally and table cards wrap into rows.'],['Fit in one row','Reduce card sizes as needed so your entire hand and the individual table cards each fit in one horizontal row without scrolling. Builds retain their own area. Very large groups may be small.']];
     if(key==='playerCount')return [2,3,4,5,6].map(n=>[n+' players','You and '+(n-1)+' computer '+(n===2?'opponent.':'players.')]);
     if(key==='teamMode')return playerTeamHelp(rules.playerCount);
     if(OPTION_HELP[key])return OPTION_HELP[key];
@@ -6037,20 +6075,6 @@ html,body,#app{background:#005d0b;color:#fff}
     if(!result.ok){variantMessage=result.reason;variantMessageError=true;}
     render('overlay');
   }
-  function cardLayoutPreference(){
-    return typeof prefs!=='undefined'&&prefs.cardLayout==='fitRow'?'fitRow':'default';
-  }
-  function setCardLayout(value){
-    if(!['default','fitRow'].includes(value)||typeof prefs==='undefined')return;
-    prefs.cardLayout=value;savePrefs();render('overlay');
-  }
-  function renderCardLayoutSetting(){
-    const value=cardLayoutPreference();
-    return '<div class="card-layout-setup"><div class="rules-group"><div class="rules-setting rules-select"><label class="rules-setting-label" for="rule-cardLayout"><span class="rules-label">Card layout</span></label>'+
-      ruleInfo('cardLayout','Card layout')+'<select id="rule-cardLayout" data-setting="cardLayout" aria-label="Card layout">'+
-      [['default','Scroll / wrap'],['fitRow','Fit in one row']].map(([id,label])=>'<option value="'+id+'" '+(value===id?'selected':'')+'>'+label+'</option>').join('')+
-      '</select>'+ruleExplanation('cardLayout')+'</div></div></div>';
-  }
   function renderPresetPicker(){
     const chosen=E.PRESET_CATALOG.find(p=>p.id===draftPreset),saved=savedVariant(draftPreset),groups=[...new Set(E.PRESET_CATALOG.map(p=>p.group))];
     const savedOptions=savedVariants.length?'<optgroup label="Saved variants">'+savedVariants.map(v=>'<option value="'+escapeHtml(v.id)+'" '+(draftPreset===v.id?'selected':'')+'>'+escapeHtml(v.name)+'</option>').join('')+'</optgroup>':'';
@@ -6160,7 +6184,7 @@ html,body,#app{background:#005d0b;color:#fff}
   function renderSettings(){
     if(!draft)draft=E.normalizeRules(game.rules);
     return '<div class="dialog-head rules-header"><div><p class="rules-eyebrow">'+escapeHtml(playerHeader())+'</p><h2>'+(settingsOrigin==='newgame'?'New Game':'Game Setup')+'</h2></div><button type="button" data-action="close" class="icon-close" aria-label="Close">×</button></div>'+
-      '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderCardLayoutSetting()+renderAllRules()+'</div>'+rulesFooter();
+      '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderAllRules()+'</div>'+rulesFooter();
   }
 
   function renderMenu() {
@@ -6173,7 +6197,6 @@ html,body,#app{background:#005d0b;color:#fff}
         <button data-action="history" class="menu-row"><span>☷</span><b>Move history</b></button>
         <button data-action="toggle-sound" class="menu-row"><span>${prefs.sound ? '♫' : '♪'}</span><b>Sound effects</b><em>${prefs.sound ? 'On' : 'Off'}</em></button>
         <button data-action="toggle-animations" class="menu-row"><span>✦</span><b>Card animations</b><em>${prefs.animations ? 'On' : 'Off'}</em></button>
-        <button data-action="toggle-card-layout" class="menu-row"><span>▤</span><b>Card layout</b><em>${cardLayoutPreference()==='fitRow'?'Fit one row':'Scroll / wrap'}</em></button>
         <button data-action="toggle-undo" class="menu-row" aria-pressed="${prefs.undo}"><span>↶</span><b>Undo button</b><em>${prefs.undo ? 'On' : 'Off'}</em></button>
         <button data-action="new-match" class="menu-row danger-row"><span>↻</span><b>Start new match</b></button>
       </div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Back to table</button></div>`;
@@ -6715,7 +6738,6 @@ html,body,#app{background:#005d0b;color:#fff}
     const prop = target.dataset.setting;
     if(prop==='preset')return selectVariation(target.value);
     if(prop==='variantName'){variantNameText=target.value;return;}
-    if(prop==='cardLayout')return setCardLayout(target.value);
     if(prop==='handSizeText')return finishHandSizeText(target);
     if(prop==='buildBoundText')return finishBuildBound(target);
     if(prop==='buildBoundChoice')return applyBuildBound(target.dataset.bound,Number(target.value));
@@ -6838,7 +6860,11 @@ html,body,#app{background:#005d0b;color:#fff}
     if (action === 'rules' || action === 'history') { modal = action; render('overlay'); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render('overlay'); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render('overlay'); return; }
-    if (action === 'toggle-card-layout') return setCardLayout(cardLayoutPreference()==='fitRow'?'default':'fitRow');
+    if (action === 'toggle-card-layout') {
+      if(screen!=='game'||modal||busy||dealing||turnInMotion||node.disabled)return;
+      prefs.cardLayout=cardLayoutPreference()==='oneRow'?'multiRow':'oneRow';
+      savePrefs();render('overlay');return;
+    }
     if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render('overlay'); return; }
     if (action === 'close') { modal = ''; render('overlay'); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
