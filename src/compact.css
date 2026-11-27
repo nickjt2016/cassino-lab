@@ -1298,21 +1298,13 @@ html,body,#app{background:#005d0b;color:#fff}
 .player-count-setting.is-inactive .player-count-number{opacity:.45}
 .player-setup-group .setup-table-figure{padding:8px 5px 11px}
 .setup-table-svg{display:block;width:100%;max-width:360px;height:auto;margin:0 auto;overflow:visible;font-family:system-ui,sans-serif}
-.setup-seat-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:7px 14px;margin:1px 0 2px;font-size:11px;line-height:1.3;color:#5e5642}
-.setup-seat-legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.setup-seat-legend i{width:10px;height:10px;border-radius:3px;flex:none;border:1px solid #0002}
 .setup-preview-note{text-align:center;font-size:11px;line-height:1.4;color:#8a5e2f;margin:8px 0 0}
 
 /* v0.8.7: polar rectangles only, with a completely empty center. */
 .setup-table-figure .setup-table-svg{max-width:340px}
-.setup-seat-legend.polar-seat-legend{gap:7px 16px;font-weight:650;margin-top:0}
-.setup-seat-legend.polar-seat-legend span{display:inline}
 
 /* v0.9.0: fixed seating preview dimensions for every arrangement. */
 .setup-table-figure .setup-table-svg{aspect-ratio:320/220}
-.setup-seat-legend.polar-seat-legend{height:20px;min-height:20px;flex-wrap:nowrap;align-items:center;line-height:14px;margin:0}
-.setup-seat-legend.polar-seat-legend span{white-space:nowrap}
-@media(max-width:320px){.setup-seat-legend.polar-seat-legend{gap:6px;font-size:10px}}
 .inactive-rule-note{color:#776b53}
 
 /* Multiplayer keeps the human hand and shared playfield; each CPU has its
@@ -1389,3 +1381,10 @@ html,body,#app{background:#005d0b;color:#fff}
  .shell .game-toolbar .card-layout-toggle svg{height:10px}
  .shell .multi-cpu-seat{gap:3px;padding:2px 3px}
 }
+
+/* v0.10.4 — tap-to-cycle team arrangement; seat colors are the legend. */
+.rules-setting .team-cycle-control{width:clamp(96px,32vw,150px);min-width:0;min-height:38px;display:flex;align-items:center;justify-content:space-between;gap:6px;border:1px solid #cbbd9a;border-radius:7px;background:#f3ecda;color:#25281e;padding:6px 9px;font:inherit;font-size:12px;text-align:left;cursor:pointer;touch-action:manipulation}
+.rules-setting .team-cycle-control svg{flex:none;color:#526c54}
+.rules-setting .team-cycle-control:disabled{opacity:1;cursor:default;justify-content:center;background:#f3ecda;color:#5e5642}
+.rules-setting .team-cycle-control:focus-visible{outline:2px solid #195b40;outline-offset:2px}
+@media(max-width:350px){.rules-setting .team-cycle-control{width:108px;font-size:11px}}

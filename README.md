@@ -266,3 +266,7 @@ Save as new variant in the Game variation section stores a named snapshot of the
 ### 0.10.3 — compact gameplay HUD and direct row toggle
 
 The game toolbar cycles between One row and Multi row. Both fit all hand cards and table cards without horizontal scrolling; the old scroll/wrap preference migrates to Multi row and fitRow to One row. Card sizes are physical, responsive dimensions with a height budget for dense hands. A stable turn/action strip places the turn indicator above legal move buttons. The player's score badge is centered vertically between the hand and bottom stats, with the same blue team accent as the CPU teammate. CPU panels retain name, points and card backs, but remove redundant visible card counts and team names. Saved variants and game rules are unchanged. Switching layout is disabled while a CPU or animation is acting, preserving card-flight geometry.
+
+### 0.10.4 — direct team arrangement control
+
+Tap Teams to cycle through the available arrangements for the selected player count. Single-arrangement counts display a fixed value; the info button remains available. The seating preview updates immediately and uses seat colors alone to communicate teams, without a redundant legend. Saved variants and game rules are unchanged.

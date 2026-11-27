@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.3';
+  const APP_VERSION = '0.10.4';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1748,6 +1748,18 @@
     return '';
   }
   function playerTeamOptions(count){return E.teamModesFor(count).map(mode=>[mode,playerTeamLabel(count,mode)]);}
+  function teamCycleControl(rules=draft){
+    const modes=E.teamModesFor(rules.playerCount),mode=rules.teamMode;
+    const label=playerTeamLabel(rules.playerCount,mode),canCycle=modes.length>1&&!rules.presetBlocker;
+    const next=modes[(modes.indexOf(mode)+1)%modes.length];
+    const aria='Teams: '+label+(canCycle?'. Tap to switch to '+playerTeamLabel(rules.playerCount,next)+'.':' (only available arrangement)');
+    return '<button type="button" id="rule-teamMode" class="team-cycle-control" data-action="cycle-team-mode" aria-label="'+escapeHtml(aria)+'" '+(canCycle?'':'disabled')+'><span>'+escapeHtml(label)+'</span>'+
+      (canCycle?'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-3V4M17 7a7 7 0 0 0-12 4M4 17h3v3M7 17a7 7 0 0 0 12-4"/></svg>':'')+'</button>';
+  }
+  function teamModeSetting(){
+    return '<div class="rules-setting team-mode-setting"><label class="rules-setting-label" for="rule-teamMode"><span class="rules-label">Teams</span></label>'+ruleInfo('teamMode','Teams')+
+      teamCycleControl()+ruleExplanation('teamMode',playerTeamOptions(draft.playerCount))+'</div>';
+  }
   function playerTeamHelp(count){
     return playerTeamOptions(count).map(([mode,label])=>[label,
       mode==='freeForAll'?(count===2?'You compete against one CPU opponent. Each player has an individual score.':'Free for all: all '+count+' players compete independently, each with their own captured cards and score.'):
@@ -1793,17 +1805,13 @@
         '<path class="polar-seat" d="'+polarSeatPath(cx,cy,inner,outer,angle,halfAngle)+'" fill="'+fillFor(s)+'" stroke="'+(s.human?'#193b60':fillFor(s))+'" stroke-width="1.6" stroke-linejoin="round"/>'+
         '<text x="'+xPos+'" y="'+yPos+'" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-size="10.5" font-weight="700">'+label+'</text></g>';
     }).join('');
-    const legend=free?
-      '<span style="color:#346da8">You</span><span style="color:#656961">Individual opponents</span>':
-      Array.from({length:n/(mode==='pairs'?2:3)},(_,i)=>'<span style="color:'+colors[i]+'">'+(i===0?'Your team':'Team '+(i+1))+'</span>').join('');
-    const notice='';
     return '<div class="setup-table-figure"><svg viewBox="0 0 320 220" class="setup-table-svg" role="img" aria-labelledby="setup-table-title setup-table-desc">'+
       '<title id="setup-table-title">'+escapeHtml(playerSetupSummary(rules))+' seating</title><desc id="setup-table-desc">You sit at the south seat. '+escapeHtml(labels.join('; '))+'.</desc>'+
-      groups+'</svg><div class="setup-seat-legend polar-seat-legend">'+legend+'</div><span class="sr-only">'+escapeHtml(notice)+'</span></div>';
+      groups+'</svg></div>';
   }
   function playerSetupContent(){
     return '<div class="rules-group player-setup-group">'+playerCountSetting()+
-      ruleSelect('teamMode','Teams',playerTeamOptions(draft.playerCount))+
+      teamModeSetting()+
       '<div id="player-seating-preview">'+seatingDiagram()+'</div></div>';
   }
   function handMaximum(){
@@ -2476,6 +2484,12 @@
     draft.cardValueOverrides={...(draft.cardValueOverrides||E.initialCardValues(draft)),[key]:vals};
     commitDraftEdit();
   }
+  function cycleTeamMode(){
+    if(!draft||draft.presetBlocker)return;
+    const modes=E.teamModesFor(draft.playerCount);
+    if(modes.length<2)return;
+    updateDraftSetting('teamMode',modes[(modes.indexOf(draft.teamMode)+1)%modes.length]);
+  }
   function updateDraftSetting(prop,value){
     if(!draft||draft.presetBlocker)return;
     if(prop==='playerCount'){
@@ -2635,10 +2649,10 @@
       const preview={...draft,playerCount:n,teamMode:mode};
       const output=app.querySelector('#player-count-output');if(output)output.textContent=String(n);
       for(const tick of app.querySelectorAll('[data-player-tick]'))tick.classList.toggle('active',Number(tick.dataset.playerTick)===n);
-      const select=app.querySelector('#rule-teamMode');
-      if(select){select.innerHTML=playerTeamOptions(n).map(([value,label])=>'<option value="'+value+'" '+(value===mode?'selected':'')+'>'+label+'</option>').join('');select.disabled=allowed.length<2;select.closest('.rules-setting')?.classList.toggle('is-inactive',select.disabled);}
+      const control=app.querySelector('#rule-teamMode');
+      if(control)control.outerHTML=teamCycleControl(preview);
       if(detailSetting==='teamMode'){
-        const help=select?.closest('.rules-setting')?.querySelector('.rule-option-help');
+        const help=app.querySelector('.team-mode-setting .rule-option-help');
         if(help)help.outerHTML=ruleExplanation('teamMode',playerTeamOptions(n),preview);
       }
       const diagram=app.querySelector('#player-seating-preview');if(diagram)diagram.innerHTML=seatingDiagram(preview);
@@ -2692,6 +2706,12 @@
       const result=removeNamedVariant(entry.id);
       if(!result.ok){variantMessage=result.reason;variantMessageError=true;}
       render('overlay');return;
+    }
+    if(action==='cycle-team-mode'&&modal==='settings'){
+      if(node.disabled)return;
+      cycleTeamMode();
+      if(event.detail===0)app.querySelector('#rule-teamMode')?.focus({preventScroll:true});
+      return;
     }
     if (action === 'info-setting' && modal === 'settings') { detailSetting=detailSetting===node.dataset.key?'':node.dataset.key; render('overlay'); return; }
     if(action==='difficulty-info'&&modal==='settings'){difficultyInfoOpen=!difficultyInfoOpen;render('overlay');return;}
