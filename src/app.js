@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.4';
+  const APP_VERSION = '0.10.5';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -58,8 +58,9 @@
   let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
-  let prefs = { sound: true, animations: true, undo: true, cardLayout:'multiRow' };
+  let prefs = { sound: true, animations: true, undo: true };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_STORE) || '{}') }; } catch (_) {}
+  delete prefs.cardLayout; // Old saved layout choices no longer affect the board.
   let audioContext = null;
   const app = document.getElementById('app');
   function savePrefs() {
@@ -316,28 +317,10 @@
     if(stockCount?.animate)stockCount.animate([{scale:1.06},{scale:1}],{duration:250});
     return Promise.all(measured.map(flyOne)).then(()=>{});
   }
-  // The engine changes turn when a move is committed, but the next player
-  // is not visually on turn until all move and replacement-deal flights end.
-  function turnBannerText() {
-    if (turnInMotion || dealing || game.phase !== 'playing') return '';
-    return game.turn === 0 ? 'Your turn' : game.players.length===2?"Opponent's turn":game.players[game.turn].name+"’s turn";
-  }
-  function animateTurnMessage(previous) {
-    if (!motionAllowed() || !app.querySelector) return;
-    const node=app.querySelector('.turn-banner');
-    if (!node || !node.animate) return;
-    const next=node.textContent;
-    if (previous && !next) {
-      // The outgoing banner is no longer announced as a live turn.
-      // Leave it visible just long enough for its own quick fade.
-      node.textContent=previous.text;
-      node.style.opacity='0';
-      const fade=node.animate([{opacity:previous.opacity},{opacity:0}],
-        {duration:140,easing:'ease-out'});
-      fade.onfinish=()=>{if(node.isConnected)node.textContent='';};
-    } else if (next && (!previous || previous.text!==next)) {
-      node.animate([{opacity:0},{opacity:1}],{duration:180,easing:'ease-out'});
-    }
+  // The next player becomes interactive only after the outgoing move and
+  // any replacement deal finish. The hand itself is the visible turn cue.
+  function handIsActive(){
+    return screen==='game'&&game.phase==='playing'&&game.turn===0&&!busy&&!turnInMotion&&!dealing;
   }
   function cancelMotion() {
     motionGeneration++;
@@ -886,7 +869,7 @@
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
   }
-  function isHumanTurn() { return screen === 'game' && game.phase === 'playing' && game.turn === 0 && !busy; }
+  function isHumanTurn() { return handIsActive(); }
   function currentSelection() { return [...pickedTable]; }
   function actionReady(kind) {
     if (!isHumanTurn() || !pickedCard) return null;
@@ -926,23 +909,57 @@
       </div>
       <div class="opponent-tag" aria-label="${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer has ${computerScore} points`}">${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer · ${computerScore} pts`}</div>
       <div class="header-actions">
-        ${renderLayoutToggle(active)}
         <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
         ${prefs.undo?`<button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo" ${checkpoint?'':'disabled'}>↶</button>`:''}
       </div>
     </header>`;
   }
-  function cardLayoutPreference(){
-    return prefs.cardLayout==='oneRow'||prefs.cardLayout==='fitRow'?'oneRow':'multiRow';
+  // Keep the first row at normal spacing until full, then fill the second.
+  // Once both rows are full, each successive card goes to alternating rows.
+  // All positions are physical CSS pixels so flights and hitboxes agree.
+  function handPlan(count,width,cardWidth,cardHeight,gap,height){
+    const n=Math.max(0,Math.floor(count)||0),w=Math.max(1,width),cw=Math.min(w,Math.max(1,cardWidth)),g=Math.max(0,gap);
+    const capacity=Math.max(1,Math.floor((w+g+0.001)/(cw+g)));
+    const rows=[[],[]];
+    for(let i=0;i<n;i++){
+      const row=i<capacity?0:i<capacity*2?1:(i-capacity*2)%2;
+      rows[row].push(i);
+    }
+    const used=rows[1].length?2:1,overflow=n>capacity*2;
+    const top=Math.max(0,(height-used*cardHeight-(used-1)*g)/2);
+    const cards=Array(n);
+    rows.forEach((indices,row)=>{
+      const len=indices.length;
+      if(!len)return;
+      const step=len>1?(overflow?(w-cw)/(len-1):cw+g):0;
+      const left=(w-cw-step*(len-1))/2;
+      // The corner occupies about 45% of the face. In crowded rows
+      // reduce only the index enough to fit the exposed shoulder.
+      const indexScale=len>1&&step<cw?Math.min(1,Math.max(.25,(step-4)/(cw*.45))):1;
+      indices.forEach((index,col)=>{cards[index]={row,col,x:left+col*step,y:top+row*(cardHeight+g),indexScale:col===len-1?1:indexScale};});
+    });
+    return {capacity,rows:rows.map(r=>r.length),cards,overflow};
   }
-  function cardLayoutLabel(){return cardLayoutPreference()==='oneRow'?'One row':'Multi row';}
-  function renderLayoutToggle(active){
-    const label=cardLayoutLabel(),one=cardLayoutPreference()==='oneRow';
-    return '<button type="button" class="card-layout-toggle" data-action="toggle-card-layout" aria-label="Card layout: '+label+'. Tap to switch." title="Switch card layout" aria-pressed="'+one+'" '+(active?'':'disabled')+'>'+
-      '<svg viewBox="0 0 20 13" width="20" height="13" aria-hidden="true">'+(one?
-        '<path d="M1 3h4v7H1z M8 3h4v7H8z M15 3h4v7h-4z" fill="none" stroke="currentColor" stroke-width="1.3"/>':
-        '<path d="M2 1h4v4H2z M8 1h4v4H8z M14 1h4v4h-4z M2 8h4v4H2z M8 8h4v4h-4z M14 8h4v4h-4z" fill="none" stroke="currentColor" stroke-width="1.3"/>')+
-      '</svg><span>'+label+'</span></button>';
+  function layoutHumanHand(){
+    const lane=app.querySelector?.('.human-hand');
+    if(!lane||!globalThis.getComputedStyle)return;
+    const nodes=[...lane.querySelectorAll('.hand-item')];
+    if(!nodes.length)return;
+    const metrics=getComputedStyle(lane);
+    const inset=parseFloat(metrics.paddingLeft)||0;
+    const width=lane.clientWidth-inset-(parseFloat(metrics.paddingRight)||0);
+    const face=nodes[0].querySelector('.playing-card');
+    const rect=face?.getBoundingClientRect();
+    if(!rect?.width||!rect.height||width<=0)return;
+    const gap=parseFloat(metrics.columnGap)||4;
+    const plan=handPlan(nodes.length,width,rect.width,rect.height,gap,lane.clientHeight);
+    nodes.forEach((node,i)=>{
+      const p=plan.cards[i];
+      node.style.left=(inset+p.x)+'px';
+      node.style.top=p.y+'px';
+      node.style.zIndex=String(p.col+1);
+      node.style.setProperty('--hand-index-scale',String(p.indexScale));
+    });
   }
   // Size actual cards, not transformed hitboxes. Keep row counts bounded
   // so a full hand still leaves space for the table and legal move buttons.
@@ -1044,17 +1061,6 @@
     if(!shell)return false;
     shell.classList.toggle('animations-on',!!prefs.animations);
     shell.classList.toggle('animations-off',!prefs.animations);
-    const layout=cardLayoutPreference();
-    shell.classList.toggle('fit-card-rows',layout==='oneRow');
-    shell.classList.toggle('multi-card-rows',layout==='multiRow');
-    const layoutButton=shell.querySelector('[data-action="toggle-card-layout"]');
-    if(layoutButton&&layoutButton.getAttribute('aria-pressed')!==String(layout==='oneRow')){
-      const template=document.createElement('template');template.innerHTML=renderLayoutToggle(!layoutButton.disabled);
-      const next=template.content.firstElementChild;
-      layoutButton.innerHTML=next.innerHTML;
-      layoutButton.setAttribute('aria-label',next.getAttribute('aria-label'));
-      layoutButton.setAttribute('aria-pressed',next.getAttribute('aria-pressed'));
-    }
     const actions=shell.querySelector('.header-actions');
     if(actions&&!!actions.querySelector('[data-action="undo"]')!==!!prefs.undo){
       // The toolbar markup has one canonical renderer. Reuse just its
@@ -1116,9 +1122,6 @@
       return;
     }
     const oldLayout=mode!=='selection'&&motionAllowed()?layoutPositions():null;
-    const previousBanner=mode==='selection'?null:app.querySelector?.('.turn-banner[data-turn-visible="true"]');
-    const previousTurn=previousBanner ? {text:previousBanner.textContent,
-      opacity:Number(globalThis.getComputedStyle?.(previousBanner).opacity ?? 1)} : null;
     if (game.phase !== 'playing') resetSelection();
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) resetSelection();
     const active = isHumanTurn();
@@ -1131,7 +1134,7 @@
     const canBuild = buildOptions.length > 0;
     const visibleActionCount = Number(canTrail) + Number(canCapture) + Number(canBuild);
     const actionsMarkup=buildOptions.map((o,i)=>actionButton('build',o.label,o,i)).join('')+
-      (canTrail?actionButton('trail','Trail'):'')+(canCapture?actionButton('capture','Capture cards'):'');
+      (canTrail?actionButton('trail','Trail'):'')+(canCapture?actionButton('capture','Capture'):'');
     const controlsMarkup=active && pickedCard && visibleActionCount
       ? `<section class="controls contextual-controls" aria-label="Legal moves"><div class="main-actions">${actionsMarkup}</div></section>`:'';
     // Selection lift is a CSS-only transform, not a change in layout.
@@ -1139,11 +1142,10 @@
     // hover/selection position as if it were a new table slot.
     if(mode==='selection'&&syncSelection(controlsMarkup,actionsMarkup))return;
     renderedActionMarkup=actionsMarkup;
-    const phaseText = turnBannerText();
     const motion = lastMotion;
     lastMotion = '';
     app.innerHTML = `
-      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}${cardLayoutPreference()==='oneRow'?' fit-card-rows':' multi-card-rows'}">
+      <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}">
         ${renderToolbar(active,opponent().score,multiToolbarLabel())}
         <main class="felt" data-motion="${motion}">
           <div class="table-grain"></div>
@@ -1155,12 +1157,11 @@
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
           </div>
           <div class="turn-action-area">
-            <div class="turn-banner" data-turn-visible="${!!phaseText}" aria-live="polite" aria-hidden="${!phaseText}">${phaseText}</div>
             <div class="move-action-slot">${controlsMarkup}</div>
           </div>
           <div class="human-area">
-            <div class="player-caption sr-only"><b>Your hand</b></div>
-            <div class="human-hand" style="${cardRowStyle(me().hand.length)}">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
+            <span class="sr-only" role="status">${active?'Your turn':'Waiting for your turn'}</span>
+            <div class="human-hand${active?'':' hand-inactive'}" aria-label="Your hand" aria-disabled="${!active}">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
             <div class="your-score-tag" style="--seat-color:${gameSeatColor(0)}">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
@@ -1176,10 +1177,10 @@
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
+    layoutHumanHand();
     hidePendingDealCards();
     animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))!==0);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
-    animateTurnMessage(previousTurn);
   }
   const SETTING_INFO = {
     royal: ['Face Cards', 'With Royal face cards on, Jacks, Queens and Kings have numerical values 11, 12 and 13 and may participate in sums and builds. Otherwise they capture matching face cards only.'],
@@ -2344,8 +2345,7 @@
       dealing = false; busy = false; turnInMotion = false;
       if (game.phase !== 'playing') modal = 'round';
       persist();
-      // Render only once at the real start of the next turn so the incoming
-      // banner fade isn't immediately destroyed by a second render.
+      // Restore the active hand only at the real start of the next turn.
       if (game.turn !== 0 && game.phase === 'playing') botTurn();
       else render();
     };
@@ -2756,11 +2756,6 @@
     if (action === 'rules' || action === 'history') { modal = action; render('overlay'); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render('overlay'); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render('overlay'); return; }
-    if (action === 'toggle-card-layout') {
-      if(screen!=='game'||modal||busy||dealing||turnInMotion||node.disabled)return;
-      prefs.cardLayout=cardLayoutPreference()==='oneRow'?'multiRow':'oneRow';
-      savePrefs();render('overlay');return;
-    }
     if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render('overlay'); return; }
     if (action === 'close') { modal = ''; render('overlay'); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
@@ -2800,6 +2795,7 @@
     }
     else if (ev.key.toLowerCase() === 'u' && !modal && prefs.undo && checkpoint) undo();
   });
+  window.addEventListener('resize',()=>{if(screen==='game')layoutHumanHand();});
   render(); // The main menu is the entry point; the computer does not move until Resume/Start.
   if (/^https?:/.test(location.protocol)) {
     // A version file is checked at launch, even if the browser has cached the app.

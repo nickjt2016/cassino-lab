@@ -270,3 +270,7 @@ The game toolbar cycles between One row and Multi row. Both fit all hand cards a
 ### 0.10.4 — direct team arrangement control
 
 Tap Teams to cycle through the available arrangements for the selected player count. Single-arrangement counts display a fixed value; the info button remains available. The seating preview updates immediately and uses seat colors alone to communicate teams, without a redundant legend. Saved variants and game rules are unchanged.
+
+### 0.10.5 — automatic two-row hand and turn cue
+
+The hand keeps a fixed two-row height and consistent card size/gap. One row is centered; the second fills only when necessary. After both rows fill, added cards alternate between rows, with dynamic overlap and exposed corner indexes. The 54-card full deal is supported without changing its 27-card maximum. Old layout preferences are ignored; table cards retain automatic non-scrolling rows. Inactive hand faces dim until the human can actually act. Capture is shortened and action buttons share one line, reducing horizontal padding rather than label size (horizontal overflow remains accessible for unusually many custom build choices). No engine, saved match or variant rules changed.

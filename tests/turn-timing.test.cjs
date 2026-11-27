@@ -6,7 +6,7 @@ const app=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8');
 const css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
 
 function harness(cardsDealt=0){
-  const start=app.indexOf('  function turnBannerText()');
+  const start=app.indexOf('  function handIsActive()');
   const end=app.indexOf('  function cancelMotion()',start);
   const moveStart=app.indexOf('  function botTurn()');
   const moveEnd=app.indexOf('  function undo()',moveStart);
@@ -25,7 +25,7 @@ function harness(cardsDealt=0){
     }
     const dealAnimation=new Promise(resolve=>{finishDeal=resolve;});
     const frames=[];
-    const render=()=>frames.push(turnBannerText());
+    const render=()=>frames.push(handIsActive());
     const E={
       validateAction:()=>({ok:true}),
       chooseComputerMove:()=>({kind:'trail'}),
@@ -39,61 +39,43 @@ function harness(cardsDealt=0){
     ${app.slice(start,end)}
     ${app.slice(moveStart,moveEnd)}
     return {play,frames,finish:()=>animationDone(),cpu:()=>timer(),
-      deal:()=>finishDeal(),text:turnBannerText,searches,delay:()=>timerDelay};
+      deal:()=>finishDeal(),text:handIsActive,searches,delay:()=>timerDelay};
   `)();
 }
 
-test('Human and opponent banners are hidden during every committed move and appear only on completion',async()=>{
+test('Hand remains inactive through CPU calculations and flights; only the completed human turn restores it',async()=>{
   const h=harness();
-  assert.equal(h.text(),'Your turn');
+  assert.equal(h.text(),true);
   h.play({kind:'trail'});
-  assert.equal(h.text(),'');
-  assert.deepEqual(h.frames,['']);
+  assert.equal(h.text(),false);
+  assert.deepEqual(h.frames,[false]);
   assert.equal(h.searches.length,1,'calculation begins before human flight ends');
-  assert.deepEqual(h.searches[0].frames,['']);
+  assert.deepEqual(h.searches[0].frames,[false]);
   h.finish();
-  assert.equal(h.text(),"Opponent's turn");
-  assert.deepEqual(h.frames,['',"Opponent's turn"]);
+  assert.equal(h.text(),false);
+  assert.deepEqual(h.frames,[false,false]);
   assert.equal(h.delay(),600);
   assert.equal(h.searches.length,1,'reuse the in-flight calculation');
   h.cpu();
   await Promise.resolve();
-  assert.equal(h.text(),'');
+  assert.equal(h.text(),false);
   h.finish();
-  assert.equal(h.text(),'Your turn');
-  assert.deepEqual(h.frames,['',"Opponent's turn",'','Your turn']);
+  assert.equal(h.text(),true);
+  assert.deepEqual(h.frames,[false,false,false,true]);
 });
-
-test('Replacement dealing is part of the outgoing turn, not the next turn',async()=>{
+test('Replacement dealing leaves the hand inactive until the real next turn',async()=>{
   const h=harness(1);
   h.play({kind:'trail'});
   assert.equal(h.searches[0].stock,7,'search uses committed replacement draw');
   h.finish();
-  assert.equal(h.text(),'');
+  assert.equal(h.text(),false);
   assert.equal(h.delay(),undefined,'no visible thinking timer during dealing');
   h.deal();
   await Promise.resolve();
-  assert.equal(h.text(),"Opponent's turn");
+  assert.equal(h.text(),false);
   assert.equal(h.delay(),600);
   assert.equal(h.searches.length,1);
 });
-
-test('Outgoing turn fades immediately and incoming turn fades in without sliding',()=>{
-  const start=app.indexOf('  function animateTurnMessage(');
-  const end=app.indexOf('  function cancelMotion()',start);
-  const node={textContent:'',style:{},isConnected:true,animate(frames,options){this.frames=frames;this.options=options;this.fade={};return this.fade;}};
-  const fade=new Function('app','motionAllowed',app.slice(start,end)+';return animateTurnMessage;')({querySelector:()=>node},()=>true);
-  fade({text:'Your turn',opacity:1});
-  assert.equal(node.textContent,'Your turn');
-  assert.deepEqual(node.frames,[{opacity:1},{opacity:0}]);
-  assert.equal(node.options.duration,140);
-  node.fade.onfinish();
-  assert.equal(node.textContent,'');
-  node.textContent="Opponent's turn";
-  fade(null);
-  assert.deepEqual(node.frames,[{opacity:0},{opacity:1}]);
-});
-
 test('Captured build panel is snapshotted and fades at the beginning of the capture',()=>{
   assert.match(app,/label:label \? \{rect:rect\(label\),html:label\.outerHTML/);
   assert.match(app,/const fadingLabels = capture \|\| individualBuild \? snapshot\.groups\.filter\(group=>group\.label&&\(capture\|\|group!==existingBuild\)\)/);
