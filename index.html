@@ -1389,7 +1389,7 @@ html,body,#app{background:#005d0b;color:#fff}
 }
 .shell .human-hand .hand-item{position:absolute;left:4px;top:4px;width:var(--hand-card-width);height:auto;min-width:0;max-width:none;padding:0;margin:0;border:0}
 .shell .human-hand .playing-card:not(.mini){display:block;width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;margin:0}
-.shell .human-hand.hand-inactive .playing-card{filter:grayscale(.7) brightness(.86)}
+.shell .human-hand.hand-inactive{filter:grayscale(.7) brightness(.86)}
 .shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom){
   grid-template-columns:calc(25cqw * var(--hand-index-scale,1)) calc(19cqw * var(--hand-index-scale,1));
   column-gap:calc(1cqw * var(--hand-index-scale,1))
@@ -4164,7 +4164,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.9';
+  const APP_VERSION = '0.10.10';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -5350,6 +5350,25 @@ html,body,#app{background:#005d0b;color:#fff}
     restoreVariationsScroll();
     return true;
   }
+  // The game replaces the hand DOM between turns. Carry its *displayed*
+  // tone across that replacement so a quick redraw cannot cause a flash.
+  function readHandTone(){
+    if(!motionAllowed())return null;
+    const lane=app.querySelector?.('.human-hand');
+    return lane?globalThis.getComputedStyle?.(lane)?.filter??null:null;
+  }
+  function animateHandTone(previous){
+    if(previous==null||!motionAllowed())return;
+    const lane=app.querySelector?.('.human-hand');
+    if(!lane?.animate)return;
+    const next=globalThis.getComputedStyle?.(lane)?.filter;
+    if(!next||previous===next)return;
+    // Animate the isolated hand as one layer; don't change card dimensions,
+    // stacking, flight targets, or when the buttons become interactive.
+    lane.animate([{filter:previous},{filter:next}],{
+      duration:160,easing:'ease-out'
+    });
+  }
   function render(mode = 'full') {
     if (!app) return;
     rememberVariationsScroll();
@@ -5391,6 +5410,7 @@ html,body,#app{background:#005d0b;color:#fff}
       return;
     }
     const oldLayout=mode!=='selection'&&motionAllowed()?layoutPositions():null;
+    const previousHandTone=readHandTone();
     if (game.phase !== 'playing') resetSelection();
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) resetSelection();
     const active = isHumanTurn();
@@ -5449,6 +5469,7 @@ html,body,#app{background:#005d0b;color:#fff}
     layoutHumanHand();
     hidePendingDealCards();
     animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))!==0);
+    animateHandTone(previousHandTone);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
   }
   const SETTING_INFO = {

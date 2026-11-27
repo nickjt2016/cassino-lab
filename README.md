@@ -290,3 +290,7 @@ The hand-sort toggle displays only 555 (suit first) or 567 (value first). Access
 ### 0.10.9 — two-player deal landing fix
 
 Both two-player and multiplayer deals now use the same identity-bearing human flight targets. Previously the two-player branch omitted the human card ID, causing flights to land at the default hidden-card position instead of their incremental hand slots. Regression tests exercise actual deal target generation and drive the animation callbacks through a 26-card deal and a replacement draw. The selected sort order still applies after dealing finishes.
+
+### 0.10.10 — smooth turn-state hand tone
+
+The isolated hand layer fades between its normal and inactive grayscale/brightness levels over 160 ms, carrying the currently displayed filter across game redraws. Reduced-motion and disabled-animation preferences are respected. Turn timing, card positions, and legal moves are unchanged.

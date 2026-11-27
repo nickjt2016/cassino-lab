@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.9';
+  const APP_VERSION = '0.10.10';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1198,6 +1198,25 @@
     restoreVariationsScroll();
     return true;
   }
+  // The game replaces the hand DOM between turns. Carry its *displayed*
+  // tone across that replacement so a quick redraw cannot cause a flash.
+  function readHandTone(){
+    if(!motionAllowed())return null;
+    const lane=app.querySelector?.('.human-hand');
+    return lane?globalThis.getComputedStyle?.(lane)?.filter??null:null;
+  }
+  function animateHandTone(previous){
+    if(previous==null||!motionAllowed())return;
+    const lane=app.querySelector?.('.human-hand');
+    if(!lane?.animate)return;
+    const next=globalThis.getComputedStyle?.(lane)?.filter;
+    if(!next||previous===next)return;
+    // Animate the isolated hand as one layer; don't change card dimensions,
+    // stacking, flight targets, or when the buttons become interactive.
+    lane.animate([{filter:previous},{filter:next}],{
+      duration:160,easing:'ease-out'
+    });
+  }
   function render(mode = 'full') {
     if (!app) return;
     rememberVariationsScroll();
@@ -1239,6 +1258,7 @@
       return;
     }
     const oldLayout=mode!=='selection'&&motionAllowed()?layoutPositions():null;
+    const previousHandTone=readHandTone();
     if (game.phase !== 'playing') resetSelection();
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) resetSelection();
     const active = isHumanTurn();
@@ -1297,6 +1317,7 @@
     layoutHumanHand();
     hidePendingDealCards();
     animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))!==0);
+    animateHandTone(previousHandTone);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
   }
   const SETTING_INFO = {

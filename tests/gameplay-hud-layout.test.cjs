@@ -70,7 +70,7 @@ test('No visible turn banner; hand dims and legal action buttons stay on one row
  const render=section('  function render(mode','  const SETTING_INFO');
  assert.doesNotMatch(render,/class="turn-banner"/);
  assert.match(render,/hand-inactive/);assert.match(render,/actionButton\('capture','Capture'\)/);
- assert.match(css,/\.human-hand\.hand-inactive \.playing-card\{filter:grayscale/);
+ assert.match(css,/\.human-hand\.hand-inactive\{filter:grayscale/);
  assert.match(css,/\.move-action-slot \.contextual-controls \.main-actions\{[^}]*flex-wrap:nowrap/);
  assert.match(css,/\.move-action-slot \.main-actions \.action-btn\{[^}]*min-width:max-content;[^}]*white-space:nowrap/);
  const slot={innerHTML:''},felt={querySelector:s=>s==='.move-action-slot'?slot:s==='.human-area'||s==='.game-stats'?{}:null,querySelectorAll:()=>[]};
@@ -166,4 +166,28 @@ test('Replacement draws preserve existing sorted row membership and append into 
   assert.equal(next.get(base[i]).row,previous.get(base[i]).row);
  }
  assert.equal(next.get('draw').row,1);assert.equal(next.get('draw').col,6);
+});
+
+test('Hand tone fades both ways across DOM replacement and continues from an interrupted fade',()=>{
+ let current=null,allowed=true,animations=[];
+ const makeLane=filter=>({filter,animate(frames,options){animations.push({frames,options});}});
+ const host={querySelector:()=>current};
+ const api=new Function('app','motionAllowed','globalThis',
+  section('  function readHandTone()','  function render(mode')+
+  'return {read:readHandTone,fade:animateHandTone};'
+ )(host,()=>allowed,{getComputedStyle:lane=>({filter:lane.filter})});
+ assert.equal(api.read(),null);
+ current=makeLane('none');let before=api.read();
+ current=makeLane('grayscale(0.7) brightness(0.86)');api.fade(before);
+ assert.deepEqual(animations[0],{frames:[{filter:'none'},{filter:'grayscale(0.7) brightness(0.86)'}],options:{duration:160,easing:'ease-out'}});
+ before=api.read();current=makeLane('none');api.fade(before);
+ assert.deepEqual(animations[1].frames,[{filter:'grayscale(0.7) brightness(0.86)'},{filter:'none'}]);
+ current=makeLane('grayscale(0.3) brightness(0.94)');before=api.read();
+ current=makeLane('none');api.fade(before);
+ assert.equal(animations[2].frames[0].filter,'grayscale(0.3) brightness(0.94)');
+ api.fade('none');assert.equal(animations.length,3);
+ allowed=false;assert.equal(api.read(),null);api.fade('grayscale(0.7) brightness(0.86)');assert.equal(animations.length,3);
+ const render=section('  function render(mode','  const SETTING_INFO');
+ assert.ok(render.indexOf('const previousHandTone=readHandTone()')<render.lastIndexOf('app.innerHTML ='));
+ assert.ok(render.indexOf('animateHandTone(previousHandTone)')>render.lastIndexOf('app.innerHTML ='));
 });
