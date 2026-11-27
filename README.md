@@ -294,3 +294,8 @@ Both two-player and multiplayer deals now use the same identity-bearing human fl
 ### 0.10.10 — smooth turn-state hand tone
 
 The isolated hand layer fades between its normal and inactive grayscale/brightness levels over 160 ms, carrying the currently displayed filter across game redraws. Reduced-motion and disabled-animation preferences are respected. Turn timing, card positions, and legal moves are unchanged.
+
+### 0.10.11 — fixed-slot dealing and dealt order
+
+The hand uses its actual final card count, including hidden incoming cards, to precompute final two-row positions and overlap. Cards fly directly into the top row left-to-right, then the bottom row left-to-right, and never move again during the deal. Default sort is dealt (original receipt order); the toolbar cycles dealt → 555 (value first) → 567 (suit first). The selected display order determines landing positions, so there is no final reshuffle. Cards are full-color during dealing, with turn-state dimming only during normal play. The launcher emblem is inset within the maskable icon safe area.
+Two-player play uses blue for the human and red for the CPU, in setup and the score badge. Independent CPUs are grey only in 3–6-player free-for-all; partnership colors remain unchanged.

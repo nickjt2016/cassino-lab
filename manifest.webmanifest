@@ -7,5 +7,5 @@
   "display": "standalone",
   "background_color": "#0d1615",
   "theme_color": "#143c33",
-  "icons": [{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+  "icons": [{"src":"./icon.svg?v=2","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
 }

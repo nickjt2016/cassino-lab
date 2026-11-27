@@ -61,10 +61,10 @@ test('Cancelling motion cancels descendant animations and clears pending deal re
   let cancelled=0,removed=0;
   const node={getAnimations(opts){assert.equal(opts.subtree,true);return [{cancel(){cancelled++;}},{cancel(){cancelled++;}}];},remove(){removed++;}};
   const api=new Function('document',section('  function cancelMotion()','  function takeMotionSnapshot')+
-    "\nlet motionGeneration=1,turnInMotion=true,pendingDeal={},activeHandDeal={},pendingStockOrigin={},dealAnimation=null;return {cancel:cancelMotion,state:()=>({motionGeneration,turnInMotion,pendingDeal,activeHandDeal,pendingStockOrigin,dealAnimation})};")({querySelectorAll:()=>[node]});
+    "\nlet motionGeneration=1,turnInMotion=true,pendingDeal={},pendingStockOrigin={},dealAnimation=null;return {cancel:cancelMotion,state:()=>({motionGeneration,turnInMotion,pendingDeal,pendingStockOrigin,dealAnimation})};")({querySelectorAll:()=>[node]});
   api.cancel();assert.equal(cancelled,2);assert.equal(removed,1);
   const state=api.state();assert.equal(state.motionGeneration,2);assert.equal(state.turnInMotion,false);
-  assert.equal(state.pendingDeal,null);assert.equal(state.activeHandDeal,null);assert.equal(state.pendingStockOrigin,null);assert.ok(state.dealAnimation instanceof Promise);
+  assert.equal(state.pendingDeal,null);assert.equal(state.pendingStockOrigin,null);assert.ok(state.dealAnimation instanceof Promise);
 });
 test('Offline cache uses four canonical asset keys and skips unknown non-navigation requests',()=>{
   assert.match(sw,/const ASSETS = \['\.\/index\.html', '\.\/manifest\.webmanifest', '\.\/icon\.svg', '\.\/version\.json'\]/);

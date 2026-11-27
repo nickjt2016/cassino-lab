@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const E=require('../src/engine.js'),app=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
 const section=(x,y)=>app.slice(app.indexOf(x),app.indexOf(y,app.indexOf(x)+x.length));
 function ui(prefs,game){
- return new Function('prefs','game','E','escapeHtml','renderBack','checkpoint',section('  function renderToolbar(','  function renderHome(')+'return {toolbar:renderToolbar,sort:sortedHand,mode:handSortMode,slots:sortedHandSlots,dealSlots:dealHandSlots,landings:handDealLandingRects,hand:handPlan,plan:rowPlan,style:cardRowStyle,seats:renderCpuSeats,color:gameSeatColor};')(prefs,game,E,String,()=>'<span class="card-back"></span>',null);
+ return new Function('prefs','game','E','escapeHtml','renderBack','checkpoint',section('  function renderToolbar(','  function renderHome(')+'return {toolbar:renderToolbar,sort:sortedHand,mode:handSortMode,nextMode:nextHandSortMode,slots:sortedHandSlots,hand:handPlan,plan:rowPlan,style:cardRowStyle,seats:renderCpuSeats,color:gameSeatColor};')(prefs,game,E,String,()=>'<span class="card-back"></span>',null);
 }
 test('Manual hand layout preference no longer changes toolbar or layout',()=>{
  const s=E.newMatch(),p={cardLayout:'fitRow',undo:true},h=ui(p,s);
@@ -66,10 +66,10 @@ test('Table still has independent responsive non-scrolling rows',()=>{
  }
  assert.match(css,/--row-budget:max\(12px,calc\(100cqh - 16px\)\)/);
 });
-test('No visible turn banner; hand dims and legal action buttons stay on one row',()=>{
+test('No visible turn banner; deal stays full-color and legal actions stay on one row',()=>{
  const render=section('  function render(mode','  const SETTING_INFO');
  assert.doesNotMatch(render,/class="turn-banner"/);
- assert.match(render,/hand-inactive/);assert.match(render,/actionButton\('capture','Capture'\)/);
+ assert.match(render,/active\|\|showingDeal\?'':' hand-inactive'/);assert.match(render,/const showingDeal=dealing\|\|!!pendingDeal/);assert.match(render,/if\(!showingDeal\)animateHandTone\(previousHandTone\)/);assert.match(render,/actionButton\('capture','Capture'\)/);
  assert.match(css,/\.human-hand\.hand-inactive\{filter:grayscale/);
  assert.match(css,/\.move-action-slot \.contextual-controls \.main-actions\{[^}]*flex-wrap:nowrap/);
  assert.match(css,/\.move-action-slot \.main-actions \.action-btn\{[^}]*min-width:max-content;[^}]*white-space:nowrap/);
@@ -92,15 +92,16 @@ test('Human score uses team accent and equal vertical spacing; CPU panels omit r
  assert.match(css,/\.shell \.game-stats\{order:4;margin:0 0 4px/);
 });
 
-test('Top-bar sort switch shows the current mode and disables during non-human turns',()=>{
+test('Top-bar sort cycles dealt, 555 value first, 567 suit first, with dealt as default',()=>{
  const s=E.newMatch(),p={undo:true},h=ui(p,s);
- assert.equal(h.mode(),'suit');
- assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>555<\/button>/);
- p.handSort='value';assert.equal(h.mode(),'value');
- assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>567<\/button>/);
+ assert.equal(h.mode(),'dealt');assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>dealt<\/button>/);
+ p.handSort=h.nextMode();assert.equal(h.mode(),'value');assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>555<\/button>/);
+ p.handSort=h.nextMode();assert.equal(h.mode(),'suit');assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>567<\/button>/);
+ p.handSort=h.nextMode();assert.equal(h.mode(),'dealt');
  assert.match(h.toolbar(false),/data-action="toggle-hand-sort"[^>]*disabled/);
- p.handSort='unknown';assert.equal(h.mode(),'suit');
- assert.match(app,/prefs\.handSort=handSortMode\(\)==='suit'\?'value':'suit'/);
+ p.handSort='unknown';assert.equal(h.mode(),'dealt');
+ assert.match(app,/prefs\.handSort=nextHandSortMode\(\)/);
+ assert.match(app,/if\(prefs\.handSortVersion!==2\)\{prefs\.handSort='dealt'/);
  assert.match(app,/if\(modal\|\|!isHumanTurn\(\)\|\|node\.disabled\)return/);
  assert.match(app,/sortedHand\(me\(\)\.hand,game\.rules,handSortMode\(\)\)/);
 });
@@ -111,6 +112,8 @@ test('Hand sorting uses SHCD, ascending assigned values and never changes engine
  const hand=ids.map(id=>E.allCards().find(c=>c.id===id));
  assert.deepEqual(h.sort(hand,rules,'suit').map(c=>c.id),['S1','S2','S7','H3','H2','H11','C1','C2','D2','D10','X1']);
  assert.deepEqual(h.sort(hand,rules,'value').map(c=>c.id),['S1','H3','C1','S2','S7','H2','D2','D10','C2','H11','X1']);
+ assert.deepEqual(h.sort(hand,rules,'dealt').map(c=>c.id),ids);
+ assert.deepEqual(h.sort(hand,rules).map(c=>c.id),ids);
  assert.deepEqual(hand.map(c=>c.id),ids);
 });
 test('Rank-only faces and joker placement stay deterministic; configured Italian values are respected',()=>{
@@ -133,41 +136,19 @@ test('Even overlapping hands read in sorted order across top row then bottom row
  assert.match(app,/const slots=sortedHandSlots\(plan\)/);
 });
 
-test('Deal prefixes fill the first row, then the second, then alternate appended cards',()=>{
- const h=ui({},E.newMatch()),g={width:360,cardWidth:55,cardHeight:55/.715,gap:4,height:166,inset:4,lane:{getBoundingClientRect:()=>({left:10,top:100})}};
- const incoming=Array.from({length:26},(_,i)=>'card'+i);
- for(let n=1;n<=incoming.length;n++){
-  const ids=incoming.slice(0,n),slots=h.dealSlots([],ids,g),last=slots.get(ids.at(-1));
-  const expected=n<=6?0:n<=12?1:(n-13)%2;
-  assert.equal(last.row,expected);
-  const row=[...slots.values()].filter(s=>s.row===expected);
-  assert.equal(last.col,row.length-1);
-  assert.ok(row.every((s,i)=>i===0||s.x>row[i-1].x));
+test('Every final hand slot is row-major, with no partial-hand layout branch',()=>{
+ const h=ui({},E.newMatch());
+ for(let n=0;n<=27;n++){
+  const p=h.hand(n,360,55,55/.715,4,166),slots=h.slots(p);
+  assert.equal(slots.length,n);
+  assert.ok(slots.every((slot,i)=>slot.row===(i<p.rows[0]?0:1)));
+  assert.ok(slots.every((slot,i)=>i===0||slot.row>slots[i-1].row||slot.x>slots[i-1].x));
  }
- const one=h.dealSlots([],incoming.slice(0,1),g).get(incoming[0]);
- const two=h.dealSlots([],incoming.slice(0,2),g);
- assert.ok(two.get(incoming[0]).x<one.x);
- assert.ok(h.dealSlots([],incoming.slice(0,7),g).get(incoming[0]).y<one.y);
- const before=h.dealSlots([],incoming.slice(0,12),g),after=h.dealSlots([],incoming.slice(0,13),g);
- for(let i=6;i<12;i++)assert.deepEqual(after.get(incoming[i]),before.get(incoming[i]));
- const rects=h.landings({baseIds:[],incomingIds:incoming,arrived:0},g);
- for(let i=0;i<incoming.length;i++){
-  const slot=h.dealSlots([],incoming.slice(0,i+1),g).get(incoming[i]),rect=rects.get(incoming[i]);
-  assert.ok(Math.abs(rect.left-(10+4+slot.x))<1e-8);assert.ok(Math.abs(rect.top-(100+slot.y))<1e-8);
- }
+ const layout=section('  function layoutHumanHand()','  // Size actual cards');
+ assert.match(layout,/planForHand\(g\.nodes\.length,g\)/);
+ assert.doesNotMatch(layout,/pendingDeal|arrived|progress/);
+ assert.doesNotMatch(app,/advanceHandDeal|handDealLandingRects|activeHandDeal/);
 });
-test('Replacement draws preserve existing sorted row membership and append into the growth slot',()=>{
- const h=ui({},E.newMatch()),g={width:360,cardWidth:55,cardHeight:55/.715,gap:4,height:166};
- const base=Array.from({length:13},(_,i)=>'base'+i);
- const previous=h.dealSlots(base,[],g),next=h.dealSlots(base,['draw'],g);
- const slots=h.slots(h.hand(13,g.width,g.cardWidth,g.cardHeight,g.gap,g.height));
- for(let i=0;i<base.length;i++){
-  assert.deepEqual(previous.get(base[i]),slots[i]);
-  assert.equal(next.get(base[i]).row,previous.get(base[i]).row);
- }
- assert.equal(next.get('draw').row,1);assert.equal(next.get('draw').col,6);
-});
-
 test('Hand tone fades both ways across DOM replacement and continues from an interrupted fade',()=>{
  let current=null,allowed=true,animations=[];
  const makeLane=filter=>({filter,animate(frames,options){animations.push({frames,options});}});
@@ -190,4 +171,23 @@ test('Hand tone fades both ways across DOM replacement and continues from an int
  const render=section('  function render(mode','  const SETTING_INFO');
  assert.ok(render.indexOf('const previousHandTone=readHandTone()')<render.lastIndexOf('app.innerHTML ='));
  assert.ok(render.indexOf('animateHandTone(previousHandTone)')>render.lastIndexOf('app.innerHTML ='));
+});
+
+test('Maskable launcher icon has a full-bleed background and inset emblem',()=>{
+ const icon=fs.readFileSync(path.join(__dirname,'../icon.svg'),'utf8');
+ const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'../manifest.webmanifest'),'utf8'));
+ assert.match(icon,/<rect width="192" height="192" fill="#143c33"\/><g transform="translate\(96 96\) scale\(\.66\) translate\(-96 -96\)"/);
+ assert.equal(manifest.icons[0].src,'./icon.svg?v=2');
+ assert.match(manifest.icons[0].purpose,/maskable/);
+});
+
+test('Only three-or-more-player free-for-all opponents are grey; head-to-head is blue versus red',()=>{
+ for(let n=2;n<=6;n++){
+  const game=E.newMatch(E.rulesFor('classic',{playerCount:n,remainderMode:'uneven'}));
+  const h=ui({},game);
+  assert.equal(h.color(0),'#346da8');
+  for(let seat=1;seat<n;seat++)assert.equal(h.color(seat),n===2?'#ac4847':'#777b73');
+  if(n===2)assert.match(h.toolbar(true),/class="opponent-tag" style="--seat-color:#ac4847"/);
+ }
+ assert.match(css,/\.shell:not\(\.multiplayer-game\) \.game-toolbar \.opponent-tag\{[^}]*border-top:3px solid var\(--seat-color,#ac4847\)/);
 });

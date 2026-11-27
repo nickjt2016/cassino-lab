@@ -1390,13 +1390,13 @@ html,body,#app{background:#005d0b;color:#fff}
 .shell .human-hand .hand-item{position:absolute;left:4px;top:4px;width:var(--hand-card-width);height:auto;min-width:0;max-width:none;padding:0;margin:0;border:0}
 .shell .human-hand .playing-card:not(.mini){display:block;width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;margin:0}
 .shell .human-hand.hand-inactive{filter:grayscale(.7) brightness(.86)}
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom){
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom),.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom){
   grid-template-columns:calc(25cqw * var(--hand-index-scale,1)) calc(19cqw * var(--hand-index-scale,1));
   column-gap:calc(1cqw * var(--hand-index-scale,1))
 }
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) b{font-size:calc(24cqw * var(--hand-index-scale,1))}
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) small{font-size:calc(19cqw * var(--hand-index-scale,1))}
-.shell .human-hand .playing-card.rank-joker .card-corner:not(.bottom) b{font-size:calc(10cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) b,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) b{font-size:calc(24cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) small,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) small{font-size:calc(19cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card.rank-joker .card-corner:not(.bottom) b,.hand-deal-flight .playing-card.rank-joker .card-corner:not(.bottom) b{font-size:calc(10cqw * var(--hand-index-scale,1))}
 @media(orientation:landscape) and (max-height:500px){
  .shell .table-stage .table-cards{--row-cols:var(--wide-cols,1);--row-rows:var(--wide-rows,1)}
  .shell .human-hand{--hand-cap:clamp(35px,6.1vw,53px);--hand-budget:min(29dvh,120px)}
@@ -1414,7 +1414,7 @@ html,body,#app{background:#005d0b;color:#fff}
 @media(max-width:350px){.rules-setting .team-cycle-control{width:108px;font-size:11px}}
 
 /* v0.10.6 — compact direct sort switch in the existing toolbar. */
-.shell .game-toolbar .hand-sort-toggle{display:grid;place-items:center;flex:0 0 auto;width:clamp(34px,10vw,42px);height:100%;min-height:0;min-width:0;padding:0 4px;border:1px solid #d8c48180;border-radius:7px;background:#004a1280;color:#f4df8d;font:700 14px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;touch-action:manipulation}
+.shell .game-toolbar .hand-sort-toggle{display:grid;place-items:center;flex:0 0 auto;width:clamp(39px,11.5vw,48px);height:100%;min-height:0;min-width:0;padding:0 4px;border:1px solid #d8c48180;border-radius:7px;background:#004a1280;color:#f4df8d;font:700 14px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;touch-action:manipulation}
 .shell .game-toolbar .hand-sort-toggle:disabled{opacity:.55;cursor:default}
 .shell .game-toolbar .hand-sort-toggle:focus-visible{outline:2px solid #f4df8d;outline-offset:1px}
 
@@ -1424,6 +1424,9 @@ html,body,#app{background:#005d0b;color:#fff}
 .shell .hand-item::after,.shell .table-item::after,.shell .build-item::after{content:"";position:absolute;inset:0;z-index:8;border-radius:3px;pointer-events:none;background:rgba(55,145,255,.28);opacity:0;transition:opacity 160ms ease-out}
 .shell .hand-item:active:not(:disabled)::after,.shell .table-item:active:not(:disabled)::after,.shell .build-item:active:not(:disabled)::after{opacity:1;transition:none}
 @media(prefers-reduced-motion:reduce){.shell .hand-item::after,.shell .table-item::after,.shell .build-item::after{transition:none}}
+
+/* Two-player opponents use the same red team accent as the seating preview. */
+.shell:not(.multiplayer-game) .game-toolbar .opponent-tag{border:1px solid #ffffff35;border-top:3px solid var(--seat-color,#ac4847);background:#102e268c;color:#fff;border-radius:10px}
 
 </style></head><body><div id="app"></div>
 <script>/* Fishing Lab — dependency-free, deterministic rules engine.
@@ -4164,7 +4167,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.10';
+  const APP_VERSION = '0.10.11';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -4210,9 +4213,11 @@ html,body,#app{background:#005d0b;color:#fff}
   let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
-  let prefs = { sound: true, animations: true, undo: true, handSort:'suit' };
+  let prefs = { sound: true, animations: true, undo: true, handSort:'dealt' };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_STORE) || '{}') }; } catch (_) {}
   delete prefs.cardLayout; // Old saved layout choices no longer affect the board.
+  // Existing installations receive the new dealt-order default once.
+  if(prefs.handSortVersion!==2){prefs.handSort='dealt';prefs.handSortVersion=2;}
   let audioContext = null;
   const app = document.getElementById('app');
   function savePrefs() {
@@ -4275,7 +4280,6 @@ html,body,#app{background:#005d0b;color:#fff}
   // Cards are physically dealt from the visible stock on the left of the felt.
   // Track actual card IDs so draw-mode only animates replacement cards.
   let pendingDeal = null;
-  let activeHandDeal = null;
   let pendingStockOrigin = null;
   let dealAnimation = Promise.resolve();
   let dealing = false;
@@ -4359,7 +4363,7 @@ html,body,#app{background:#005d0b;color:#fff}
     }
   }
   // Dealt cards never materialize in the hand. Until the deck animation
-  // reaches them, their faces remain hidden; the hand grows on each landing.
+  // reaches them, their faces stay hidden in precomputed final positions.
   function dealTargets(deal, includeTable = true) {
     if (!app.querySelectorAll) return [];
     const items=[];
@@ -4370,12 +4374,12 @@ html,body,#app{background:#005d0b;color:#fff}
       const node=tableCards.find(c=>c.dataset.cardId===id);
       if(node) items.push({node,faceUp:true});
     }
-    // Human targets carry their identity in every player-count branch.
-    // Without it the flight falls back to the unpositioned, hidden face.
-    const human=(deal.humanIds||[]).map(humanId=>{
-      const node=handCards.find(c=>c.dataset.cardId===humanId);
-      return node?{node,faceUp:true,humanId}:null;
-    });
+    // The hand DOM is already in the chosen display order, so incoming
+    // cards travel left to right across the top row, then the bottom row.
+    // In dealt mode this is the original engine receipt order.
+    const incoming=new Set(deal.humanIds||[]);
+    const human=handCards.filter(node=>incoming.has(node.dataset.cardId))
+      .map(node=>({node,faceUp:true,humanId:node.dataset.cardId}));
     const cpu=(deal.cpuIndices||[]).map(i=>backs[i]);
     if(deal.cpuBySeat){
       const seats=deal.cpuBySeat.map((indices,i)=>indices.map(j=>app.querySelectorAll('[data-cpu-seat="'+(i+1)+'"] .card-back')[j]));
@@ -4409,27 +4413,21 @@ html,body,#app{background:#005d0b;color:#fff}
     const start=pendingStockOrigin || (deckRect && {
       x:deckRect.left+deckRect.width/2,y:deckRect.top+deckRect.height/2
     });
-    const geometry=humanHandGeometry();
-    const progress=geometry&&deal.humanIds?.length?makeHandDealProgress(deal,geometry):null;
-    activeHandDeal=progress;
     pendingDeal=null;
     pendingStockOrigin=null;
     if(!motionAllowed() || !start || !items.length || !document.body || !document.createElement){
-      activeHandDeal=null;
-      layoutHumanHand();
       items.forEach(item=>{item.node.style.visibility='';});
       return Promise.resolve();
     }
     const generation=motionGeneration;
-    // Incoming cards land in the prefix of the deal, not the final sorted hand.
-    const landingRects=progress?handDealLandingRects(progress,geometry):new Map();
-    const measured=items.map(item=>({...item,rect:landingRects.get(item.humanId)||item.node.getBoundingClientRect()}));
+    // All final hand slots were laid out before any faces were revealed.
+    // Measure once, then never move a landed card during the deal.
+    const measured=items.map(item=>({...item,rect:item.node.getBoundingClientRect()}));
     const flyOne=({node,faceUp,rect,humanId},index)=>new Promise(resolve=>{
         if(generation!==motionGeneration || !node.isConnected){
           node.style.visibility='';resolve();return;
         }
         if(!rect.width || !rect.height || !node.animate){
-          if(humanId&&progress)advanceHandDeal(progress,humanId,false);
           node.style.visibility='';resolve();return;
         }
         const dest={x:rect.left+rect.width/2,y:rect.top+rect.height/2};
@@ -4463,7 +4461,6 @@ html,body,#app{background:#005d0b;color:#fff}
               {transform:end,opacity:1}
             ],{duration:440,delay:index*94,easing:'cubic-bezier(.22,.74,.24,1)'});
             if(generation!==motionGeneration)return;
-            if(humanId&&progress)advanceHandDeal(progress,humanId,true);
             ghost.style.transform=end;
             ghost.style.opacity='1';
             ghost.getAnimations().forEach(a=>a.cancel());
@@ -4471,6 +4468,10 @@ html,body,#app{background:#005d0b;color:#fff}
               await run([{transform:end+' rotateY(0deg)'},{transform:end+' rotateY(90deg)'}],{duration:humanId?75:100,easing:'ease-in'});
               if(generation!==motionGeneration)return;
               const face=node.cloneNode(true);
+              if(humanId){
+                ghost.classList?.add('hand-deal-flight');
+                face.style.setProperty('--hand-index-scale',node.parentElement?.style?.getPropertyValue?.('--hand-index-scale')||'1');
+              }
               face.style.visibility='visible';
               face.style.width='100%';
               face.style.setProperty('height','100%','important');
@@ -4484,11 +4485,7 @@ html,body,#app{background:#005d0b;color:#fff}
     });
     const stockCount=app.querySelector('.draw-stock-count');
     if(stockCount?.animate)stockCount.animate([{scale:1.06},{scale:1}],{duration:250});
-    return Promise.all(measured.map(flyOne)).then(()=>{
-      if(generation===motionGeneration&&activeHandDeal===progress)activeHandDeal=null;
-      // The ordinary next-turn render sorts the completed hand from its
-      // actual landed positions.
-    });
+    return Promise.all(measured.map(flyOne)).then(()=>{});
   }
   // The next player becomes interactive only after the outgoing move and
   // any replacement deal finish. The hand itself is the visible turn cue.
@@ -4507,7 +4504,6 @@ html,body,#app{background:#005d0b;color:#fff}
     });
     document.getElementById?.('app')?.getAnimations?.({subtree:true}).forEach(animation=>animation.cancel());
     pendingDeal=null;
-    activeHandDeal=null;
     pendingStockOrigin=null;
     dealAnimation=Promise.resolve();
   }
@@ -5081,7 +5077,7 @@ html,body,#app{background:#005d0b;color:#fff}
         <button class="game-back" data-action="home" aria-label="Return to main menu">×</button>
         <button class="game-help" data-action="menu" aria-label="Open game menu">☰</button>
       </div>
-      <div class="opponent-tag" aria-label="${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer has ${computerScore} points`}">${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer · ${computerScore} pts`}</div>
+      <div class="opponent-tag" ${multiplayerLabel?'':`style="--seat-color:${gameSeatColor(1)}"`} aria-label="${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer has ${computerScore} points`}">${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer · ${computerScore} pts`}</div>
       <div class="header-actions">
         ${renderHandSortToggle(active)}
         <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
@@ -5089,15 +5085,21 @@ html,body,#app{background:#005d0b;color:#fff}
       </div>
     </header>`;
   }
-  function handSortMode(){return prefs.handSort==='value'?'value':'suit';}
-  function renderHandSortToggle(active){
-    const suitFirst=handSortMode()==='suit';
-    const label=suitFirst?'555':'567';
-    const next=suitFirst?'value then suit':'suit then value';
-    return '<button type="button" class="hand-sort-toggle" data-action="toggle-hand-sort" aria-label="Sort hand: '+(suitFirst?'suit then value':'value then suit')+'. Tap to sort by '+next+'." title="Switch hand sort order" '+(active?'':'disabled')+'>'+
-      label+'</button>';
+  function handSortMode(){
+    return prefs.handSort==='value'||prefs.handSort==='suit'?prefs.handSort:'dealt';
   }
-  function sortedHand(hand,rules,mode='suit'){
+  function nextHandSortMode(mode=handSortMode()){
+    return mode==='dealt'?'value':mode==='value'?'suit':'dealt';
+  }
+  function renderHandSortToggle(active){
+    const mode=handSortMode(),next=nextHandSortMode(mode);
+    const labels={dealt:'dealt',value:'555',suit:'567'};
+    const names={dealt:'dealt order',value:'value then suit',suit:'suit then value'};
+    return '<button type="button" class="hand-sort-toggle" data-action="toggle-hand-sort" aria-label="Sort hand: '+names[mode]+'. Tap to sort by '+names[next]+'." title="Switch hand sort order" '+(active?'':'disabled')+'>'+
+      labels[mode]+'</button>';
+  }
+  function sortedHand(hand,rules,mode='dealt'){
+    if(mode==='dealt')return hand.slice();
     const suitOrder='SHCDX';
     // Numerical capture/build values follow the actual active rules.
     // Classic rank-only face cards have no numerical value: retain J/Q/K
@@ -5113,8 +5115,8 @@ html,body,#app{background:#005d0b;color:#fff}
     ).map(entry=>entry.card);
   }
   function sortedHandSlots(plan){
-    // Growth still alternates rows once both are full; the displayed order
-    // reads across the first row and then across the second at all counts.
+    // The final hand reads across the top row, then the bottom row.
+    // Flight order follows these same fixed slots.
     return [...plan.cards].sort((a,b)=>a.row-b.row||a.col-b.col);
   }
   // Keep the first row at normal spacing until full, then fill the second.
@@ -5159,26 +5161,6 @@ html,body,#app{background:#005d0b;color:#fff}
   function planForHand(count,g){
     return handPlan(count,g.width,g.cardWidth,g.cardHeight,g.gap,g.height);
   }
-  function makeHandDealProgress(deal,g){
-    const incomingIds=[...deal.humanIds],incoming=new Set(incomingIds);
-    const baseIds=g.nodes.map(node=>node.dataset.id).filter(id=>!incoming.has(id));
-    return {baseIds,incomingIds,arrived:0};
-  }
-  function dealHandSlots(baseIds,arrivedIds,g){
-    // Map the retained sorted cards back to their current growth slots.
-    const basePlan=planForHand(baseIds.length,g),baseSlots=sortedHandSlots(basePlan);
-    const ids=basePlan.cards.map(slot=>baseIds[baseSlots.indexOf(slot)]).concat(arrivedIds);
-    const plan=planForHand(ids.length,g);
-    return new Map(ids.map((id,i)=>[id,plan.cards[i]]));
-  }
-  function handDealLandingRects(progress,g){
-    const origin=g.lane.getBoundingClientRect(),result=new Map();
-    progress.incomingIds.forEach((id,i)=>{
-      const slot=dealHandSlots(progress.baseIds,progress.incomingIds.slice(0,i+1),g).get(id);
-      result.set(id,{left:origin.left+g.inset+slot.x,top:origin.top+slot.y,width:g.cardWidth,height:g.cardHeight});
-    });
-    return result;
-  }
   function writeHandSlot(node,p,g){
     node.style.left=(g.inset+p.x)+'px';
     node.style.top=p.y+'px';
@@ -5188,47 +5170,10 @@ html,body,#app{background:#005d0b;color:#fff}
   function layoutHumanHand(){
     const g=humanHandGeometry();
     if(!g)return;
-    const progress=activeHandDeal||(pendingDeal?.humanIds?.length?makeHandDealProgress(pendingDeal,g):null);
-    if(progress){
-      const slots=dealHandSlots(progress.baseIds,progress.incomingIds.slice(0,progress.arrived),g);
-      g.nodes.forEach(node=>{const p=slots.get(node.dataset.id);if(p)writeHandSlot(node,p,g);});
-      return;
-    }
     const plan=planForHand(g.nodes.length,g);
     const slots=sortedHandSlots(plan);
+    // Use the full committed hand count, including hidden incoming cards.
     g.nodes.forEach((node,i)=>writeHandSlot(node,slots[i],g));
-  }
-  function advanceHandDeal(progress,id,animate=true){
-    if(activeHandDeal!==progress)return;
-    const next=progress.incomingIds.indexOf(id)+1;
-    if(next<=progress.arrived)return;
-    const g=humanHandGeometry();
-    if(!g){progress.arrived=next;return;}
-    const previous=dealHandSlots(progress.baseIds,progress.incomingIds.slice(0,progress.arrived),g);
-    const oldRects=new Map(),active=animateLayout.active||(animateLayout.active=new WeakMap());
-    for(const node of g.nodes){
-      if(!previous.has(node.dataset.id))continue;
-      if(animate)oldRects.set(node,node.getBoundingClientRect());
-      active.get(node)?.cancel();
-      active.delete(node);
-    }
-    progress.arrived=next;
-    const slots=dealHandSlots(progress.baseIds,progress.incomingIds.slice(0,next),g);
-    for(const node of g.nodes){
-      const slot=slots.get(node.dataset.id);
-      if(slot)writeHandSlot(node,slot,g);
-    }
-    if(!animate||!motionAllowed())return;
-    // Read geometry first; translate only cards already dealt.
-    const shifts=[];
-    for(const [node,from] of oldRects){
-      const to=node.getBoundingClientRect(),dx=from.left-to.left,dy=from.top-to.top;
-      if(node.animate&&(Math.abs(dx)>.5||Math.abs(dy)>.5))shifts.push({node,dx,dy});
-    }
-    for(const {node,dx,dy} of shifts){
-      const animation=node.animate([{translate:dx+'px '+dy+'px'},{translate:'0px 0px'}],{duration:150,easing:'cubic-bezier(.2,.8,.2,1)'});
-      if(animation)active.set(node,animation);
-    }
   }
   // Size actual cards, not transformed hitboxes. Keep row counts bounded
   // so a full hand still leaves space for the table and legal move buttons.
@@ -5245,7 +5190,7 @@ html,body,#app{background:#005d0b;color:#fff}
       ';--wide-cols:'+p.wideCols+';--wide-rows:'+p.wideRows+';--multi-gap:'+p.gap+'px;--one-gap:'+p.oneGap+'px';
   }
   function gameSeatColor(seat){
-    if(game.rules.teamMode==='freeForAll')return seat===0?'#346da8':'#777b73';
+    if(game.rules.teamMode==='freeForAll')return seat===0?'#346da8':game.players.length===2?'#ac4847':'#777b73';
     return ['#346da8','#ac4847','#367c55'][E.sideFor(game.rules,seat)];
   }
   function multiToolbarLabel(){
@@ -5414,6 +5359,7 @@ html,body,#app{background:#005d0b;color:#fff}
     if (game.phase !== 'playing') resetSelection();
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) resetSelection();
     const active = isHumanTurn();
+    const showingDeal=dealing||!!pendingDeal;
     // Never run a validator for an action the current selection cannot show.
     const capture = pickedTable.size ? actionReady('capture') : null;
     const trail = pickedTable.size ? null : actionReady('trail');
@@ -5450,7 +5396,7 @@ html,body,#app{background:#005d0b;color:#fff}
           </div>
           <div class="human-area">
             <span class="sr-only" role="status">${active?'Your turn':'Waiting for your turn'}</span>
-            <div class="human-hand${active?'':' hand-inactive'}" aria-label="Your hand" aria-disabled="${!active}">${sortedHand(me().hand,game.rules,handSortMode()).map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
+            <div class="human-hand${active||showingDeal?'':' hand-inactive'}" aria-label="Your hand" aria-disabled="${!active}">${sortedHand(me().hand,game.rules,handSortMode()).map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
             <div class="your-score-tag" style="--seat-color:${gameSeatColor(0)}">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
@@ -5469,7 +5415,7 @@ html,body,#app{background:#005d0b;color:#fff}
     layoutHumanHand();
     hidePendingDealCards();
     animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))!==0);
-    animateHandTone(previousHandTone);
+    if(!showingDeal)animateHandTone(previousHandTone);
     if (motion === 'deal' || motion === 'deal-hands') dealAnimation = animateNewDeal(motion === 'deal');
   }
   const SETTING_INFO = {
@@ -6085,7 +6031,7 @@ html,body,#app{background:#005d0b;color:#fff}
     const n=rules.playerCount,mode=rules.teamMode,seats=E.seatAssignments(n,mode);
     const colors=['#346da8','#ac4847','#367c55'];
     const free=mode==='freeForAll';
-    const fillFor=s=>free?(s.human?colors[0]:'#777b73'):colors[s.team];
+    const fillFor=s=>free?(s.human?colors[0]:n===2?colors[1]:'#777b73'):colors[s.team];
     const labels=seats.map(s=>(s.human?'You':'CPU '+s.seat)+(free?'':', team '+(s.team+1)));
     const cx=160,cy=110,inner=60,outer=100,halfAngle=22*Math.PI/180,labelRadius=(inner+outer)/2;
     const groups=seats.map(s=>{
@@ -7050,7 +6996,7 @@ html,body,#app{background:#005d0b;color:#fff}
       // Do not move a live flight/deal destination. The selected card and
       // table selection are identified by ID and survive a presentation sort.
       if(modal||!isHumanTurn()||node.disabled)return;
-      prefs.handSort=handSortMode()==='suit'?'value':'suit';
+      prefs.handSort=nextHandSortMode();
       savePrefs();
       render();
       if(event.detail===0)app.querySelector('[data-action="toggle-hand-sort"]')?.focus({preventScroll:true});

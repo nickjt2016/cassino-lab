@@ -135,3 +135,12 @@ test('Team cycle wraps, preserves color assignments, and is fixed for 2, 3 and 5
  assert.match(app,/control\.outerHTML=teamCycleControl\(preview\)/);
  assert.match(app,/action==='cycle-team-mode'&&modal==='settings'/);
 });
+
+test('Two-player seating preview has blue and red; multiplayer FFA CPUs are grey',()=>{
+ const h=harness();h.open('newgame');
+ for(let n=2;n<=6;n++){
+  h.set('playerCount',n);
+  const colors=[...h.diagram().matchAll(/class="polar-seat" d="[^"]+" fill="([^"]+)"/g)].map(m=>m[1]);
+  assert.deepEqual(colors,['#346da8',...Array(n-1).fill(n===2?'#ac4847':'#777b73')]);
+ }
+});
