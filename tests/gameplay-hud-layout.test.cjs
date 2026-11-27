@@ -57,14 +57,20 @@ test('Hand layout fits 0–27 cards at representative portrait and landscape wid
  assert.match(app,/layoutHumanHand\(\);\s*hidePendingDealCards\(\);\s*animateLayout/);
  assert.match(app,/node\.style\.zIndex=String\(p\.col\+1\)/);
 });
-test('Table still has independent responsive non-scrolling rows',()=>{
+test('Table has exactly four reserved columns and enough rows for every card count',()=>{
  const h=ui({},E.newMatch());
  for(let n=0;n<=54;n++){
   const p=h.plan(n,true);
   assert.ok(p.portraitCols*p.portraitRows>=n);assert.ok(p.wideCols*p.wideRows>=n);
-  assert.ok(p.portraitRows<=4);assert.ok(p.wideRows<=3);
+  assert.equal(p.portraitCols,4);assert.equal(p.wideCols,4);
+  assert.equal(p.portraitRows,Math.max(1,Math.ceil(n/4)));assert.equal(p.wideRows,p.portraitRows);
  }
- assert.match(css,/--row-budget:max\(12px,calc\(100cqh - 16px\)\)/);
+ assert.match(css,/--row-budget:max\(12px,calc\(88cqh - 16px\)\)/);
+ const table=css.slice(css.indexOf('/* Four permanent loose-card columns'),css.indexOf('/* The hand reserves exactly'));
+ assert.match(table,/\.shell \.table-stage:not\(:has\(\.table-builds:not\(:empty\)\)\) \.table-cards/);
+ assert.match(table,/width:calc\(100% - var\(--build-lane\)\)!important/);
+ assert.match(table,/grid-template-columns:repeat\(4,var\(--row-card-width\)\)/);
+ assert.match(table,/top:56%!important/);
 });
 test('No visible turn banner; deal stays full-color and legal actions stay on one row',()=>{
  const render=section('  function render(mode','  const SETTING_INFO');

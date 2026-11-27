@@ -43,7 +43,7 @@ test('Dialog changes preserve the live board and existing modal shell',()=>{
   const host={querySelector:s=>s==='.shell'?shell:overlay,insertAdjacentHTML(){inserted++;}};
   const api=new Function('app','document',section('  function syncGameOverlay(','  function render(mode')+
     "\nlet modal='menu',prefs={undo:true,animations:true};const cardLayoutPreference=()=> 'multiRow';const renderDialogBody=()=>'<p>menu</p>',restoreVariationsScroll=()=>{};return {sync:syncGameOverlay,close:()=>modal=''};")(host,{});
-  assert.ok(api.sync());assert.equal(panel.label,'menu');assert.equal(panel.innerHTML,'<p>menu</p>');assert.equal(inserted,0);
+  assert.ok(api.sync());assert.equal(panel.label,'Settings');assert.equal(panel.innerHTML,'<p>menu</p>');assert.equal(inserted,0);
   api.close();assert.ok(api.sync());assert.equal(removed,1);
 });
 test('Duplicate saves are skipped, but every committed move and undo checkpoint are saved',()=>{
@@ -135,4 +135,23 @@ test('Selected cards lift smoothly and the tap flash is confined to its existing
  assert.match(css,/\.hand-item:active:not\(:disabled\)::after/);
  assert.match(app,/node\.style\.zIndex=String\(p\.col\+1\)/);
  assert.doesNotMatch(css,/\.hand-item\.selected\s*\{[^}]*z-index/);
+});
+
+test('Loose table cards, hand cards and build buttons share the 190ms lift transition',()=>{
+ const css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
+ assert.match(css,/\.shell\.animations-on \.table-stage \.table-cards \.table-item\{\s*transition:transform 190ms/);
+ assert.match(css,/\.shell\.animations-on \.table-stage \.table-builds \.build-item\{\s*transition:transform 190ms/);
+ assert.match(css,/\.shell \.build-item::after\{z-index:100\}/);
+ const render=section('  function render(mode','  const SETTING_INFO');
+ assert.match(render,/\.map\(e=>entryMarkup\(e,active\)\)/);
+ const entry=section('  function renderCard(','  function isHumanTurn()');
+ const markup=new Function('E','game','pickedTable','escapeHtml','suitClass','prettyRank','prettySuit',entry+'return entryMarkup;')(E,{rules:E.rulesFor(),players:[{name:'You'},{name:'CPU'}]},new Set(['t1','b1']),String,()=>'',c=>c.rank,c=>c.suit);
+ const card={id:'S4',rank:4,suit:'S'},loose={id:'t1',type:'loose',card},build={id:'b1',type:'build',groups:[[card,{id:'H3',rank:3,suit:'H'}]],owner:0,value:7};
+ for(const item of [loose,build]){
+  const selected=markup(item,true),inactive=markup(item,false);
+  assert.match(selected,/aria-pressed="true"/);assert.match(selected,/card-selected/);
+  assert.doesNotMatch(selected,/<button[^>]*\bdisabled\b/);assert.match(inactive,/<button[^>]*\bdisabled\b/);
+ }
+ const renderedBuild=markup(build);
+ assert.equal((renderedBuild.match(/card-selected/g)||[]).length,3);
 });

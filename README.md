@@ -303,3 +303,7 @@ Two-player play uses blue for the human and red for the CPU, in setup and the sc
 ### 0.10.12 — fixed team option alignment
 
 Single-arrangement team controls (2, 3, and 5 players) use the same left alignment and padding as cycling team controls, without showing a cycle icon or enabling interaction.
+
+### 0.10.13 — in-game settings, restart and four-column table
+
+The in-game Settings dialog contains playback return, move history, sound, undo, restart and a bottom Exit to menu action. Game setup and animation preferences remain accessible from the main menu only. The static How to play shortcut is hidden until rules-aware help is available. Exit confirmation also offers restart using the same rules, with existing new-match confirmation. All selectable loose cards and builds use the same smoothly animated selection feedback; table buttons are disabled while input is unavailable, and build flashes stay within their own stacking context. The loose-card lane always has four columns, with the right build lane reserved even when empty, and both lanes are positioned slightly lower. Very large tables use additional rows and smaller cards rather than overlapping the build area.

@@ -1089,6 +1089,14 @@ html,body,#app{background:#005d0b;color:#fff}
 .animations-on .hand-item,.animations-on .table-item,.animations-on .build-item {
   transition:transform 190ms cubic-bezier(.2,.8,.2,1);
 }
+/* The historical loose-card selector is more specific than the shared
+   rule above; explicitly replace its transition for table selections. */
+.shell.animations-on .table-stage .table-cards .table-item{
+  transition:transform 190ms cubic-bezier(.2,.8,.2,1);
+}
+.shell.animations-on .table-stage .table-builds .build-item{
+  transition:transform 190ms cubic-bezier(.2,.8,.2,1);
+}
 .animations-off .hand-item,.animations-off .table-item,.animations-off .build-item {
   transition:none!important;
 }
@@ -1362,15 +1370,22 @@ html,body,#app{background:#005d0b;color:#fff}
 .shell .game-toolbar .opponent-tag{flex:0 1 auto;min-width:0;max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .shell .multi-cpu-seat{justify-content:center;gap:5px;padding:4px 2px}
 .shell .multi-seat-caption{min-height:0;flex:none}
-/* Table keeps its independent, responsive non-scrolling multi-row layout. */
-.shell .table-stage .table-cards{
-  --row-cols:var(--portrait-cols,1);--row-rows:var(--portrait-rows,1);--row-gap:var(--multi-gap,4px);
-  --row-card-width:min(var(--row-max-width),max(2px,calc((100% - (var(--row-cols) - 1)*var(--row-gap))/var(--row-cols))),max(2px,calc((var(--row-budget) - (var(--row-rows) - 1)*var(--row-gap))*.715/var(--row-rows))));
-  --row-max-width:64px;--row-budget:max(12px,calc(100cqh - 16px));height:auto;max-height:none;padding:4px 2px;
-  display:flex;box-sizing:border-box;min-width:0;align-items:center;align-content:center!important;flex-direction:row!important;flex-wrap:wrap!important;gap:var(--row-gap);overflow:visible;touch-action:auto;scrollbar-width:none;
+/* Four permanent loose-card columns; the right lane never collapses. */
+.shell .table-stage .table-cards,
+.shell .table-stage:has(.table-builds:not(:empty)) .table-cards,
+.shell .table-stage:not(:has(.table-builds:not(:empty))) .table-cards{
+  --row-cols:4;--row-rows:var(--portrait-rows,1);--row-gap:var(--multi-gap,4px);
+  --row-card-width:min(var(--row-max-width),max(2px,calc((100% - 3*var(--row-gap))/4)),max(2px,calc((var(--row-budget) - (var(--row-rows) - 1)*var(--row-gap))*.715/var(--row-rows))));
+  --row-max-width:64px;--row-budget:max(12px,calc(88cqh - 16px));
+  width:calc(100% - var(--build-lane))!important;max-width:calc(100% - var(--build-lane))!important;
+  top:56%!important;height:auto;max-height:none;padding:4px 2px;
+  display:grid;grid-template-columns:repeat(4,var(--row-card-width));grid-auto-rows:max-content;
+  box-sizing:border-box;min-width:0;align-items:center;align-content:center!important;justify-content:start!important;
+  gap:var(--row-gap);overflow:visible;touch-action:auto;scrollbar-width:none;
 }
-.shell .table-stage .table-cards .table-item{flex:0 0 var(--row-card-width)!important;width:var(--row-card-width);min-width:0;max-width:none;padding:0;margin:0}
+.shell .table-stage .table-cards .table-item{width:100%;min-width:0;max-width:none;padding:0;margin:0}
 .shell .table-stage .table-cards .table-item .playing-card:not(.mini){display:block;width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;margin:0}
+.shell .table-stage .table-builds:not(:empty){top:56%!important;max-height:84%}
 /* The hand reserves exactly two card heights, one fixed gap and lift clearance.
    Cards keep their physical dimensions; only their positions/overlap change. */
 .shell .human-hand{
@@ -1391,7 +1406,6 @@ html,body,#app{background:#005d0b;color:#fff}
 .shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) small,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) small{font-size:calc(19cqw * var(--hand-index-scale,1))}
 .shell .human-hand .playing-card.rank-joker .card-corner:not(.bottom) b,.hand-deal-flight .playing-card.rank-joker .card-corner:not(.bottom) b{font-size:calc(10cqw * var(--hand-index-scale,1))}
 @media(orientation:landscape) and (max-height:500px){
- .shell .table-stage .table-cards{--row-cols:var(--wide-cols,1);--row-rows:var(--wide-rows,1)}
  .shell .human-hand{--hand-cap:clamp(35px,6.1vw,53px);--hand-budget:min(29dvh,120px)}
  .shell .turn-action-area{height:clamp(29px,8dvh,41px)}
  .shell .move-action-slot .main-actions .action-btn{padding-inline:8px}
@@ -1420,3 +1434,10 @@ html,body,#app{background:#005d0b;color:#fff}
 
 /* Two-player opponents use the same red team accent as the seating preview. */
 .shell:not(.multiplayer-game) .game-toolbar .opponent-tag{border:1px solid #ffffff35;border-top:3px solid var(--seat-color,#ac4847);background:#102e268c;color:#fff;border-radius:10px}
+
+/* Build layers may themselves have high z-indices. Keep the tap flash above
+   every constituent within its isolated build button, never above neighbors. */
+.shell .build-item::after{z-index:100}
+.dialog-actions.exit-confirm-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.exit-confirm-actions .restart-action{grid-column:1/-1;min-width:0}
+.exit-confirm-actions .action-btn{min-width:0}

@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.12';
+  const APP_VERSION = '0.10.13';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -864,10 +864,10 @@
   function buildPanelValue(value,signedValue) {
     return String(signedValue??value);
   }
-  function entryMarkup(element) {
+  function entryMarkup(element,active=true) {
     const selected = pickedTable.has(element.id);
     if (element.type === 'loose') {
-      return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table">${renderCard(element.card,false,selected)}</button>`;
+      return `<button type="button" class="table-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${escapeHtml(E.cardName(element.card))} on table" ${active?'':'disabled'}>${renderCard(element.card,false,selected)}</button>`;
     }
     const cards=element.groups.flat();
     // Mark only the beginning of each subsequent equal-valued group.
@@ -880,7 +880,7 @@
     const ownerName = element.owner === 0 ? 'You' : (typeof game!=='undefined'&&game.players[element.owner]?.name)||'Computer';
     const panelValue = buildPanelValue(element.value,element.signedValue);
     const layers=cards.map((card,i)=>`<span class="build-layer${groupStarts.has(i)?' build-group-start':''}" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
-    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.signedValue??element.value} build${element.signedValue<0?' (capture value '+element.value+')':''} owned by ${escapeHtml(ownerName)}">
+    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.signedValue??element.value} build${element.signedValue<0?' (capture value '+element.value+')':''} owned by ${escapeHtml(ownerName)}" ${active?'':'disabled'}>
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
     </button>`;
   }
@@ -1024,8 +1024,14 @@
   // so a full hand still leaves space for the table and legal move buttons.
   function rowPlan(count,table=false){
     const n=Math.max(1,Math.floor(count)||1);
-    const portraitRows=Math.min(table?4:3,Math.ceil(n/6));
-    const wideRows=Math.min(table?3:2,Math.ceil(n/12));
+    // Always reserve four physical slots across the loose-card lane.
+    // Count the actual number of rows, even in unusually large custom deals.
+    if(table){
+      const rows=Math.ceil(n/4);
+      return {count:n,portraitRows:rows,portraitCols:4,wideRows:rows,wideCols:4,gap:n>18?2:n>10?3:n>6?4:7,oneGap:4};
+    }
+    const portraitRows=Math.min(3,Math.ceil(n/6));
+    const wideRows=Math.min(2,Math.ceil(n/12));
     return {count:n,portraitRows,portraitCols:Math.ceil(n/portraitRows),
       wideRows,wideCols:Math.ceil(n/wideRows),gap:n>18?2:n>10?3:n>6?4:7,oneGap:n>18?1:n>10?2:n>5?3:6};
   }
@@ -1069,7 +1075,6 @@
           <button class="launch-outlined" disabled><b>Online Multiplayer</b><small>Coming later</small></button>
         </div>
         <div class="launch-tiles">
-          <button data-action="rules" class="launch-tile"><span>♧</span><b>How to Play</b></button>
           <button data-action="settings" class="launch-tile"><span>⚙</span><b>Game Variations</b></button>
           <button data-action="toggle-sound" class="launch-tile"><span>♫</span><b>Sound: ${prefs.sound ? 'On' : 'Off'}</b></button>
           <button data-action="toggle-animations" class="launch-tile"><span>✦</span><b>Animations: ${prefs.animations ? 'On' : 'Off'}</b></button>
@@ -1134,7 +1139,7 @@
     else {
       const panel=overlay.querySelector('.dialog');
       if(!panel)return false;
-      panel.setAttribute('aria-label',modal);
+      panel.setAttribute('aria-label',modal==='menu'?'Settings':modal);
       panel.innerHTML=renderDialogBody();
     }
     restoreVariationsScroll();
@@ -1233,8 +1238,8 @@
             ${game.players.length>2?renderCpuSeats():`<div class="opponent-hand${opponent().hand.length>5?' wide-hand':''}" style="--hand-count:${Math.max(1,opponent().hand.length)}" aria-label="Computer has ${opponent().hand.length} hidden cards">${opponent().hand.map(() => renderBack()).join('')}</div>`}
           </div>
           <div class="table-area">
-            <div class="table-stage"><div class="table-cards" aria-label="Table cards" style="${cardRowStyle(game.table.filter(e=>e.type==='loose').length,true)}">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(entryMarkup).join('') : ''}</div>
-            <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(entryMarkup).join('')}</div></div>
+            <div class="table-stage"><div class="table-cards" aria-label="Loose table cards" style="${cardRowStyle(game.table.filter(e=>e.type==='loose').length,true)}">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(e=>entryMarkup(e,active)).join('') : ''}</div>
+            <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(e=>entryMarkup(e,active)).join('')}</div></div>
           </div>
           <div class="turn-action-area">
             <div class="move-action-slot">${controlsMarkup}</div>
@@ -2154,18 +2159,14 @@
   }
 
   function renderMenu() {
-    return `<div class="dialog-head"><div><span class="eyebrow menu-brand"><img src="./icon.svg" alt="" width="26" height="26"> FISHING LAB</span><h2>Game menu</h2><p>Single-player · Hand ${game.round} · ${escapeHtml(game.rules.name)}</p></div><button data-action="close" class="icon-close" aria-label="Close menu">×</button></div>
+    return `<div class="dialog-head"><div><h2>Settings</h2></div><button data-action="close" class="icon-close" aria-label="Close settings">×</button></div>
       <div class="dialog-content menu-list">
         <button data-action="close" class="menu-row"><span>▶</span><b>Continue playing</b></button>
-        <button data-action="home" class="menu-row"><span>⌂</span><b>Main menu</b></button>
-        <button data-action="settings" class="menu-row"><span>⚙</span><b>Game rules & variants</b></button>
-        <button data-action="rules" class="menu-row"><span>?</span><b>How to play</b></button>
         <button data-action="history" class="menu-row"><span>☷</span><b>Move history</b></button>
         <button data-action="toggle-sound" class="menu-row"><span>${prefs.sound ? '♫' : '♪'}</span><b>Sound effects</b><em>${prefs.sound ? 'On' : 'Off'}</em></button>
-        <button data-action="toggle-animations" class="menu-row"><span>✦</span><b>Card animations</b><em>${prefs.animations ? 'On' : 'Off'}</em></button>
         <button data-action="toggle-undo" class="menu-row" aria-pressed="${prefs.undo}"><span>↶</span><b>Undo button</b><em>${prefs.undo ? 'On' : 'Off'}</em></button>
-        <button data-action="new-match" class="menu-row danger-row"><span>↻</span><b>Start new match</b></button>
-      </div><div class="dialog-actions"><button data-action="close" class="action-btn primary">Back to table</button></div>`;
+        <button data-action="new-match" class="menu-row danger-row"><span>↻</span><b>Restart game</b></button>
+      </div><div class="dialog-actions"><button data-action="home" class="action-btn primary">Exit to menu</button></div>`;
   }
   function renderRules() {
     return `<div class="dialog-head"><div><span class="eyebrow">HOW TO PLAY</span><h2>Cassino, in brief</h2><p>A capture-and-build fishing card game.</p></div><button data-action="close" class="icon-close">×</button></div>
@@ -2235,8 +2236,9 @@
   }
   function renderExitConfirm() {
     return `<div class="dialog-head"><div><h2>Exit game?</h2><p>Are you sure you want to exit this game?</p></div></div>
-      <div class="dialog-content"><p class="exit-confirm-copy">Your match will be saved. You can resume it from the main menu.</p></div>
-      <div class="dialog-actions"><button data-action="cancel-exit" class="action-btn">Keep playing</button>
+      <div class="dialog-content"><p class="exit-confirm-copy">Your match will be saved if you exit to the menu. Restarting begins a new match with the same rules.</p></div>
+      <div class="dialog-actions exit-confirm-actions"><button data-action="new-match" class="action-btn restart-action">Restart game</button>
+        <button data-action="cancel-exit" class="action-btn">Keep playing</button>
         <button data-action="confirm-exit" class="action-btn primary">Exit to menu</button></div>`;
   }
   function renderDialogBody() {
@@ -2244,7 +2246,7 @@
   }
   function renderModal() {
     const body=renderDialogBody();
-    return `<div class="overlay" role="presentation"><section class="dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(modal)}">${body}</section></div>`;
+    return `<div class="overlay" role="presentation"><section class="dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(modal==='menu'?'Settings':modal)}">${body}</section></div>`;
   }
   function showExitConfirm() {
     exitReturnModal = modal === 'menu' ? 'menu' : '';
@@ -2264,7 +2266,7 @@
     if (modal === 'menu') {
       const panel = overlay?.querySelector('.dialog');
       if (panel) {
-        panel.setAttribute('aria-label','menu');
+        panel.setAttribute('aria-label','Settings');
         panel.innerHTML = renderMenu();
         return;
       }
@@ -2471,7 +2473,7 @@
     if (ask && game.phase === 'playing' && !confirm('Start a new match? Your current match will be replaced.')) return;
     if (pendingBot !== null) { clearTimeout(pendingBot); pendingBot = null; }
     cancelMotion();
-    busy = false; game = E.newMatch(rules); checkpoint = null; modal = ''; toast = ''; lastMotion = 'deal';
+    busy = false; game = E.newMatch(rules); checkpoint = null; modal = ''; exitReturnModal = ''; toast = ''; lastMotion = 'deal';
     collectDeal(); pendingStockOrigin=null;
     screen = 'game'; resetSelection(); draft = null;
     dealing = busy = !!(motionAllowed() && app.querySelectorAll);
@@ -2833,10 +2835,10 @@
     }
     if (action === 'setup-difficulty' && modal === 'settings') { draft.difficulty=node.dataset.value; render('overlay'); return; }
     if (action === 'menu') { modal = 'menu'; sound('tap'); render('overlay'); return; }
-    if (action === 'settings') return openSettings(screen);
-    if (action === 'rules' || action === 'history') { modal = action; render('overlay'); return; }
+    if (action === 'settings' && screen === 'home') return openSettings(screen);
+    if (action === 'history') { modal = action; render('overlay'); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render('overlay'); return; }
-    if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render('overlay'); return; }
+    if (action === 'toggle-animations' && screen === 'home') { prefs.animations = !prefs.animations; savePrefs(); render('overlay'); return; }
     if (action === 'toggle-hand-sort') {
       // Do not move a live flight/deal destination. The selected card and
       // table selection are identified by ID and survive a presentation sort.

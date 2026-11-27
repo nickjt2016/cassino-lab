@@ -1,6 +1,6 @@
 {
   "name": "fishing-lab",
-  "version": "0.10.12",
+  "version": "0.10.13",
   "private": true,
   "description": "Offline single-player fishing games and configurable rules",
   "scripts": {

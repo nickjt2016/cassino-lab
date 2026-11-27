@@ -44,3 +44,25 @@ test('Unified setup and exit confirmation are preserved',()=>{
   assert.match(app,/function cancelExit\(\)/);
   assert.match(app,/function exitGameToMenu\(\)/);
 });
+
+test('In-game settings is simplified and Exit to menu is the final footer action',()=>{
+ const source=app.slice(app.indexOf('  function renderMenu()'),app.indexOf('  function renderRules()'));
+ const render=new Function('prefs',source+'return renderMenu;')({sound:true,undo:true});
+ const html=render();
+ assert.match(html,/<h2>Settings<\/h2>/);
+ assert.doesNotMatch(html,/Single-player|Hand 1|Classic Casino|data-action="(?:rules|settings|toggle-animations)"/i);
+ assert.match(html,/data-action="new-match"[^>]*>[\s\S]*?Restart game/);
+ assert.match(html,/<div class="dialog-actions"><button data-action="home" class="action-btn primary">Exit to menu<\/button><\/div>$/);
+ assert.doesNotMatch(app,/data-action="rules" class="launch-tile"/);
+ assert.match(app,/action === 'toggle-animations' && screen === 'home'/);
+ assert.match(app,/action === 'settings' && screen === 'home'/);
+});
+test('Exit confirmation supports restart, keep playing and save-and-exit',()=>{
+ const source=app.slice(app.indexOf('  function renderExitConfirm()'),app.indexOf('  function renderDialogBody()'));
+ const html=new Function(source+'return renderExitConfirm;')()();
+ assert.match(html,/data-action="new-match"[^>]*>Restart game<\/button>/);
+ assert.match(html,/data-action="cancel-exit"[^>]*>Keep playing<\/button>/);
+ assert.match(html,/data-action="confirm-exit"[^>]*>Exit to menu<\/button>/);
+ assert.match(app,/if \(action === 'new-match'\) return startNewMatch\(game.rules, true\)/);
+ assert.match(app,/confirm\('Start a new match\? Your current match will be replaced\.'\)/);
+});
