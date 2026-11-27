@@ -87,10 +87,10 @@ test('Build summaries show owner, value, single/multi and the real number of car
  const h=f(E,s,pickedTable,String,()=>'',c=>c.rank,c=>c.suit,{}, {}, {});
  const single=h.markup(s.table.at(-1));
  assert.match(single,/class="build-summary card-selected"/);
- assert.match(single,/build-summary-owner">You<\/span><strong>8<\/strong><span>Single<\/span><span>2 cards<\/span>/);
+ assert.match(single,/build-summary-owner build-value-owner">You<\/span><strong class="build-value-number">8<\/strong><span class="build-summary-detail">Single<\/span><span class="build-summary-detail">2 cards<\/span>/);
  const build={...s.table.at(-1),owner:1,groups:[[card('S3'),card('D5')],[card('C8')]]};
  const multi=h.markup(build);
- assert.match(multi,/build-summary-owner">Computer<\/span><strong>8<\/strong><span>Multi<\/span><span>3 cards<\/span>/);
+ assert.match(multi,/build-summary-owner build-value-owner">Computer<\/span><strong class="build-value-number">8<\/strong><span class="build-summary-detail">Multi<\/span><span class="build-summary-detail">3 cards<\/span>/);
  assert.equal((multi.match(/class="playing-card /g)||[]).length,3);
  assert.equal(h.collapse([90],100,5),false);
  assert.equal(h.collapse([101],100,5),true);
@@ -128,17 +128,50 @@ test('Two-column packing keeps the maximum number of full piles and fills the ri
  assert.match(css,/width:calc\(100% - var\(--build-lane\)\*var\(--build-columns\)\)!important/);
  assert.match(css,/right:calc\(2px \+ var\(--build-lane\)\*var\(--build-column,0\)\)/);
 });
-test('Selected collapsed summary expands in an overlay and deselecting removes the preview',()=>{
+test('The enlarged shared bounds keep the screenshot pair in one column',()=>{
+ const plan=new Function(section('  function planBuildColumns(','  function layoutBuilds(')+';return planBuildColumns;')();
+ // The four-card and two-card stacks are about 147 and 103 CSS pixels.
+ const p=[{cards:4,height:147},{cards:2,height:103}];
+ assert.equal(plan(p,244,81,5).columns,2);
+ assert.equal(plan(p,276,81,5).columns,1);
+ assert.match(css,/height:94%;max-height:94%;top:52%!important/);
+});
+test('Expanded build previews grow upward from their own summary and stay inside the felt',()=>{
+ const geometry=new Function(section('  function buildInspectionGeometry(','  function syncBuildInspections(')+';return buildInspectionGeometry;')();
+ const bounds={left:10,top:20,width:350,height:300},pile={width:60,height:160};
+ const box=(left,top,width=60,height=84)=>({left,top,width,height,bottom:top+height});
+ let g=geometry(box(200,160),bounds,pile);
+ assert.equal(g.left,190);assert.equal(g.top,64);
+ assert.equal(g.top+g.height,224);
+ assert.match(g.frames[0].clipPath,/inset\(76px/);
+ assert.equal(g.frames[0].transform,'translate(0px,0px)');
+ g=geometry(box(200,25),bounds,pile);
+ assert.equal(g.top,0);assert.equal(g.frames[0].transform,'translate(0px,-71px)');
+ assert.equal(g.top+g.height,160);
+ g=geometry(box(300,280),bounds,{width:60,height:500});
+ assert.equal(g.height,300);assert.equal(g.scrollTop,200);
+ assert.equal(g.top,0);assert.ok(g.left+g.width<=bounds.width);
+ assert.match(css,/build-summary \.build-value-number\{\s*font:700[^;]+Georgia/);
+ assert.match(app,/duration:165/);assert.match(app,/duration:145/);
+ assert.match(app,/motion\.reverse\(\)/);
+});
+test('Selection creates an anchored preview and deselection removes it without motion',()=>{
  const {f,s,pickedTable}=buildFixture();
- const items=[{dataset:{id:'b1'},disabled:false,getAttribute:()=> 'Build 1',querySelector:()=>({cloneNode:()=>({height:100})})}];
+ const box={left:200,top:160,bottom:244,width:60,height:84};
+ const pile={cloneNode:()=>({getBoundingClientRect:()=>({width:60,height:160})})};
+ const item={dataset:{id:'b1'},disabled:false,getAttribute:()=> 'Build 1',
+   querySelector:sel=>sel==='.build-pile'?pile:{getBoundingClientRect:()=>box}};
  let selected=true;
- const lane={querySelectorAll:()=>selected?items:[]};
- const rail={dataset:{},children:[],replaceChildren(){this.children=[];},appendChild(node){this.children.push(node);}};
+ const lane={querySelectorAll:()=>selected?[item]:[]};
+ const rail={children:[],querySelectorAll(){return this.children;},appendChild(node){this.children.push(node);},
+   getBoundingClientRect:()=>({left:10,top:20,width:350,height:300})};
  const host={querySelector:sel=>sel==='.table-builds'?lane:sel==='.build-inspections'?rail:null};
- const doc={createElement:()=>({dataset:{},setAttribute(){},appendChild(pile){this.pile=pile;}})};
+ const doc={createElement:()=>({dataset:{},style:{},setAttribute(){},appendChild(p){this.pile=p;},
+   querySelector(){return this.pile;},classList:{contains:()=>false},
+   remove(){rail.children=rail.children.filter(n=>n!==this);}})};
  const h=f(E,s,pickedTable,String,()=>'',c=>c.rank,c=>c.suit,host,doc,{});
  h.inspect();assert.equal(rail.children.length,1);
- assert.equal(rail.children[0].dataset.action,'inspect-build');assert.equal(rail.children[0].pile.height,100);
+ assert.equal(rail.children[0].dataset.action,'inspect-build');assert.equal(rail.children[0].style.top,'64px');
  selected=false;h.inspect();assert.equal(rail.children.length,0);
 });
 test('Collapsed source and destination animations use a visible summary or preview, not hidden pile geometry',()=>{

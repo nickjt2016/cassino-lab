@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.15';
+  const APP_VERSION = '0.10.16';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -371,7 +371,7 @@
     if (!playerCard) return null;
     const tableNodes=[...app.querySelectorAll('[data-action="table"][data-id]')];
     const tableById=new Map(tableNodes.map(node=>[node.dataset.id,node]));
-    const previews=new Map([...app.querySelectorAll('.build-inspection')].map(node=>[node.dataset.id,node]));
+    const previews=new Map([...app.querySelectorAll('.build-inspection')].filter(node=>!node.classList.contains('is-closing')).map(node=>[node.dataset.id,node]));
     const sourceFor=node=>{
       const collapsed=node.classList.contains('is-collapsed');
       const preview=collapsed?previews.get(node.dataset.id):null;
@@ -906,7 +906,7 @@
     const layers=cards.map((card,i)=>`<span class="build-layer${groupStarts.has(i)?' build-group-start':''}" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
     return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.signedValue??element.value} build${element.signedValue<0?' (capture value '+element.value+')':''} owned by ${escapeHtml(ownerName)}, ${cards.length} cards" ${active?'':'disabled'}>
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
-      <span class="build-summary${selected?' card-selected':''}" aria-hidden="true"><span class="build-summary-owner">${escapeHtml(ownerName)}</span><strong>${escapeHtml(panelValue)}</strong><span>${element.groups.length>1?'Multi':'Single'}</span><span>${cards.length} card${cards.length===1?'':'s'}</span></span>
+      <span class="build-summary${selected?' card-selected':''}" aria-hidden="true"><span class="build-summary-owner build-value-owner">${escapeHtml(ownerName)}</span><strong class="build-value-number">${escapeHtml(panelValue)}</strong><span class="build-summary-detail">${element.groups.length>1?'Multi':'Single'}</span><span class="build-summary-detail">${cards.length} card${cards.length===1?'':'s'}</span></span>
     </button>`;
   }
   // The reserved build lane has a hard vertical boundary. Measure the
@@ -914,28 +914,90 @@
   function buildsNeedCollapse(heights,available,gap=5){
     return heights.length>0&&heights.reduce((total,h)=>total+h,0)+Math.max(0,heights.length-1)*gap>available+.5;
   }
+  // Align the expanded pile's bottom card to the original summary's bottom.
+  // When there isn't enough space above it, shift only as far as required to
+  // stay within the shared table bounds. The reveal still starts at the box.
+  function buildInspectionGeometry(anchor,bounds,pile){
+    const width=Math.min(pile.width,bounds.width);
+    const height=Math.min(pile.height,bounds.height);
+    if(width<=0||height<=0||anchor.width<=0||anchor.height<=0)return null;
+    const left=Math.max(0,Math.min(bounds.width-width,anchor.left-bounds.left+(anchor.width-width)/2));
+    const top=Math.max(0,Math.min(bounds.height-height,anchor.bottom-bounds.top-height));
+    const dx=anchor.left-bounds.left+(anchor.width-width)/2-left;
+    const dy=anchor.bottom-bounds.top-(top+height);
+    const hidden=Math.max(0,height-anchor.height);
+    const side=Math.max(0,(width-anchor.width)/2);
+    return {left,top,width,height,scrollTop:Math.max(0,pile.height-height),frames:[
+      {transform:'translate('+dx+'px,'+dy+'px)',clipPath:'inset('+hidden+'px '+side+'px 0px '+side+'px)'},
+      {transform:'translate(0px,0px)',clipPath:'inset(-10px -10px -12px -10px)'}
+    ]};
+  }
   function syncBuildInspections(){
     const lane=app.querySelector?.('.table-builds'),rail=app.querySelector?.('.build-inspections');
     if(!lane||!rail)return;
     const selected=[...lane.querySelectorAll('.build-item.is-collapsed.selected')];
-    const ids=selected.map(node=>node.dataset.id).join('|');
-    if(rail.dataset.previewIds===ids)return;
-    rail.dataset.previewIds=ids;
-    rail.replaceChildren();
+    const selectedIds=new Set(selected.map(node=>node.dataset.id));
+    const previews=new Map([...rail.querySelectorAll('.build-inspection')].map(node=>[node.dataset.id,node]));
+    const animate=typeof motionAllowed==='function'&&motionAllowed();
+    // Preserve other selected previews rather than restarting all their
+    // animations when a single pile is selected or deselected.
+    for(const [id,preview] of previews){
+      if(selectedIds.has(id)){
+        if(preview.classList.contains('is-closing')){
+          preview._buildAnimation?.cancel();preview.remove();previews.delete(id);
+        }
+        continue;
+      }
+      if(preview.classList.contains('is-closing'))continue;
+      if(animate&&preview.animate&&preview._buildFrames){
+        preview.classList.add('is-closing');
+        preview.setAttribute('aria-hidden','true');
+        preview.disabled=true;
+        let motion=preview._buildAnimation;
+        if(motion?.playState==='running'&&motion.playbackRate>0){
+          motion.reverse();
+        }else{
+          motion?.cancel();
+          motion=preview.animate([...preview._buildFrames].reverse(),{duration:145,easing:'cubic-bezier(.4,0,.6,1)',fill:'forwards'});
+        }
+        preview._buildAnimation=motion;
+        const finish=()=>{if(preview.classList.contains('is-closing'))preview.remove();};
+        motion.finished.then(finish,finish);
+      }else{preview.remove();}
+    }
+    const bounds=rail.getBoundingClientRect();
     for(const node of selected){
-      const pile=node.querySelector('.build-pile');
-      if(!pile)continue;
-      const preview=document.createElement('button');
-      preview.type='button';
-      preview.className='build-inspection';
-      preview.dataset.action='inspect-build';
-      preview.dataset.id=node.dataset.id;
-      preview.dataset.buildPreview=node.dataset.id;
-      preview.setAttribute('aria-label',node.getAttribute('aria-label')+'; tap to deselect');
-      preview.setAttribute('aria-pressed','true');
+      const pile=node.querySelector('.build-pile'),summary=node.querySelector('.build-summary');
+      if(!pile||!summary)continue;
+      let preview=previews.get(node.dataset.id);
+      const fresh=!preview;
+      if(fresh){
+        preview=document.createElement('button');
+        preview.type='button';
+        preview.className='build-inspection';
+        preview.dataset.action='inspect-build';
+        preview.dataset.id=node.dataset.id;
+        preview.dataset.buildPreview=node.dataset.id;
+        preview.setAttribute('aria-label',node.getAttribute('aria-label')+'; tap to deselect');
+        preview.setAttribute('aria-pressed','true');
+        preview.appendChild(pile.cloneNode(true));
+        rail.appendChild(preview);
+      }
       preview.disabled=node.disabled;
-      preview.appendChild(pile.cloneNode(true));
-      rail.appendChild(preview);
+      const full=preview.querySelector('.build-pile').getBoundingClientRect();
+      const anchor=summary.getBoundingClientRect();
+      const g=buildInspectionGeometry(anchor,bounds,full);
+      if(!g){preview.remove();continue;}
+      const key=[g.left,g.top,g.width,g.height,anchor.left,anchor.bottom,anchor.width,anchor.height].join('|');
+      if(!fresh&&preview._buildGeometry===key)continue;
+      preview._buildAnimation?.cancel();
+      Object.assign(preview.style,{left:g.left+'px',top:g.top+'px',width:g.width+'px',height:g.height+'px'});
+      preview.scrollTop=g.scrollTop;
+      preview._buildGeometry=key;
+      preview._buildFrames=g.frames;
+      if(fresh&&animate&&preview.animate){
+        preview._buildAnimation=preview.animate(g.frames,{duration:165,easing:'cubic-bezier(.2,.8,.2,1)'});
+      }
     }
   }
   // Recalculate from uncollapsed geometry every time. Releasing space
@@ -1015,7 +1077,7 @@
       node.style.removeProperty('--build-scale');
     });
     if(items.length){
-      const inset=Math.min(6,lane.clientHeight/4);
+      const inset=Math.min(4,lane.clientHeight/4);
       const available=Math.max(0,lane.clientHeight-2*inset);
       const piles=items.map(node=>{
         const pile=node.querySelector('.build-pile');

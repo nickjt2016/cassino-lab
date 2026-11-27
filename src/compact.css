@@ -1509,3 +1509,58 @@ html,body,#app{background:#005d0b;color:#fff}
   font-size:calc(clamp(18px,6vw,30px)*var(--build-scale,1));
 }
 .shell .build-inspections{top:14%;bottom:2%;z-index:15}
+
+/* v0.10.16 — extend the shared felt bounds from 14..98% to 5..99%.
+   Keep a small real margin for the selection artwork, not an extra
+   invisible packing penalty. */
+.shell .table-stage .table-cards,
+.shell .table-stage:has(.table-builds:not(:empty)) .table-cards,
+.shell .table-stage:not(:has(.table-builds:not(:empty))) .table-cards{
+  --row-budget:max(0px,calc(94cqh - 16px));
+  top:52%!important;
+}
+.shell .table-stage .table-builds:not(:empty),
+.shell .table-stage .table-builds.builds-collapsed:not(:empty){
+  height:94%;max-height:94%;top:52%!important;
+}
+/* Use the same owner and numeral typography, black paper, ink and edge
+   as the regular build panel. The two extra lines use its owner font. */
+.shell .table-stage .build-item.is-collapsed .build-summary{
+  --summary-scale:var(--build-scale,1);
+  --summary-owner-size:clamp(8px,2.3vw,11px);
+  --summary-value-size:clamp(19px,6vw,29px);
+  background:#12110e;color:var(--build-ink,#fff);
+  border:1px solid var(--build-outline,#c8c8c8);border-radius:2px;
+  font:600 calc(var(--summary-owner-size)*var(--summary-scale))/1.05 Arial,sans-serif;
+  gap:calc(1px*var(--summary-scale));padding:calc(2px*var(--summary-scale));
+}
+.shell .table-stage .build-summary .build-value-owner,
+.shell .table-stage .build-summary .build-summary-detail{
+  font:600 calc(var(--summary-owner-size)*var(--summary-scale))/1.05 Arial,sans-serif;
+}
+.shell .table-stage .build-summary .build-value-number{
+  font:700 calc(var(--summary-value-size)*var(--summary-scale))/1.08 Georgia,'Times New Roman',serif;
+}
+.shell .table-stage .build-summary.card-selected{
+  --build-ink:#fff59b;--build-outline:#d6a526;
+  color:var(--build-ink);border-color:var(--build-outline);
+}
+@media(orientation:landscape) and (max-height:450px){
+  .shell .table-stage .build-item.is-collapsed .build-summary{
+    --summary-owner-size:7px;--summary-value-size:clamp(15px,3vw,20px);
+  }
+}
+/* Each expanded preview is anchored to its own summary, not a separate
+   fixed rail column. The rail itself stays measurable even while empty. */
+.shell .build-inspections,.shell .build-inspections:empty{
+  position:absolute;left:0;right:0;top:5%;bottom:1%;
+  max-width:none;width:auto;display:block;padding:0;overflow:visible;
+  z-index:15;pointer-events:none;
+}
+.shell .build-inspection{
+  position:absolute;display:block;box-sizing:border-box;
+  max-height:100%;max-width:100%;overflow-y:auto;overflow-x:hidden;
+  padding:0;border:0;border-radius:2px;background:#12110e;
+  box-shadow:0 5px 14px 3px #0009;pointer-events:auto;
+}
+.shell .build-inspection.is-closing{pointer-events:none}
