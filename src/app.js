@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.13';
+  const APP_VERSION = '0.10.14';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -371,26 +371,46 @@
     if (!playerCard) return null;
     const tableNodes=[...app.querySelectorAll('[data-action="table"][data-id]')];
     const tableById=new Map(tableNodes.map(node=>[node.dataset.id,node]));
+    const previews=new Map([...app.querySelectorAll('.build-inspection')].map(node=>[node.dataset.id,node]));
+    const sourceFor=node=>{
+      const collapsed=node.classList.contains('is-collapsed');
+      const preview=collapsed?previews.get(node.dataset.id):null;
+      const visible=preview||node;
+      const summary=collapsed?node.querySelector('.build-summary'):null;
+      const bounds=preview?rect(preview):null;
+      const cardRect=card=>{
+        const r=rect(card);
+        if(summary&&(!preview||r.top<bounds.top||r.top+r.height>bounds.top+bounds.height||r.left<bounds.left||r.left+r.width>bounds.left+bounds.width))return rect(summary);
+        return r;
+      };
+      return {visible,cardRect,collapsed,preview};
+    };
     const groupRects = (move.targetIds || []).map(id => {
       const node=tableById.get(id);
-      const label = node?.querySelector('.build-value');
-      return node ? {
+      if(!node)return null;
+      const {visible,cardRect,collapsed,preview}=sourceFor(node);
+      let label=collapsed&&!preview?null:visible.querySelector('.build-value');
+      if(label&&preview){const r=rect(label),b=rect(preview);if(r.top<b.top||r.top+r.height>b.top+b.height)label=null;}
+      return {
         label:label ? {rect:rect(label),html:label.outerHTML,selected:node.classList.contains('selected')} : null,
-        rect:rect(node),html:node.querySelector('.build-pile')?.outerHTML || node.querySelector('.playing-card')?.outerHTML || node.outerHTML,
-        cards:[...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
-          id:card.dataset.cardId,rect:rect(card),html:card.outerHTML,
+        rect:rect(visible),html:visible.querySelector('.build-pile')?.outerHTML || visible.querySelector('.playing-card')?.outerHTML || visible.outerHTML,
+        cards:[...visible.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
+          id:card.dataset.cardId,rect:cardRect(card),html:card.outerHTML,
           groupStart:!!card.parentElement?.classList.contains('build-group-start')
         }))
-      } : null;
+      };
     }).filter(Boolean);
     const selected = new Set(move.targetIds || []);
     const lastCard=!game.stock.length&&game.players.every((p,i)=>p.hand.length===(i===game.turn?1:0));
     const remainingCards = (lastCard?tableNodes:[])
       .filter(node => move.kind !== 'capture' || !selected.has(node.dataset.id))
-      .flatMap(node => [...node.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
-        id:card.dataset.cardId,rect:rect(card),html:card.outerHTML
-      })));
-    const tableRects = move.kind==='capture'?[...app.querySelectorAll('.table-stage .playing-card')].map(rect):[];
+      .flatMap(node => {
+        const {visible,cardRect}=sourceFor(node);
+        return [...visible.querySelectorAll('.playing-card[data-card-id]')].map(card=>({
+          id:card.dataset.cardId,rect:cardRect(card),html:card.outerHTML
+        }));
+      });
+    const tableRects = move.kind==='capture'?[...app.querySelectorAll('.table-stage .playing-card,.table-stage .build-summary')].filter(node=>node.closest?.('.is-collapsed')?node.classList?.contains('build-summary'):!node.classList?.contains('build-summary')).map(rect):[];
     const looseCardRects = move.kind==='capture'?[...app.querySelectorAll('.table-cards .playing-card')].map(rect):[];
     return {kind:move.kind,byComputer,actor,tableRects,looseCardRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML},groups:groupRects,remainingCards};
   }
@@ -656,7 +676,7 @@
           // No intermediate stop over the table or selected build.
           // Use normal table-card dimensions, independent of build group
           // count. A departing build is no longer a landing obstacle.
-          const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card')||[],node=>node.getBoundingClientRect());
+          const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card,.table-stage .build-summary')||[]).filter(node=>node.closest?.('.is-collapsed')?node.classList?.contains('build-summary'):!node.classList?.contains('build-summary')).map(node=>node.getBoundingClientRect());
           const liveLooseRects=Array.from(app.querySelectorAll?.('.table-cards .playing-card')||[],node=>node.getBoundingClientRect());
           const looseRefs=[...(snapshot.looseCardRects??snapshot.tableRects??[]),...liveLooseRects];
           const sizeRefs=looseRefs.length?looseRefs:capturedCards.map(piece=>piece.rect);
@@ -720,6 +740,10 @@
           const layers=[...destination.querySelectorAll('.build-layer .playing-card[data-card-id]')];
           const order=new Map(layers.map((node,i)=>[node.dataset.cardId,i]));
           const slotRects=layers.map(node=>node.getBoundingClientRect());
+          if(destination.classList?.contains('is-collapsed')){
+            const summary=destination.querySelector('.build-summary')?.getBoundingClientRect();
+            if(summary)slotRects.fill(summary);
+          }
           const buildGhosts=ghosts.filter(piece=>order.has(piece.id)).sort((a,b)=>order.get(a.id)-order.get(b.id));
           buildGhosts.forEach(piece=>{piece.ghost.style.zIndex=String(105+order.get(piece.id));});
           const oldCount=buildGhosts.filter(piece=>existingIds.has(piece.id)).length;
@@ -880,9 +904,57 @@
     const ownerName = element.owner === 0 ? 'You' : (typeof game!=='undefined'&&game.players[element.owner]?.name)||'Computer';
     const panelValue = buildPanelValue(element.value,element.signedValue);
     const layers=cards.map((card,i)=>`<span class="build-layer${groupStarts.has(i)?' build-group-start':''}" style="--layer:${i}">${renderCard(card,false,selected)}${i===cards.length-1?`<span class="build-value ${selected?'card-selected':''}"><span class="build-value-owner">${ownerName}</span><strong class="build-value-number">${panelValue}</strong></span>`:''}</span>`).join('');
-    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.signedValue??element.value} build${element.signedValue<0?' (capture value '+element.value+')':''} owned by ${escapeHtml(ownerName)}" ${active?'':'disabled'}>
+    return `<button type="button" class="build-item ${selected ? 'selected' : ''}" data-action="table" data-id="${element.id}" aria-pressed="${selected}" aria-label="Select ${element.groups.length>1?'multiple ':''}${element.signedValue??element.value} build${element.signedValue<0?' (capture value '+element.value+')':''} owned by ${escapeHtml(ownerName)}, ${cards.length} cards" ${active?'':'disabled'}>
       <span class="build-pile" style="--layers:${cards.length}" aria-hidden="true">${layers}</span>
+      <span class="build-summary${selected?' card-selected':''}" aria-hidden="true"><span class="build-summary-owner">${escapeHtml(ownerName)}</span><strong>${escapeHtml(panelValue)}</strong><span>${element.groups.length>1?'Multi':'Single'}</span><span>${cards.length} card${cards.length===1?'':'s'}</span></span>
     </button>`;
+  }
+  // The reserved build lane has a hard vertical boundary. Measure the
+  // actual full-size stacks rather than guessing from the number of cards.
+  function buildsNeedCollapse(heights,available,gap=5){
+    return heights.length>0&&heights.reduce((total,h)=>total+h,0)+Math.max(0,heights.length-1)*gap>available+.5;
+  }
+  function syncBuildInspections(){
+    const lane=app.querySelector?.('.table-builds'),rail=app.querySelector?.('.build-inspections');
+    if(!lane||!rail)return;
+    const selected=[...lane.querySelectorAll('.build-item.is-collapsed.selected')];
+    const ids=selected.map(node=>node.dataset.id).join('|');
+    if(rail.dataset.previewIds===ids)return;
+    rail.dataset.previewIds=ids;
+    rail.replaceChildren();
+    for(const node of selected){
+      const pile=node.querySelector('.build-pile');
+      if(!pile)continue;
+      const preview=document.createElement('button');
+      preview.type='button';
+      preview.className='build-inspection';
+      preview.dataset.action='inspect-build';
+      preview.dataset.id=node.dataset.id;
+      preview.dataset.buildPreview=node.dataset.id;
+      preview.setAttribute('aria-label',node.getAttribute('aria-label')+'; tap to deselect');
+      preview.setAttribute('aria-pressed','true');
+      preview.disabled=node.disabled;
+      preview.appendChild(pile.cloneNode(true));
+      rail.appendChild(preview);
+    }
+  }
+  function layoutBuilds(previousScroll=0,revealNewest=false){
+    const lane=app.querySelector?.('.table-builds');
+    if(!lane)return;
+    const items=[...lane.querySelectorAll('.build-item')];
+    lane.classList.remove('builds-collapsed');
+    items.forEach(node=>node.classList.remove('is-collapsed'));
+    if(items.length){
+      const css=globalThis.getComputedStyle?.(lane);
+      const gap=parseFloat(css?.rowGap)||5;
+      const available=Math.max(0,lane.clientHeight-(parseFloat(css?.paddingTop)||0)-(parseFloat(css?.paddingBottom)||0));
+      const heights=items.map(node=>node.querySelector('.build-pile')?.getBoundingClientRect().height||0);
+      const collapsed=buildsNeedCollapse(heights,available,gap);
+      lane.classList.toggle('builds-collapsed',collapsed);
+      items.forEach(node=>node.classList.toggle('is-collapsed',collapsed));
+      if(collapsed)lane.scrollTop=revealNewest?lane.scrollHeight:previousScroll;
+    }
+    syncBuildInspections();
   }
   function isHumanTurn() { return handIsActive(); }
   function currentSelection() { return [...pickedTable]; }
@@ -1105,9 +1177,10 @@
       if(node.classList.contains('selected')!==selected){
         node.classList.toggle('selected',selected);
         node.setAttribute('aria-pressed',String(selected));
-        for(const face of node.querySelectorAll('.playing-card,.build-value'))face.classList.toggle('card-selected',selected);
+        for(const face of node.querySelectorAll('.playing-card,.build-value,.build-summary'))face.classList.toggle('card-selected',selected);
       }
     }
+    if(typeof syncBuildInspections==='function')syncBuildInspections();
     const controls=felt.querySelector('.contextual-controls');
     if(!controlsMarkup){controls?.remove();}
     else if(!controls){const slot=felt.querySelector('.move-action-slot');if(slot)slot.innerHTML=controlsMarkup;else human.insertAdjacentHTML('beforebegin',controlsMarkup);}
@@ -1205,6 +1278,7 @@
       return;
     }
     const oldLayout=mode!=='selection'&&motionAllowed()?layoutPositions():null;
+    const previousBuildScroll=app.querySelector?.('.table-builds')?.scrollTop||0;
     const previousHandTone=readHandTone();
     if (game.phase !== 'playing') resetSelection();
     if (pickedCard && !me().hand.some(c => c.id === pickedCard)) resetSelection();
@@ -1240,6 +1314,7 @@
           <div class="table-area">
             <div class="table-stage"><div class="table-cards" aria-label="Loose table cards" style="${cardRowStyle(game.table.filter(e=>e.type==='loose').length,true)}">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(e=>entryMarkup(e,active)).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(e=>entryMarkup(e,active)).join('')}</div></div>
+            <div class="build-inspections" aria-label="Selected expanded builds"></div>
           </div>
           <div class="turn-action-area">
             <div class="move-action-slot">${controlsMarkup}</div>
@@ -1262,6 +1337,7 @@
       </div>
       ${modal ? renderModal() : ''}`;
     restoreVariationsScroll();
+    layoutBuilds(previousBuildScroll,motion==='build');
     layoutHumanHand();
     hidePendingDealCards();
     animateLayout(oldLayout,motion,motion==='capture'&&(game.lastActor??(1-game.turn))!==0);
@@ -2152,10 +2228,17 @@
       '<small>Static check</small></div>'+detail+(settingsOrigin==='game'?'<p class="rules-replace-note">Starting a game replaces the current match.</p>':'')+
       '<div class="dialog-actions"><button type="button" data-action="close" class="action-btn">Cancel</button><button type="button" data-action="apply-settings" class="action-btn primary" '+(validation.playable?'':'disabled')+'>Start Game</button></div></div>';
   }
+  function renderCpuPlaytestOptions(){
+    const options=typeof prefs!=='undefined'?prefs.cpuPlaytest||{}:{};
+    const locked=(typeof busy!=='undefined'&&busy)||(typeof dealing!=='undefined'&&dealing)||(typeof turnInMotion!=='undefined'&&turnInMotion);
+    const names=[['noCapture','No CPU captures'],['noBuild','No CPU builds'],['noMultiBuild','No CPU multi builds']];
+    return '<section class="cpu-playtest-options"><h3>CPU playtesting (temporary)</h3><p>These switches restrict computers only, not the game rules. Turn them off if a CPU has no allowed legal move.</p>'+
+      names.map(([key,label])=>'<button type="button" class="cpu-test-toggle menu-row" data-action="toggle-cpu-playtest" data-key="'+key+'" aria-pressed="'+!!options[key]+'" '+(locked?'disabled':'')+'><b>'+label+'</b><em>'+(options[key]?'On':'Off')+'</em></button>').join('')+'</section>';
+  }
   function renderSettings(){
     if(!draft)draft=E.normalizeRules(game.rules);
     return '<div class="dialog-head rules-header"><div><p class="rules-eyebrow">'+escapeHtml(playerHeader())+'</p><h2>'+(settingsOrigin==='newgame'?'New Game':'Game Setup')+'</h2></div><button type="button" data-action="close" class="icon-close" aria-label="Close">×</button></div>'+
-      '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderAllRules()+'</div>'+rulesFooter();
+      '<div class="dialog-content variations-content unified-setup rules-content">'+renderPresetPicker()+renderDifficulty()+renderAllRules()+renderCpuPlaytestOptions()+'</div>'+rulesFooter();
   }
 
   function renderMenu() {
@@ -2165,6 +2248,7 @@
         <button data-action="history" class="menu-row"><span>☷</span><b>Move history</b></button>
         <button data-action="toggle-sound" class="menu-row"><span>${prefs.sound ? '♫' : '♪'}</span><b>Sound effects</b><em>${prefs.sound ? 'On' : 'Off'}</em></button>
         <button data-action="toggle-undo" class="menu-row" aria-pressed="${prefs.undo}"><span>↶</span><b>Undo button</b><em>${prefs.undo ? 'On' : 'Off'}</em></button>
+        ${renderCpuPlaytestOptions()}
         <button data-action="new-match" class="menu-row danger-row"><span>↻</span><b>Restart game</b></button>
       </div><div class="dialog-actions"><button data-action="home" class="action-btn primary">Exit to menu</button></div>`;
   }
@@ -2291,9 +2375,13 @@
   }
   function requestAdvancedMove(state){
     const view=E.publicPosition(state);
-    const fallback=E.quickLegalMove(state);
+    const limits=typeof prefs==='undefined'?{}:{...prefs.cpuPlaytest};
+    const restricted=Object.values(limits).some(Boolean);
+    if(restricted)view.cpuPlaytest=limits;
+    const fallback=restricted?E.quickPlaytestMove(state,limits):E.quickLegalMove(state);
     const advanced=view.rules.difficulty==='hard'||view.rules.difficulty==='expert';
     const localMove=()=>{
+      if(restricted){try{return E.choosePlaytestMove(state,limits);}catch(_){return fallback;}}
       if(advanced)return fallback;
       // Preserve the existing Easy/Medium policy if a browser disallows
       // workers. Normal supported browsers do not run this on the UI thread.
@@ -2319,13 +2407,13 @@
         // Easy/Medium use their existing scoring policy on a sampled world;
         // only the public position is sent. Advanced search streams each
         // completed iteration before its final answer.
-        const workerCode="\nself.onmessage=event=>{try{const E=self.CassinoEngine,view=event.data;const advanced=view.rules.difficulty==='hard'||view.rules.difficulty==='expert';const move=advanced?E.analyzeComputerMove(view,{onProgress:move=>self.postMessage({move,progress:true})}).move:E.chooseComputerMove(E.samplePublicPosition(view));self.postMessage({move});}catch(error){self.postMessage({error:String(error)});}};";
+        const workerCode="\nself.onmessage=event=>{try{const E=self.CassinoEngine,view=event.data;const advanced=view.rules.difficulty==='hard'||view.rules.difficulty==='expert';const move=view.cpuPlaytest?E.choosePlaytestMove(E.samplePublicPosition(view),view.cpuPlaytest):advanced?E.analyzeComputerMove(view,{onProgress:move=>self.postMessage({move,progress:true})}).move:E.chooseComputerMove(E.samplePublicPosition(view));self.postMessage({move});}catch(error){self.postMessage({error:String(error)});}};";
         url=URL.createObjectURL(new Blob([source,workerCode],{type:'text/javascript'}));
         worker=new Worker(url);
         worker.onmessage=event=>{
           if(done)return;
           const move=event.data?.move;
-          if(move&&E.validateAction(state,move).ok)best=move;
+          if(move&&E.validateAction(state,move).ok&&(!restricted||E.cpuPlaytestAllowed(state,move,limits)))best=move;
           if(event.data?.progress===true)return;
           finish(move||advanced?best:localMove());
         };
@@ -2362,6 +2450,8 @@
     const commitMove=move=>{
       if(!stillCurrent()||!move)return;
       try{
+        const limits=typeof prefs==='undefined'?{}:prefs.cpuPlaytest||{};
+        if(Object.values(limits).some(Boolean)&&!E.cpuPlaytestAllowed(game,move,limits))throw new Error('CPU playtest move was restricted. Change the temporary restrictions in Settings to continue.');
         const stockBefore = game.stock.length;
         const preHuman=game.players[0].hand.map(c=>c.id),preCpu=game.players[1].hand.map(c=>c.id);
     const preSeats=game.players.map(p=>p.hand.map(c=>c.id));
@@ -2849,8 +2939,14 @@
       if(event.detail===0)app.querySelector('[data-action="toggle-hand-sort"]')?.focus({preventScroll:true});
       return;
     }
+    if(action==='toggle-cpu-playtest'&&(modal==='menu'||modal==='settings')){
+      const key=node.dataset.key;
+      if(busy||dealing||turnInMotion||!['noCapture','noBuild','noMultiBuild'].includes(key))return;
+      prefs.cpuPlaytest={...prefs.cpuPlaytest,[key]:!prefs.cpuPlaytest?.[key]};
+      cancelComputerSearch();savePrefs();render('overlay');return;
+    }
     if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render('overlay'); return; }
-    if (action === 'close') { modal = ''; render('overlay'); applyPendingUpdate(); return; }
+    if (action === 'close') { modal = ''; render('overlay'); applyPendingUpdate(); if(screen==='game'&&!busy&&game.phase==='playing'&&game.turn!==0){toast='';botTurn();} return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
     if (action === 'next-hand') return nextHand();
     if (action === 'undo') return undo();
@@ -2870,7 +2966,7 @@
       hintIterator = null; toast = '';
       sound('tap'); return render('selection');
     }
-    if (action === 'table') {
+    if (action === 'table' || action === 'inspect-build') {
       if (!isHumanTurn()) return;
       const id = node.dataset.id;
       if (pickedTable.has(id)) pickedTable.delete(id); else pickedTable.add(id);
@@ -2884,11 +2980,11 @@
   document.addEventListener('keydown', ev => {
     if (ev.key === 'Escape' && modal) {
       if (modal === 'exit-confirm') { cancelExit(); return; }
-      modal = ''; render('overlay'); applyPendingUpdate(); return;
+      modal = ''; render('overlay'); applyPendingUpdate(); if(screen==='game'&&!busy&&game.phase==='playing'&&game.turn!==0){toast='';botTurn();} return;
     }
     else if (ev.key.toLowerCase() === 'u' && !modal && prefs.undo && checkpoint) undo();
   });
-  window.addEventListener('resize',()=>{if(screen==='game')layoutHumanHand();});
+  window.addEventListener('resize',()=>{if(screen==='game'){layoutBuilds(app.querySelector('.table-builds')?.scrollTop||0);layoutHumanHand();}});
   render(); // The main menu is the entry point; the computer does not move until Resume/Start.
   if (/^https?:/.test(location.protocol)) {
     // A version file is checked at launch, even if the browser has cached the app.

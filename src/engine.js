@@ -2169,16 +2169,58 @@
     }
     return moves;
   }
-  function allComputerMoves(state, limit = 500) {
+  // Temporary CPU testing restrictions filter candidates, not the game
+  // rules. In particular, multi-build means the resulting groups, not
+  // merely an action's mode string (extend/merge can create multi-builds).
+  function cpuPlaytestAllowed(state,move,limits={}){
+    if(!move)return false;
+    if(move.kind==='capture'&&limits.noCapture)return false;
+    if(move.kind==='build'){
+      if(limits.noBuild)return false;
+      if(limits.noMultiBuild){
+        const check=validateAction(state,move);
+        return !!check.ok&&check.build.groups.length===1;
+      }
+    }
+    return true;
+  }
+  function allComputerMoves(state, limit = 500, limits = {}) {
     const moves = [];
     for (const card of state.players[state.turn].hand) {
       const trail = { kind: 'trail', cardId: card.id, targetIds: [] };
       if (validateAction(state, trail).ok) moves.push(trail);
-      for (const move of captureChoices(state, card)) if (validateAction(state, move).ok) moves.push(move);
-      for (const move of buildChoices(state, card)) moves.push(move);
+      if(!limits.noCapture)for (const move of captureChoices(state, card)) if (validateAction(state, move).ok) moves.push(move);
+      if(!limits.noBuild)for (const move of buildChoices(state, card))if(cpuPlaytestAllowed(state,move,limits))moves.push(move);
       if (moves.length >= limit) break;
     }
     return moves;
+  }
+  function choosePlaytestMove(state,limits={},random=Math.random){
+    const options=allComputerMoves(state,500,limits);
+    if(!options.length){
+      const fallback=legalActions(state,()=>false,false,limits).next();
+      if(!fallback.done)return fallback.value;
+      throw new Error('CPU playtest restrictions leave no legal move. Change the temporary restrictions in Settings to continue.');
+    }
+    let best=options[0],bestScore=-Infinity;
+    for(const move of options){
+      const score=moveScore(state,move)+random()*.6;
+      if(score>bestScore){best=move;bestScore=score;}
+    }
+    return best;
+  }
+  function quickPlaytestMove(state,limits={}){
+    let best=null,bestScore=-Infinity;
+    for(const card of state.players[state.turn].hand){
+      const offer=move=>{
+        if(!cpuPlaytestAllowed(state,move,limits)||!validateAction(state,move).ok)return;
+        const score=moveScore(state,move);
+        if(score>bestScore){best=move;bestScore=score;}
+      };
+      offer({kind:'trail',cardId:card.id,targetIds:[]});
+      if(!limits.noCapture)for(const item of state.table)offer({kind:'capture',cardId:card.id,targetIds:[item.id]});
+    }
+    return best||choosePlaytestMove(state,limits);
   }
   function moveScore(state, move) {
     const card = state.players[state.turn].hand.find(c => c.id === move.cardId);
@@ -2250,7 +2292,7 @@
   // Exhaustive legal action generation shares the same validator as manual
   // play. Optional interruption bounds search in pathological positions.
   // Hints collapse identical visible selections, AI keeps distinct actions.
-  function* legalActions(state,stop=()=>false,visibleOnly=false) {
+  function* legalActions(state,stop=()=>false,visibleOnly=false,limits={}) {
     if(!state||state.phase!=='playing')return;
     const hand=state.players[state.turn].hand;
     const rules=state.rules;
@@ -2259,6 +2301,7 @@
     const seen=new Set();
     const key=(cardId,ids)=>JSON.stringify([cardId,[...ids].sort()]);
     function unique(move){
+      if(!cpuPlaytestAllowed(state,move,limits))return false;
       const selection=key(move.cardId,move.targetIds||[]);
       const k=visibleOnly?selection:JSON.stringify([selection,move.kind,move.value,move.mode]);
       if(seen.has(k))return false;
@@ -2266,7 +2309,7 @@
     }
     const numericEntries=target=>loose.map(x=>({id:x.id,
       values:cardValues(x.card,rules).filter(v=>v<=target)})).filter(x=>x.values.length);
-    for(const card of hand){
+    if(!limits.noCapture)for(const card of hand){
       if(stop())return;
       const values=cardValues(card,rules);
       if(!values.length){
@@ -2287,7 +2330,7 @@
         }
       }
     }
-    if(rules.builds)for(const card of hand){
+    if(rules.builds&&!limits.noBuild)for(const card of hand){
       if(stop())return;
       const played=cardValues(card,rules);
       if(!played.length)continue;
@@ -2717,6 +2760,6 @@
   return { SUITS, DEFAULT_RULES, PRESETS, PRESET_CATALOG, DIFFICULTY_INFO, scoreCategories, scoreHelp, allCards, cardKey, initialCardValues, standardCardValues, availableValues, buildTargets, ruleActivity, activeRules, teamModesFor, seatAssignments, sideFor, scoringSides, sameSide, rulesFor, normalizeRules, validateRules, checkInvariants, simulateRules, cardValues, makeDeck, makeState, newMatch,
     cardName, cardValue, cardsInElement, findPartition, validateAction,
     legalBuildOptions, contextualBuildOptions, legalActions, applyAction, scoreHand, finishHand, nextHand,
-    captureChoices, buildChoices, allComputerMoves, chooseComputerMove, hintSelections,
+    captureChoices, buildChoices, allComputerMoves, chooseComputerMove, cpuPlaytestAllowed, choosePlaytestMove, quickPlaytestMove, hintSelections,
     explainMove, moveScore, buildActionLabel, publicPosition, samplePublicPosition, quickLegalMove, analyzeComputerMove, strategicValue };
 });

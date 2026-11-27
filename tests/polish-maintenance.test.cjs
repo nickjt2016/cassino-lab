@@ -153,5 +153,5 @@ test('Loose table cards, hand cards and build buttons share the 190ms lift trans
   assert.doesNotMatch(selected,/<button[^>]*\bdisabled\b/);assert.match(inactive,/<button[^>]*\bdisabled\b/);
  }
  const renderedBuild=markup(build);
- assert.equal((renderedBuild.match(/card-selected/g)||[]).length,3);
+ assert.equal((renderedBuild.match(/card-selected/g)||[]).length,4);
 });

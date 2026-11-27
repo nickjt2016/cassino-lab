@@ -46,7 +46,7 @@ test('Unified setup and exit confirmation are preserved',()=>{
 });
 
 test('In-game settings is simplified and Exit to menu is the final footer action',()=>{
- const source=app.slice(app.indexOf('  function renderMenu()'),app.indexOf('  function renderRules()'));
+ const source=app.slice(app.indexOf('  function renderCpuPlaytestOptions()'),app.indexOf('  function renderRules()'));
  const render=new Function('prefs',source+'return renderMenu;')({sound:true,undo:true});
  const html=render();
  assert.match(html,/<h2>Settings<\/h2>/);
