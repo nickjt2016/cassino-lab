@@ -1405,3 +1405,10 @@ html,body,#app{background:#005d0b;color:#fff}
 .rules-setting .team-cycle-control:disabled{opacity:1;cursor:default;justify-content:center;background:#f3ecda;color:#5e5642}
 .rules-setting .team-cycle-control:focus-visible{outline:2px solid #195b40;outline-offset:2px}
 @media(max-width:350px){.rules-setting .team-cycle-control{width:108px;font-size:11px}}
+
+/* v0.10.6 — compact direct sort switch in the existing toolbar. */
+.shell .game-toolbar .hand-sort-toggle{display:flex;flex:0 0 auto;flex-direction:column;align-items:center;justify-content:center;gap:1px;height:100%;min-height:0;min-width:0;padding:2px 5px;border:1px solid #d8c48180;border-radius:7px;background:#004a1280;color:#f4df8d;font:700 9px/1.1 system-ui,sans-serif;white-space:nowrap;touch-action:manipulation}
+.shell .game-toolbar .hand-sort-icon{font-size:15px;line-height:1}
+.shell .game-toolbar .hand-sort-toggle:disabled{opacity:.55;cursor:default}
+.shell .game-toolbar .hand-sort-toggle:focus-visible{outline:2px solid #f4df8d;outline-offset:1px}
+@media(max-height:450px) and (orientation:landscape){.shell .game-toolbar .hand-sort-toggle{flex-direction:row;gap:4px;padding-inline:5px}}

@@ -274,3 +274,7 @@ Tap Teams to cycle through the available arrangements for the selected player co
 ### 0.10.5 — automatic two-row hand and turn cue
 
 The hand keeps a fixed two-row height and consistent card size/gap. One row is centered; the second fills only when necessary. After both rows fill, added cards alternate between rows, with dynamic overlap and exposed corner indexes. The 54-card full deal is supported without changing its 27-card maximum. Old layout preferences are ignored; table cards retain automatic non-scrolling rows. Inactive hand faces dim until the human can actually act. Capture is shortened and action buttons share one line, reducing horizontal padding rather than label size (horizontal overflow remains accessible for unusually many custom build choices). No engine, saved match or variant rules changed.
+
+### 0.10.6 — hand sorting
+
+The top-bar sort button cycles between Suit → value and Value → suit. The default is suit first, and the preference persists locally. Suits order S, H, C, D, then jokers. Values ascend using the minimum numerical value assigned by active rules; rank-only cards use their printed rank for sorting only. Ties use the other sort key, then printed rank and card ID. The sorted view reads across the top row then the bottom row, including overlap, without changing the engine hand order or selected card identity. The button is disabled while it is not the human's actionable turn so card-flight destinations cannot move mid-animation.

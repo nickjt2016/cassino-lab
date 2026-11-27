@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const E=require('../src/engine.js'),app=fs.readFileSync(path.join(__dirname,'../src/app.js'),'utf8'),css=fs.readFileSync(path.join(__dirname,'../src/compact.css'),'utf8');
 const section=(x,y)=>app.slice(app.indexOf(x),app.indexOf(y,app.indexOf(x)+x.length));
 function ui(prefs,game){
- return new Function('prefs','game','E','escapeHtml','renderBack','checkpoint',section('  function renderToolbar(','  function renderHome(')+'return {toolbar:renderToolbar,hand:handPlan,plan:rowPlan,style:cardRowStyle,seats:renderCpuSeats,color:gameSeatColor};')(prefs,game,E,String,()=>'<span class="card-back"></span>',null);
+ return new Function('prefs','game','E','escapeHtml','renderBack','checkpoint',section('  function renderToolbar(','  function renderHome(')+'return {toolbar:renderToolbar,sort:sortedHand,mode:handSortMode,slots:sortedHandSlots,hand:handPlan,plan:rowPlan,style:cardRowStyle,seats:renderCpuSeats,color:gameSeatColor};')(prefs,game,E,String,()=>'<span class="card-back"></span>',null);
 }
 test('Manual hand layout preference no longer changes toolbar or layout',()=>{
  const s=E.newMatch(),p={cardLayout:'fitRow',undo:true},h=ui(p,s);
@@ -86,4 +86,45 @@ test('Human score uses team accent and equal vertical spacing; CPU panels omit r
  assert.match(css,/\.shell \.human-area\{[^}]*gap:var\(--score-gap\);margin:0;padding:0 0 var\(--score-gap\)/);
  assert.match(css,/\.shell \.your-score-tag\{[^}]*border-top:3px solid var\(--seat-color,#346da8\)/);
  assert.match(css,/\.shell \.game-stats\{order:4;margin:0 0 4px/);
+});
+
+test('Top-bar sort switch shows the current mode and disables during non-human turns',()=>{
+ const s=E.newMatch(),p={undo:true},h=ui(p,s);
+ assert.equal(h.mode(),'suit');
+ assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>[\s\S]*?Suit → value/);
+ p.handSort='value';assert.equal(h.mode(),'value');
+ assert.match(h.toolbar(true),/Value → suit/);
+ assert.match(h.toolbar(false),/data-action="toggle-hand-sort"[^>]*disabled/);
+ p.handSort='unknown';assert.equal(h.mode(),'suit');
+ assert.match(app,/prefs\.handSort=handSortMode\(\)==='suit'\?'value':'suit'/);
+ assert.match(app,/if\(modal\|\|!isHumanTurn\(\)\|\|node\.disabled\)return/);
+ assert.match(app,/sortedHand\(me\(\)\.hand,game\.rules,handSortMode\(\)\)/);
+});
+test('Hand sorting uses SHCD, ascending assigned values and never changes engine hand order',()=>{
+ const rules=E.rulesFor('classic',{royal:true,royalAces:true,customizeCardValues:true,cardValueOverrides:{S7:[20,2],H3:[19,1],C2:[6],D10:[3,18],Joker:[15]}});
+ const h=ui({},E.newMatch());
+ const ids=['D10','C2','S7','H3','H2','S1','X1','D2','C1','S2','H11'];
+ const hand=ids.map(id=>E.allCards().find(c=>c.id===id));
+ assert.deepEqual(h.sort(hand,rules,'suit').map(c=>c.id),['S1','S2','S7','H3','H2','H11','C1','C2','D2','D10','X1']);
+ assert.deepEqual(h.sort(hand,rules,'value').map(c=>c.id),['S1','H3','C1','S2','S7','H2','D2','D10','C2','H11','X1']);
+ assert.deepEqual(hand.map(c=>c.id),ids);
+});
+test('Rank-only faces and joker placement stay deterministic; configured Italian values are respected',()=>{
+ const h=ui({},E.newMatch()),cards=ids=>ids.map(id=>E.allCards().find(c=>c.id===id));
+ const classic=E.rulesFor('classic');
+ assert.deepEqual(h.sort(cards(['D13','C12','H11','S10','D1','S11']),classic,'value').map(c=>c.id),['D1','S10','S11','H11','C12','D13']);
+ const italian=E.rulesFor('classic',{royal:true,faceValues:'italian',jokerValue:2});
+ assert.deepEqual(h.sort(cards(['S11','S8','D9','X1','H1']),italian,'value').map(c=>c.id),['H1','X1','S8','S11','D9']);
+ assert.deepEqual(h.sort(cards(['X2','D1','X1','C1']),italian,'suit').map(c=>c.id),['C1','D1','X1','X2']);
+});
+test('Even overlapping hands read in sorted order across top row then bottom row',()=>{
+ const h=ui({},E.newMatch());
+ for(let n=1;n<=27;n++){
+   const plan=h.hand(n,360,55,55/.715,4,166),slots=h.slots(plan);
+   assert.equal(slots.length,n);
+   assert.deepEqual(slots.slice(0,plan.rows[0]).map(c=>c.row),Array(plan.rows[0]).fill(0));
+   assert.deepEqual(slots.slice(plan.rows[0]).map(c=>c.row),Array(plan.rows[1]).fill(1));
+   assert.ok(slots.every((c,i)=>i===0||c.row>slots[i-1].row||c.x>slots[i-1].x));
+ }
+ assert.match(app,/const slots=sortedHandSlots\(plan\)/);
 });

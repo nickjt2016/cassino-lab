@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.5';
+  const APP_VERSION = '0.10.6';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -58,7 +58,7 @@
   let customRules = null;
 
   const PREF_STORE = 'cassino-lab-prefs-v1';
-  let prefs = { sound: true, animations: true, undo: true };
+  let prefs = { sound: true, animations: true, undo: true, handSort:'suit' };
   try { prefs = { ...prefs, ...JSON.parse(localStorage.getItem(PREF_STORE) || '{}') }; } catch (_) {}
   delete prefs.cardLayout; // Old saved layout choices no longer affect the board.
   let audioContext = null;
@@ -909,10 +909,39 @@
       </div>
       <div class="opponent-tag" aria-label="${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer has ${computerScore} points`}">${multiplayerLabel?escapeHtml(multiplayerLabel):`Computer · ${computerScore} pts`}</div>
       <div class="header-actions">
+        ${renderHandSortToggle(active)}
         <button class="game-help" data-action="hint" aria-label="Suggest a move" title="Hint" ${active?'':'disabled'}>✧</button>
         ${prefs.undo?`<button class="game-help" data-action="undo" aria-label="Undo previous move" title="Undo" ${checkpoint?'':'disabled'}>↶</button>`:''}
       </div>
     </header>`;
+  }
+  function handSortMode(){return prefs.handSort==='value'?'value':'suit';}
+  function renderHandSortToggle(active){
+    const suitFirst=handSortMode()==='suit';
+    const label=suitFirst?'Suit → value':'Value → suit';
+    const next=suitFirst?'value then suit':'suit then value';
+    return '<button type="button" class="hand-sort-toggle" data-action="toggle-hand-sort" aria-label="Sort hand: '+(suitFirst?'suit then value':'value then suit')+'. Tap to sort by '+next+'." title="Switch hand sort order" '+(active?'':'disabled')+'>'+
+      '<span class="hand-sort-icon" aria-hidden="true">↕</span><span>'+label+'</span></button>';
+  }
+  function sortedHand(hand,rules,mode='suit'){
+    const suitOrder='SHCDX';
+    // Numerical capture/build values follow the actual active rules.
+    // Classic rank-only face cards have no numerical value: retain J/Q/K
+    // as ranks 11/12/13 for presentation only, without changing the rules.
+    const keyed=hand.map(card=>{
+      const values=E.cardValues(card,rules);
+      const suit=suitOrder.indexOf(card.suit);
+      return {card,value:values.length?Math.min(...values):card.rank,suit:suit<0?suitOrder.length:suit};
+    });
+    return keyed.sort((a,b)=>
+      (mode==='value'?a.value-b.value||a.suit-b.suit:a.suit-b.suit||a.value-b.value)||
+      a.card.rank-b.card.rank||String(a.card.id).localeCompare(String(b.card.id))
+    ).map(entry=>entry.card);
+  }
+  function sortedHandSlots(plan){
+    // Growth still alternates rows once both are full; the displayed order
+    // reads across the first row and then across the second at all counts.
+    return [...plan.cards].sort((a,b)=>a.row-b.row||a.col-b.col);
   }
   // Keep the first row at normal spacing until full, then fill the second.
   // Once both rows are full, each successive card goes to alternating rows.
@@ -953,8 +982,9 @@
     if(!rect?.width||!rect.height||width<=0)return;
     const gap=parseFloat(metrics.columnGap)||4;
     const plan=handPlan(nodes.length,width,rect.width,rect.height,gap,lane.clientHeight);
+    const slots=sortedHandSlots(plan);
     nodes.forEach((node,i)=>{
-      const p=plan.cards[i];
+      const p=slots[i];
       node.style.left=(inset+p.x)+'px';
       node.style.top=p.y+'px';
       node.style.zIndex=String(p.col+1);
@@ -1161,7 +1191,7 @@
           </div>
           <div class="human-area">
             <span class="sr-only" role="status">${active?'Your turn':'Waiting for your turn'}</span>
-            <div class="human-hand${active?'':' hand-inactive'}" aria-label="Your hand" aria-disabled="${!active}">${me().hand.map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
+            <div class="human-hand${active?'':' hand-inactive'}" aria-label="Your hand" aria-disabled="${!active}">${sortedHand(me().hand,game.rules,handSortMode()).map(card => `<button type="button" data-action="hand" data-id="${card.id}" class="hand-item ${pickedCard === card.id ? 'selected' : ''}" aria-pressed="${pickedCard === card.id}" aria-label="Play ${escapeHtml(E.cardName(card))}" ${active ? '' : 'disabled'}>${renderCard(card,false,pickedCard===card.id)}</button>`).join('')}</div>
             <div class="your-score-tag" style="--seat-color:${gameSeatColor(0)}">${game.rules.teamMode==='freeForAll'?'You':'Your team'} · ${me().score} pts</div>
           </div>
           ${toast ? `<p class="game-error" role="alert">${escapeHtml(toast)}</p>` : ''}
@@ -2756,6 +2786,16 @@
     if (action === 'rules' || action === 'history') { modal = action; render('overlay'); return; }
     if (action === 'toggle-sound') { prefs.sound = !prefs.sound; savePrefs(); if (prefs.sound) sound('tap'); render('overlay'); return; }
     if (action === 'toggle-animations') { prefs.animations = !prefs.animations; savePrefs(); render('overlay'); return; }
+    if (action === 'toggle-hand-sort') {
+      // Do not move a live flight/deal destination. The selected card and
+      // table selection are identified by ID and survive a presentation sort.
+      if(modal||!isHumanTurn()||node.disabled)return;
+      prefs.handSort=handSortMode()==='suit'?'value':'suit';
+      savePrefs();
+      render();
+      if(event.detail===0)app.querySelector('[data-action="toggle-hand-sort"]')?.focus({preventScroll:true});
+      return;
+    }
     if (action === 'toggle-undo') { prefs.undo = !prefs.undo; savePrefs(); render('overlay'); return; }
     if (action === 'close') { modal = ''; render('overlay'); applyPendingUpdate(); return; }
     if (action === 'new-match') return startNewMatch(game.rules, true);
