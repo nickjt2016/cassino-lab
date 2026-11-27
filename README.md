@@ -286,3 +286,7 @@ Human cards fly into the slot for the number of cards dealt so far: fill the top
 ### 0.10.8 — compact sort labels
 
 The hand-sort toggle displays only 555 (suit first) or 567 (value first). Accessible descriptions and rule-aware sorting are unchanged.
+
+### 0.10.9 — two-player deal landing fix
+
+Both two-player and multiplayer deals now use the same identity-bearing human flight targets. Previously the two-player branch omitted the human card ID, causing flights to land at the default hidden-card position instead of their incremental hand slots. Regression tests exercise actual deal target generation and drive the animation callbacks through a 26-card deal and a replacement draw. The selected sort order still applies after dealing finishes.

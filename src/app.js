@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.8';
+  const APP_VERSION = '0.10.9';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -218,19 +218,24 @@
       const node=tableCards.find(c=>c.dataset.cardId===id);
       if(node) items.push({node,faceUp:true});
     }
-    const human=(deal.humanIds||[]).map(id=>handCards.find(c=>c.dataset.cardId===id));
+    // Human targets carry their identity in every player-count branch.
+    // Without it the flight falls back to the unpositioned, hidden face.
+    const human=(deal.humanIds||[]).map(humanId=>{
+      const node=handCards.find(c=>c.dataset.cardId===humanId);
+      return node?{node,faceUp:true,humanId}:null;
+    });
     const cpu=(deal.cpuIndices||[]).map(i=>backs[i]);
     if(deal.cpuBySeat){
       const seats=deal.cpuBySeat.map((indices,i)=>indices.map(j=>app.querySelectorAll('[data-cpu-seat="'+(i+1)+'"] .card-back')[j]));
       for(let i=0;i<Math.max(human.length,...seats.map(s=>s.length));i++){
         for(const seat of seats)if(seat[i])items.push({node:seat[i],faceUp:false});
-        if(human[i])items.push({node:human[i],faceUp:true,humanId:deal.humanIds[i]});
+        if(human[i])items.push(human[i]);
       }
       return items;
     }
     for(let i=0;i<Math.max(human.length,cpu.length);i++){
       if(cpu[i]) items.push({node:cpu[i],faceUp:false});
-      if(human[i]) items.push({node:human[i],faceUp:true});
+      if(human[i]) items.push(human[i]);
     }
     return items;
   }
