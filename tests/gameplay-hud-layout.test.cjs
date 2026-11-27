@@ -95,9 +95,9 @@ test('Human score uses team accent and equal vertical spacing; CPU panels omit r
 test('Top-bar sort switch shows the current mode and disables during non-human turns',()=>{
  const s=E.newMatch(),p={undo:true},h=ui(p,s);
  assert.equal(h.mode(),'suit');
- assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>[\s\S]*?Suit → value/);
+ assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>555<\/button>/);
  p.handSort='value';assert.equal(h.mode(),'value');
- assert.match(h.toolbar(true),/Value → suit/);
+ assert.match(h.toolbar(true),/data-action="toggle-hand-sort"[^>]*>567<\/button>/);
  assert.match(h.toolbar(false),/data-action="toggle-hand-sort"[^>]*disabled/);
  p.handSort='unknown';assert.equal(h.mode(),'suit');
  assert.match(app,/prefs\.handSort=handSortMode\(\)==='suit'\?'value':'suit'/);

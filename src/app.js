@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.7';
+  const APP_VERSION = '0.10.8';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -935,10 +935,10 @@
   function handSortMode(){return prefs.handSort==='value'?'value':'suit';}
   function renderHandSortToggle(active){
     const suitFirst=handSortMode()==='suit';
-    const label=suitFirst?'Suit → value':'Value → suit';
+    const label=suitFirst?'555':'567';
     const next=suitFirst?'value then suit':'suit then value';
     return '<button type="button" class="hand-sort-toggle" data-action="toggle-hand-sort" aria-label="Sort hand: '+(suitFirst?'suit then value':'value then suit')+'. Tap to sort by '+next+'." title="Switch hand sort order" '+(active?'':'disabled')+'>'+
-      '<span class="hand-sort-icon" aria-hidden="true">↕</span><span>'+label+'</span></button>';
+      label+'</button>';
   }
   function sortedHand(hand,rules,mode='suit'){
     const suitOrder='SHCDX';

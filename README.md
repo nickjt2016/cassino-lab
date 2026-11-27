@@ -282,3 +282,7 @@ The top-bar sort button cycles between Suit → value and Value → suit. The de
 ### 0.10.7 — sequential hand dealing and selection polish
 
 Human cards fly into the slot for the number of cards dealt so far: fill the top row from left to right, fill the bottom, then append alternately to top and bottom with row-specific overlap. Already-dealt cards glide into the next layout during landing. Replacement draws also append to their incremental slots. The completed hand returns to the selected rule-aware sort order at the next-turn render. Selected loose cards lift 5px (builds 6px) with a smooth 190ms transform; card-local touch highlights follow the card's original stacking order. The rules engine, CPU timing and table-card flights are unchanged.
+
+### 0.10.8 — compact sort labels
+
+The hand-sort toggle displays only 555 (suit first) or 567 (value first). Accessible descriptions and rule-aware sorting are unchanged.

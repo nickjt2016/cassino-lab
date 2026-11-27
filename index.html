@@ -1414,11 +1414,9 @@ html,body,#app{background:#005d0b;color:#fff}
 @media(max-width:350px){.rules-setting .team-cycle-control{width:108px;font-size:11px}}
 
 /* v0.10.6 — compact direct sort switch in the existing toolbar. */
-.shell .game-toolbar .hand-sort-toggle{display:flex;flex:0 0 auto;flex-direction:column;align-items:center;justify-content:center;gap:1px;height:100%;min-height:0;min-width:0;padding:2px 5px;border:1px solid #d8c48180;border-radius:7px;background:#004a1280;color:#f4df8d;font:700 9px/1.1 system-ui,sans-serif;white-space:nowrap;touch-action:manipulation}
-.shell .game-toolbar .hand-sort-icon{font-size:15px;line-height:1}
+.shell .game-toolbar .hand-sort-toggle{display:grid;place-items:center;flex:0 0 auto;width:clamp(34px,10vw,42px);height:100%;min-height:0;min-width:0;padding:0 4px;border:1px solid #d8c48180;border-radius:7px;background:#004a1280;color:#f4df8d;font:700 14px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;touch-action:manipulation}
 .shell .game-toolbar .hand-sort-toggle:disabled{opacity:.55;cursor:default}
 .shell .game-toolbar .hand-sort-toggle:focus-visible{outline:2px solid #f4df8d;outline-offset:1px}
-@media(max-height:450px) and (orientation:landscape){.shell .game-toolbar .hand-sort-toggle{flex-direction:row;gap:4px;padding-inline:5px}}
 
 /* v0.10.7 — card-local touch flash within the existing stacking context. */
 .shell .hand-item,.shell .table-item,.shell .build-item{-webkit-tap-highlight-color:transparent;isolation:isolate}
@@ -4166,7 +4164,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.7';
+  const APP_VERSION = '0.10.8';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -5089,10 +5087,10 @@ html,body,#app{background:#005d0b;color:#fff}
   function handSortMode(){return prefs.handSort==='value'?'value':'suit';}
   function renderHandSortToggle(active){
     const suitFirst=handSortMode()==='suit';
-    const label=suitFirst?'Suit → value':'Value → suit';
+    const label=suitFirst?'555':'567';
     const next=suitFirst?'value then suit':'suit then value';
     return '<button type="button" class="hand-sort-toggle" data-action="toggle-hand-sort" aria-label="Sort hand: '+(suitFirst?'suit then value':'value then suit')+'. Tap to sort by '+next+'." title="Switch hand sort order" '+(active?'':'disabled')+'>'+
-      '<span class="hand-sort-icon" aria-hidden="true">↕</span><span>'+label+'</span></button>';
+      label+'</button>';
   }
   function sortedHand(hand,rules,mode='suit'){
     const suitOrder='SHCDX';
