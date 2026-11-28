@@ -27,7 +27,7 @@ test('Draw mode does not hide/redeal existing table cards',()=>{
 });
 
 test('Human and computer replacement draws preserve current table IDs',()=>{
-  const pattern=/collectDeal\(preHuman,preCpu,game\.table\.filter\(e=>e\.type==='loose'\)\.map\(e=>e\.card\.id\)\)/g;
+  const pattern=/collectDeal\(preHuman,preCpu,game\.table\.filter\(e=>e\.type==='loose'\)\.map\(e=>e\.card\.id\),preSeats\)/g;
   assert.equal((app.match(pattern)||[]).length,2);
 });
 

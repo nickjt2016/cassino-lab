@@ -6,7 +6,7 @@ A single-player browser card game based on classic **Cassino**, designed as the 
 
 Once GitHub Pages is enabled, open **https://nickjt2016.github.io/cassino-lab/** on Android, desktop, or another modern browser. This is a hosted browser app: updates to `index.html` will be published at the same URL.
 
-Current release: **v0.5.35**. Reference-inspired green-and-gold home screen and tabletop, a New Game setup dialog, responsive card faces, original visual effects and sounds, settings grouped like a fishing-game variations menu, and playable Draw / cancelling Sweep options. Multiplayer and advanced Royal/Pirate options are labeled as future features.
+Current release: **v0.10.23**. Play configurable fishing-card games against CPUs with two to six seats and supported team arrangements. Includes responsive physical-card animations, named custom variants, an embedded soundboard, offline saves and automatic updates at the main menu.
 
 ## One-time GitHub Pages setup
 
@@ -335,3 +335,10 @@ Inactive hand artwork uses an 80% brightness filter, matching the supplied refer
 ### 0.10.22 — embedded soundboard
 
 The main menu and in-game Settings include Soundboard. Audition the same 18 original candidates, compare each category in A/B/C order, mark favorites and copy them. The audio is embedded in the self-contained release, not loaded from a separate webpage. Preview choices do not affect gameplay sounds.
+
+
+### 0.10.23 — animation audit and fishing-game roadmap
+
+Loose-card spacing stays constant across card counts, and layout changes animate both position and size. Every CPU seat retains smooth hand reflow. Existing builds animate each physical layer when spacing or columns change, with a fold/unfold transition for collapsed summaries and temporary overflow while crossing old column bounds. Open ribbons retain their positions when neighbors close. Crowded-hand flights preserve the source corner artwork, and open Settings/Exit dialogs stay mounted through board redraws. Existing move rhythms, opaque ribbon closing and gameplay sounds are retained.
+
+The browser audit at `tests/animation-browser.html` loads deterministic scenarios into an isolated frame with no access to saved matches. The new behavioral regression tests cover geometry, multiplayer identity, folding, cancellation and reduced motion; stale tests were updated to the current UI. See [the expanded fishing-game roadmap](docs/fishing-expansion-roadmap.md) for current capabilities, source-backed game requirements and implementation priorities.

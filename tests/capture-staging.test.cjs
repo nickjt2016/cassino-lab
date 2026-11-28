@@ -5,10 +5,19 @@ const path = require('node:path');
 const app = fs.readFileSync(path.join(__dirname, '../src/app.js'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, '../src/compact.css'), 'utf8');
 
-test('turn banner only uses the two requested phrases', () => {
-  assert.match(app, /const phaseText = turnBannerText\(\);/);
-  assert.match(app, /return game\.turn === 0 \? 'Your turn' : "Opponent's turn";/);
-  assert.match(app, /if \(turnInMotion \|\| dealing \|\| game\.phase !== 'playing'\) return '';/);
+test('The hand is the turn cue and becomes active only when the player can act', () => {
+  const start=app.indexOf('  function handIsActive('),end=app.indexOf('  function cancelMotion(',start);
+  const ready=(screen,phase,turn,busy=false,turnInMotion=false,dealing=false)=>
+    new Function('screen','game','busy','turnInMotion','dealing',app.slice(start,end)+';return handIsActive();')(
+      screen,{phase,turn},busy,turnInMotion,dealing);
+  assert.equal(ready('game','playing',0),true);
+  for(const state of [
+    ['game','playing',1],['game','playing',0,true],['game','playing',0,false,true],
+    ['game','playing',0,false,false,true],['game','roundOver',0],['home','playing',0]
+  ])assert.equal(ready(...state),false,JSON.stringify(state));
+  assert.match(app,/human-hand\$\{active\|\|showingDeal\?'':' hand-inactive'\}/);
+  assert.match(app,/class="sr-only" role="status">\$\{active\?'Your turn':'Waiting for your turn'\}/);
+  assert.doesNotMatch(app,/class="turn-banner"/);
   assert.doesNotMatch(app, /message\.textContent=\`Remaining cards collected/);
   assert.doesNotMatch(app, /phaseText = [^\n]*Computer thinking/);
 });

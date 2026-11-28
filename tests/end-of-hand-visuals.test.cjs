@@ -11,7 +11,7 @@ test('Hand result leaders use bold type only; ties stay regular',()=>{
   const game={result:{points:[
     {cards:3,spades:10,big:0,little:1,aces:1,sweeps:0,total:15,cardCount:27,spadeCount:9},
     {cards:0,spades:4,big:2,little:0,aces:3,sweeps:0,total:9,cardCount:25,spadeCount:4}
-  ],scores:[15,9],finishedRound:1},phase:'roundOver',rules:{spadeScoring:true,sweepPoints:0}};
+  ],scores:[15,9],finishedRound:1},players:[{},{}],phase:'roundOver',rules:{spadeScoring:true,sweepPoints:0}};
   const render=new Function('game','prefs','checkpoint',app.slice(start,end)+';return renderRound;')(game,{},null);
   const html=render();
   assert.ok(html.includes('<td class="round-leading"><strong>3</strong></td><td class="">0</td>'));

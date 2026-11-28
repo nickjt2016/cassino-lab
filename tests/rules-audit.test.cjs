@@ -8,9 +8,19 @@ function harness(){
 }
 test('Seating has constant dimensions across every count and arrangement',()=>{
  const h=harness();h.open('newgame');
- for(let n=2;n<=6;n++){h.set('playerCount',n);for(const mode of E.teamModesFor(n)){h.set('teamMode',mode);const html=h.html();assert.doesNotMatch(html,/<p class="setup-preview-note">/);assert.equal((html.match(/<svg viewBox="0 0 320 220" class="setup-table-svg"/g)||[]).length,1);}}
+ for(let n=2;n<=6;n++){
+  h.set('playerCount',n);
+  for(const mode of E.teamModesFor(n)){
+   h.set('teamMode',mode);const html=h.html();
+   assert.doesNotMatch(html,/<p class="setup-preview-note">/);
+   assert.equal((html.match(/<svg viewBox="0 0 320 220" class="setup-table-svg"/g)||[]).length,1);
+   const paths=[...html.matchAll(/class="polar-seat" d="([^"]+)"/g)].map(match=>match[1]);
+   assert.equal(paths.length,n);
+   for(const path of paths)assert.match(path,/ A 100 100 0 0 1 [\d.]+ [\d.]+ L [\d.]+ [\d.]+ A 60 60 0 0 0 /);
+   assert.doesNotMatch(html,/setup-seat-legend/,'seat colors communicate teams without a separate legend');
+  }
+ }
  assert.match(css,/\.setup-table-figure \.setup-table-svg\{aspect-ratio:320\/220\}/);
- assert.match(css,/\.setup-seat-legend\.polar-seat-legend\{height:20px;min-height:20px;flex-wrap:nowrap/);
 });
 test('Inactive options retain their saved preferences',()=>{
  const h=harness();h.open('newgame');

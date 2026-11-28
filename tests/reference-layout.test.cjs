@@ -47,7 +47,7 @@ test('Unified setup and exit confirmation are preserved',()=>{
 
 test('In-game settings is simplified and Exit to menu is the final footer action',()=>{
  const source=app.slice(app.indexOf('  function renderCpuPlaytestOptions()'),app.indexOf('  function renderRules()'));
- const render=new Function('prefs',source+'return renderMenu;')({sound:true,undo:true});
+ const render=new Function('prefs','busy','dealing','turnInMotion',source+'return renderMenu;')({sound:true,undo:true},false,false,false);
  const html=render();
  assert.match(html,/<h2>Settings<\/h2>/);
  assert.doesNotMatch(html,/Single-player|Hand 1|Classic Casino|data-action="(?:rules|settings|toggle-animations)"/i);

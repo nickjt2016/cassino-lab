@@ -175,8 +175,13 @@ test('Hand tone fades both ways across DOM replacement and continues from an int
  api.fade('none');assert.equal(animations.length,3);
  allowed=false;assert.equal(api.read(),null);api.fade('brightness(0.8)');assert.equal(animations.length,3);
  const render=section('  function render(mode','  const SETTING_INFO');
- assert.ok(render.indexOf('const previousHandTone=readHandTone()')<render.lastIndexOf('app.innerHTML ='));
- assert.ok(render.indexOf('animateHandTone(previousHandTone)')>render.lastIndexOf('app.innerHTML ='));
+ const snapshot=render.indexOf('const previousHandTone=readHandTone()');
+ const fade=render.indexOf('animateHandTone(previousHandTone)');
+ assert.ok(snapshot>=0&&fade>snapshot);
+ for(const replacement of ['mountedShell.outerHTML=gameMarkup','app.innerHTML=gameMarkup']){
+  const position=render.indexOf(replacement);
+  assert.ok(position>snapshot&&position<fade,'preserve displayed tone across '+replacement);
+ }
 });
 
 test('Maskable launcher icon has a full-bleed background and inset emblem',()=>{

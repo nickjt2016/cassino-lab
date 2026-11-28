@@ -31,7 +31,7 @@ test('Selected cards have yellow paper and a gold border; build panel retains bl
 
 test('Selected moving cards fade an identical painted overlay using opacity only',()=>{
   assert.match(app,/html:byComputer\?renderCard\(playerCard\):from\.outerHTML/);
-  assert.match(app,/id:card\.dataset\.cardId,rect:rect\(card\),html:card\.outerHTML/);
+  assert.match(app,/id:card\.dataset\.cardId,rect:cardRect\(card\),html:card\.outerHTML/);
   const start=app.indexOf('    function releaseCardTint(');
   const fade=app.slice(start,app.indexOf('\n    }',start));
   assert.match(fade,/face\.cloneNode\(true\)/);

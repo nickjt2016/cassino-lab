@@ -6,13 +6,14 @@ const app = fs.readFileSync(path.join(__dirname, '../src/app.js'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, '../src/compact.css'), 'utf8');
 
 test('Royal build panels always show the numerical target', () => {
-  const first = app.indexOf('  function buildPanelValue(value) {');
-  const last = app.indexOf('  function entryMarkup(element)', first);
+  const first = app.indexOf('  function buildPanelValue(');
+  const last = app.indexOf('  function entryMarkup(', first);
   assert.ok(first >= 0 && last > first);
   const make = new Function(app.slice(first, last) + '; return buildPanelValue;');
   const label = make();
   for (const value of [1, 9, 10, 11, 12, 13, 14, 15, 16])
     assert.equal(label(value), String(value));
+  assert.equal(label(9,-9),'-9','signed builds retain their actual announced target');
 });
 
 test('The build panel stops below the top rank and suit, covering the bottom 77%', () => {

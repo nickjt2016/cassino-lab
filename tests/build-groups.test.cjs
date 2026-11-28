@@ -31,7 +31,8 @@ test('Divider marks the first card of each subsequent group, not every card',()=
 });
 test('Toolbar puts score in freed center space between the two control clusters',()=>{
   const start=app.indexOf('  function renderToolbar('),end=app.indexOf('  function renderHome(',start);
-  const render=new Function('prefs','checkpoint',app.slice(start,end)+';return renderToolbar;')({undo:true},'saved');
+  const game={players:[{},{}],rules:{teamMode:'freeForAll'}};
+  const render=new Function('prefs','checkpoint','game',app.slice(start,end)+';return renderToolbar;')({undo:true},'saved',game);
   const html=render(true,12);
   const left=html.slice(html.indexOf('class="toolbar-left"'),html.indexOf('class="opponent-tag"'));
   const right=html.slice(html.indexOf('class="header-actions"'));

@@ -663,7 +663,8 @@ html,body,#app{background:#005d0b;color:#fff}
 .build-pile { --stack-splay:0px!important; width:var(--stack-card-width)!important; }
 .build-pile .build-layer {
   left:0!important;
-  transform:translateY(calc(var(--layer)*var(--stack-step)))!important;
+  top:calc(var(--layer)*var(--stack-step));
+  transform:none!important;
 }
 .build-pile .build-layer:last-child .build-value,
 .capture-label-flight > .build-value,
@@ -1407,13 +1408,13 @@ html,body,#app{background:#005d0b;color:#fff}
 /* Reference inactive cards: white paper becomes #ccc, black ink
    remains dark and red ink retains its hue and saturation. */
 .shell .human-hand.hand-inactive{filter:brightness(.8)}
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom),.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom){
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom),.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom),.flight-hand-face:not(.mini) .card-corner:not(.bottom){
   grid-template-columns:calc(25cqw * var(--hand-index-scale,1)) calc(19cqw * var(--hand-index-scale,1));
   column-gap:calc(1cqw * var(--hand-index-scale,1))
 }
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) b,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) b{font-size:calc(24cqw * var(--hand-index-scale,1))}
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) small,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) small{font-size:calc(19cqw * var(--hand-index-scale,1))}
-.shell .human-hand .playing-card.rank-joker .card-corner:not(.bottom) b,.hand-deal-flight .playing-card.rank-joker .card-corner:not(.bottom) b{font-size:calc(10cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) b,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) b,.flight-hand-face:not(.mini) .card-corner:not(.bottom) b{font-size:calc(24cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) small,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) small,.flight-hand-face:not(.mini) .card-corner:not(.bottom) small{font-size:calc(19cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card.rank-joker .card-corner:not(.bottom) b,.hand-deal-flight .playing-card.rank-joker .card-corner:not(.bottom) b,.flight-hand-face.rank-joker .card-corner:not(.bottom) b{font-size:calc(10cqw * var(--hand-index-scale,1))}
 @media(orientation:landscape) and (max-height:500px){
  .shell .human-hand{--hand-cap:clamp(35px,6.1vw,53px);--hand-budget:min(29dvh,120px)}
  .shell .turn-action-area{height:clamp(29px,8dvh,41px)}
@@ -1507,6 +1508,7 @@ html,body,#app{background:#005d0b;color:#fff}
   position:absolute;right:calc(2px + var(--build-lane)*var(--build-column,0));
   width:max-content;max-height:none;transform:none!important;
 }
+.shell .table-stage .table-builds.builds-reflowing:not(:empty){overflow:visible!important}
 .shell .table-stage .build-item.is-collapsed .build-summary{
   width:calc(var(--build-card-width)*var(--build-scale,1));
   height:auto;aspect-ratio:.715;
@@ -4402,7 +4404,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.22';
+  const APP_VERSION = '0.10.23';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -4546,22 +4548,65 @@ html,body,#app{background:#005d0b;color:#fff}
   function layoutPositions() {
     if (!app || !app.querySelectorAll) return null;
     const positions = new Map();
+    const remember=(key,node)=>{
+      const rect=node.getBoundingClientRect();
+      if(!rect.width||!rect.height)return null;
+      const saved={x:rect.left+rect.width/2,y:rect.top+rect.height/2,width:rect.width,height:rect.height};
+      positions.set(key,saved);return saved;
+    };
     app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]').forEach(node => {
       if(node.dataset.action==='hand'&&node.querySelector?.('.playing-card')?.style?.visibility==='hidden')return;
       const key = node.dataset.action + ':' + node.dataset.id;
-      const rect = node.getBoundingClientRect();
-      if (rect.width && rect.height) positions.set(key, {x:rect.left+rect.width/2,y:rect.top+rect.height/2});
+      const saved=remember(key,node);
+      if(saved&&node.classList.contains('build-item')){
+        const collapsed=node.classList.contains('is-collapsed');
+        const summary=node.querySelector('.build-summary');
+        const summaryRect=collapsed?summary?.getBoundingClientRect():null;
+        saved.build={collapsed,cards:new Map(),summaryHTML:collapsed&&summary?layoutSummaryHTML(summary):''};
+        for(const layer of node.querySelectorAll('.build-layer')){
+          const card=layer.querySelector('.playing-card[data-card-id]');
+          if(!card)continue;
+          const rect=summaryRect||layer.getBoundingClientRect();
+          let html=layer.innerHTML;
+          const panel=layer.querySelector('.build-value');
+          if(!collapsed&&panel){
+            const copy=layer.cloneNode(true),oldPanel=copy.querySelector('.build-value');
+            oldPanel.outerHTML=layoutSummaryHTML(panel,false,rect.height);html=copy.innerHTML;
+          }
+          if(rect.width&&rect.height)saved.build.cards.set(card.dataset.cardId,{
+            x:rect.left+rect.width/2,y:rect.top+rect.height/2,width:rect.width,height:rect.height,
+            html,groupStart:layer.classList.contains('build-group-start')
+          });
+        }
+      }
     });
-    if(game.players.length===2)app.querySelectorAll('.opponent-hand .card-back').forEach((node,i)=>{
-      const rect=node.getBoundingClientRect();
-      if(rect.width && rect.height) positions.set('cpu-back:'+i,{x:rect.left+rect.width/2,y:rect.top+rect.height/2});
+    const seatIndices=new Map();
+    app.querySelectorAll('.opponent-hand .card-back').forEach((node,i)=>{
+      const seat=node.closest?.('[data-cpu-seat]')?.dataset.cpuSeat;
+      const index=seatIndices.get(seat)||0;seatIndices.set(seat,index+1);
+      const key=game.players.length===2?'cpu-back:'+i:'cpu-back:'+seat+':'+index;
+      if(node.style.visibility!=='hidden')remember(key,node);
     });
     return positions;
+  }
+  // A summary briefly travels above the real cards as a stack folds or
+  // opens. Copy just its painted styles; the flight is outside the felt.
+  function layoutSummaryHTML(summary,fill=true,cardHeight=1){
+    const clone=summary.cloneNode(true);
+    const originals=[summary,...summary.querySelectorAll('*')],copies=[clone,...clone.querySelectorAll('*')];
+    const properties=['display','flex-direction','align-items','justify-content','gap','padding','background','color','border','border-radius','font','line-height','text-align','white-space','box-sizing'];
+    originals.forEach((node,i)=>{
+      const style=getComputedStyle(node);
+      properties.forEach(property=>copies[i].style.setProperty(property,style.getPropertyValue(property)));
+    });
+    Object.assign(clone.style,{width:'100%',height:'100%',visibility:'visible',opacity:'1',margin:'0'});
+    if(!fill)Object.assign(clone.style,{position:'absolute',left:'0',right:'0',top:'auto',bottom:'0',height:(summary.getBoundingClientRect().height/cardHeight*100)+'%',minHeight:'0'});
+    return clone.outerHTML;
   }
   function animateLayout(previous, motion = '', byComputer = false) {
     if (!previous || !motionAllowed() || !app.querySelectorAll) return;
     const nodes = [...app.querySelectorAll('[data-action="table"][data-id], [data-action="hand"][data-id]'),
-      ...(game.players.length===2?app.querySelectorAll('.opponent-hand .card-back'):[])];
+      ...app.querySelectorAll('.opponent-hand .card-back')];
     // A retained card can still be sliding when the next tap occurs. The
     // caller has already measured its displayed position. Cancel the old
     // translation before measuring its new untransformed destination.
@@ -4569,17 +4614,86 @@ html,body,#app{background:#005d0b;color:#fff}
     for(const node of nodes){
       active.get(node)?.cancel();
       active.delete(node);
+      for(const layer of node.querySelectorAll?.('.build-layer')||[]){active.get(layer)?.cancel();active.delete(layer);}
     }
-    let cpu=0;
+    let cpu=0;const seatIndices=new Map();
     const shifts=[];
+    const recordShift=(node,from,isTableCard,delay=0)=>{
+      const rect=node.getBoundingClientRect();
+      if(!rect.width||!rect.height)return;
+      const dx=from.x-(rect.left+rect.width/2),dy=from.y-(rect.top+rect.height/2);
+      const sx=(from.width||rect.width)/rect.width,sy=(from.height||rect.height)/rect.height;
+      if(Math.abs(dx)<.5&&Math.abs(dy)<.5&&Math.abs(sx-1)<.002&&Math.abs(sy-1)<.002)return;
+      shifts.push({node,dx,dy,sx,sy,isTableCard,delay});
+    };
+    const foldBuild=(node,from)=>{
+      const collapsed=node.classList.contains('is-collapsed');
+      if(!collapsed&&!from.build.collapsed){
+        for(const layer of node.querySelectorAll('.build-layer')){
+          const id=layer.querySelector('.playing-card[data-card-id]')?.dataset.cardId;
+          const prior=from.build.cards.get(id);if(prior)recordShift(layer,prior,true);
+        }
+        return;
+      }
+      if(collapsed&&from.build.collapsed){recordShift(node,from,true);return;}
+      if(typeof document==='undefined'||!document.body)return;
+      const duration=355,token=node._layoutToken=(node._layoutToken||0)+1;
+      const shell=document.createElement('div');shell.className='card-flight build-reflow-flight';
+      Object.assign(shell.style,{position:'fixed',inset:'0',pointerEvents:'none',zIndex:'70',isolation:'isolate'});
+      document.body.appendChild(shell);
+      const effects=[];
+      const summary=node.querySelector('.build-summary');
+      const target=collapsed?summary.getBoundingClientRect():null;
+      const panel=document.createElement('div');
+      const panelRect=collapsed?target:{left:from.x-from.width/2,top:from.y-from.height/2,width:from.width,height:from.height};
+      panel.innerHTML=collapsed?layoutSummaryHTML(summary):from.build.summaryHTML;
+      Object.assign(panel.style,{position:'absolute',left:panelRect.left+'px',top:panelRect.top+'px',width:panelRect.width+'px',height:panelRect.height+'px',zIndex:'100'});
+      shell.appendChild(panel);
+      if(collapsed){
+        node.style.visibility='hidden';
+        for(const [i,card] of [...from.build.cards.values()].entries()){
+          const ghost=document.createElement('div');
+          ghost.className='card-flight'+(card.groupStart?' build-group-start':'');ghost.innerHTML=card.html;
+          Object.assign(ghost.style,{position:'absolute',left:(card.x-card.width/2)+'px',top:(card.y-card.height/2)+'px',width:card.width+'px',height:card.height+'px',zIndex:String(i),transformOrigin:'center',pointerEvents:'none'});
+          const face=ghost.querySelector('.playing-card');
+          if(face)Object.assign(face.style,{width:'100%',height:'100%',margin:'0'});
+          shell.appendChild(ghost);
+          const dx=target.left+target.width/2-card.x,dy=target.top+target.height/2-card.y;
+          effects.push(ghost.animate([
+            {translate:'0px 0px',scale:'1 1'},
+            {translate:dx+'px '+dy+'px',scale:(target.width/card.width)+' '+(target.height/card.height)}
+          ],{duration,easing:'cubic-bezier(.22,.72,.24,1)',fill:'both'}));
+        }
+      }else{
+        for(const layer of node.querySelectorAll('.build-layer')){
+          const id=layer.querySelector('.playing-card[data-card-id]')?.dataset.cardId;
+          const prior=from.build.cards.get(id);if(prior)recordShift(layer,prior,true);
+        }
+      }
+      effects.push(panel.animate(collapsed?
+        [{opacity:0,offset:0},{opacity:0,offset:.6},{opacity:1,offset:1}]:
+        [{opacity:1,offset:0},{opacity:0,offset:.65},{opacity:0,offset:1}],
+        {duration,easing:'ease-out',fill:'both'}));
+      const handle={cancel:()=>effects.forEach(effect=>effect.cancel())};
+      active.set(node,handle);
+      Promise.allSettled(effects.map(effect=>effect.finished)).then(()=>{
+        if(node._layoutToken===token)node.style.visibility='';
+        if(active.get(node)===handle)active.delete(node);
+        shell.remove();
+      });
+    };
     nodes.forEach(node => {
       if(node.dataset.action==='hand'&&node.querySelector?.('.playing-card')?.style?.visibility==='hidden')return;
-      const key = node.classList.contains('card-back') ? 'cpu-back:'+(cpu++) : node.dataset.action+':'+node.dataset.id;
+      let key=node.dataset.action+':'+node.dataset.id;
+      if(node.classList.contains('card-back')){
+        if(node.style.visibility==='hidden')return;
+        const seat=node.closest?.('[data-cpu-seat]')?.dataset.cpuSeat;
+        const index=seatIndices.get(seat)||0;seatIndices.set(seat,index+1);
+        key=game.players.length===2?'cpu-back:'+(cpu++):'cpu-back:'+seat+':'+index;
+      }
       const from=previous.get(key);
       if(!from || !node.animate) return;
-      const rect=node.getBoundingClientRect();
-      const dx=from.x-(rect.left+rect.width/2), dy=from.y-(rect.top+rect.height/2);
-      if(Math.abs(dx)<2 && Math.abs(dy)<2) return;
+      if(from.build){foldBuild(node,from);return;}
       // Table cards physically close gaps like the filmed fishing game.
       // Preserve each card's identity; only the remaining cards glide into
       // the vacated slots, never recentering the whole row.
@@ -4588,13 +4702,28 @@ html,body,#app{background:#005d0b;color:#fff}
       // the gaps. The CPU first spends 335 ms turning its card face-up.
       const delay=motion==='capture' && isTableCard && node.classList.contains('table-item')
         ? (byComputer?495:160) : 0;
-      shifts.push({node,dx,dy,isTableCard,delay});
+      recordShift(node,from,isTableCard,delay);
     });
-    for(const {node,dx,dy,isTableCard,delay} of shifts){
-      const animation=node.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],
+    const reflowLanes=new Map();
+    for(const {node,dx,dy,sx,sy,isTableCard,delay} of shifts){
+      const animation=node.animate([{translate:`${dx}px ${dy}px`,scale:sx+' '+sy},{translate:'0px 0px',scale:'1 1'}],
         {duration:isTableCard ? 355 : 420,delay,fill:'backwards',
          easing:isTableCard ? 'cubic-bezier(.22,.72,.24,1)' : 'cubic-bezier(.2,.8,.2,1)'});
       if(animation)active.set(node,animation);
+      const lane=node.closest?.('.table-builds');
+      if(lane&&animation){
+        if(!reflowLanes.has(lane))reflowLanes.set(lane,[]);
+        reflowLanes.get(lane).push(animation);
+      }
+    }
+    // A second column can disappear before its cards reach column one.
+    // Let those already-visible cards cross the old bounds during reflow.
+    for(const [lane,effects] of reflowLanes){
+      const token=lane._layoutToken=(lane._layoutToken||0)+1;
+      lane.classList.add('builds-reflowing');
+      Promise.allSettled(effects.map(effect=>effect.finished)).then(()=>{
+        if(lane._layoutToken===token)lane.classList.remove('builds-reflowing');
+      });
     }
   }
   // Dealt cards never materialize in the hand. Until the deck animation
@@ -4799,7 +4928,8 @@ html,body,#app{background:#005d0b;color:#fff}
       });
     const tableRects = move.kind==='capture'?[...app.querySelectorAll('.table-stage .playing-card,.table-stage .build-summary')].filter(node=>node.closest?.('.is-collapsed')?node.classList?.contains('build-summary'):!node.classList?.contains('build-summary')).map(rect):[];
     const looseCardRects = move.kind==='capture'?[...app.querySelectorAll('.table-cards .playing-card')].map(rect):[];
-    return {kind:move.kind,byComputer,actor,tableRects,looseCardRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML},groups:groupRects,remainingCards};
+    const handIndexScale=byComputer?1:Number(from.parentElement?.style?.getPropertyValue('--hand-index-scale'))||1;
+    return {kind:move.kind,byComputer,actor,tableRects,looseCardRects,played:{id:playerCard.id,rect:rect(from),html:byComputer?renderCard(playerCard):from.outerHTML,handIndexScale},groups:groupRects,remainingCards};
   }
   function playMotion(snapshot, after) {
     if (!snapshot || !motionAllowed() || !document.body || !app.querySelector) { after(); return; }
@@ -4849,6 +4979,15 @@ html,body,#app{background:#005d0b;color:#fff}
         margin:'0',padding:'0',transformOrigin:'center center',willChange:'transform,opacity'});
       const card=ghost.querySelector(':scope > .playing-card');
       if(card) Object.assign(card.style,{width:'100%',height:'100%',margin:'0'});
+      if(card&&i===0&&!snapshot.byComputer&&snapshot.played.handIndexScale<.999){
+        // Crowded hands compress only the corner index. Preserve that exact
+        // source face, then blend into the ordinary flight artwork.
+        const sourceFace=card.cloneNode(true);
+        sourceFace.classList.add('flight-selection-tint','flight-hand-face');
+        sourceFace.style.setProperty('--hand-index-scale',String(snapshot.played.handIndexScale));
+        sourceFace.setAttribute('aria-hidden','true');sourceFace.removeAttribute('data-card-id');
+        card.classList.remove('card-selected');ghost.appendChild(sourceFace);ghost._sourceHandFace=sourceFace;
+      }
       document.body.appendChild(ghost);
       return {ghost,rect:r,id:piece.id};
     });
@@ -4912,6 +5051,12 @@ html,body,#app{background:#005d0b;color:#fff}
     });
     // The source face stays intact. Only its selection tint fades away.
     function releaseCardTint(entry,delay=0) {
+      if(entry.ghost._sourceHandFace){
+        const tint=entry.ghost._sourceHandFace;entry.ghost._sourceHandFace=null;
+        animate(tint,[{opacity:1},{opacity:0}],{duration:160,delay,fill:'both',easing:'ease-out'})
+          .then(()=>tint.remove());
+        return;
+      }
       const face=entry.ghost.querySelector('.playing-card.card-selected');
       if (!face) return;
       // Keep the exact selected artwork in a temporary compositor layer.
@@ -5389,7 +5534,8 @@ html,body,#app{background:#005d0b;color:#fff}
       else closeBuildInspection(preview,animate);
     }
     const bounds=rail.getBoundingClientRect();
-    const occupied=[];
+    const occupied=[...previews.values()].filter(preview=>preview.classList.contains('is-closing')&&!selectedIds.has(preview.dataset.id))
+      .map(preview=>preview._ribbonGeometry).filter(Boolean);
     // Existing open ribbons keep priority when a new one is selected.
     selected.sort((a,b)=>Number(previews.has(b.dataset.id))-Number(previews.has(a.dataset.id)));
     for(const node of selected){
@@ -5415,8 +5561,9 @@ html,body,#app{background:#005d0b;color:#fff}
       const clone=preview.querySelector('.build-pile');
       const layers=[...clone.querySelectorAll('.build-layer')];
       const anchor=summary.getBoundingClientRect();
-      const inputKey=[bounds.left,bounds.top,bounds.width,bounds.height,anchor.left,anchor.top,anchor.width,anchor.height,
-        ...occupied.map(p=>[p.left,p.top,p.width,p.height].join(','))].join('|');
+      // A neighboring ribbon closing is not a reason to relocate this one.
+      // Refit only when its own anchor or the available felt actually moves.
+      const inputKey=[bounds.left,bounds.top,bounds.width,bounds.height,anchor.left,anchor.top,anchor.width,anchor.height].join('|');
       if(!fresh&&preview._buildGeometry===inputKey&&preview._ribbonGeometry){
         occupied.push(preview._ribbonGeometry);
         if(reopening){
@@ -5750,7 +5897,8 @@ html,body,#app{background:#005d0b;color:#fff}
     // Count the actual number of rows, even in unusually large custom deals.
     if(table){
       const rows=Math.ceil(n/4);
-      return {count:n,portraitRows:rows,portraitCols:4,wideRows:rows,wideCols:4,gap:n>18?2:n>10?3:n>6?4:7,oneGap:4};
+      // Card count changes rows and the available size, never the gutters.
+      return {count:n,portraitRows:rows,portraitCols:4,wideRows:rows,wideCols:4,gap:4,oneGap:4};
     }
     const portraitRows=Math.min(3,Math.ceil(n/6));
     const wideRows=Math.min(2,Math.ceil(n/12));
@@ -6049,7 +6197,7 @@ html,body,#app{background:#005d0b;color:#fff}
     renderedActionMarkup=actionsMarkup;
     const motion = lastMotion;
     lastMotion = '';
-    app.innerHTML = `
+    const gameMarkup = `
       <div class="shell ${prefs.animations ? 'animations-on' : 'animations-off'}${game.players.length>2?' multiplayer-game':''}">
         ${renderToolbar(active,opponent().score,multiToolbarLabel())}
         <main class="felt" data-motion="${motion}">
@@ -6080,8 +6228,16 @@ html,body,#app{background:#005d0b;color:#fff}
           </div>
         </main>
         <footer class="footer"><span>Single-player · Saves on this device · v${APP_VERSION}</span></footer>
-      </div>
-      ${modal ? renderModal() : ''}`;
+      </div>`;
+    // A turn can finish while Settings or Exit is open. Keep that live
+    // dialog mounted, including focus and scroll, while replacing the board.
+    const mountedShell=app.querySelector('.shell'),mountedOverlay=app.querySelector('.overlay');
+    const keepDialog=['menu','exit-confirm','soundboard'].includes(modal)&&
+      mountedOverlay?.querySelector('.dialog')?.getAttribute('aria-label')===(modal==='menu'?'Settings':modal);
+    if(mountedShell&&keepDialog){
+      mountedShell.outerHTML=gameMarkup;
+      for(const control of mountedOverlay.querySelectorAll('[data-action="toggle-cpu-playtest"],[data-action="open-soundboard"]'))control.disabled=busy||dealing||turnInMotion;
+    }else app.innerHTML=gameMarkup+(modal?renderModal():'');
     restoreVariationsScroll();
     layoutBuilds(previousBuildScroll,motion==='build');
     layoutHumanHand();

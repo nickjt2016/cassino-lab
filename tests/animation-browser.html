@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Fishing Lab — animation audit</title>
+  <style>
+    body{font:14px system-ui;background:#172320;color:#fff;margin:12px;display:flex;gap:16px;align-items:flex-start}
+    aside{width:305px;flex:none}h1{font-size:22px;margin:0 0 10px}p{font-size:12px;line-height:1.5;color:#d3daca}
+    button,select{padding:9px;margin:3px;background:#f2e5c8;border:0;border-radius:5px;color:#173f30;font:inherit}
+    button{cursor:pointer}label{display:block;margin:8px 0}iframe{border:1px solid #c6b06a;width:390px;height:844px;flex:none;background:#006b09}
+    pre{white-space:pre-wrap;font:11px/1.4 monospace;max-height:530px;overflow:auto;background:#0c1814;padding:10px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <aside>
+    <h1>Animation audit</h1>
+    <p>Developer scenarios in an isolated frame. These temporary positions do not access or overwrite saved matches. No autoplaying computer turns.</p>
+    <label>Viewport <select id="size"><option>390x844</option><option>320x568</option><option>360x640</option><option>844x390</option><option>1280x800</option></select></label>
+    <label>Scenario <select id="scenario"><option>table-gap</option><option>trail</option><option>cpu-trail</option><option>cpu-capture</option><option>multi-cpu</option><option>dense-table</option><option>build</option><option>build-pack</option><option>ribbons</option><option>crowded-hand</option><option>final-residue</option></select></label>
+    <button id="setup">Set up</button><button id="run">Run</button><button id="run-paused">Run paused</button><button id="deal">Deal</button><br>
+    <button data-time="0">0 ms</button><button data-time="180">180 ms</button><button data-time="350">350 ms</button><button id="resume">Resume</button><button id="finish">Finish</button><br>
+    <button id="modal">Settings</button><button id="redraw">Redraw</button><button id="undo">Undo</button><button id="inspect">Inspect</button>
+    <pre id="output" aria-live="polite">Loading source files…</pre>
+  </aside>
+  <iframe id="game" title="Isolated game scenario" sandbox="allow-scripts"></iframe>
+  <script src="animation-browser.js"></script>
+</body>
+</html>

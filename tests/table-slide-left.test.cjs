@@ -24,12 +24,18 @@ test('Each survivor slides to its newly vacated slot using its stable table id',
 test('A new build remains on the right and does not force the table to recenter',()=>{
   assert.match(css,/\.table-stage \.table-builds:not\(:empty\)/);
   assert.match(css,/right:2px!important/);
-  const lastRule=css.slice(css.indexOf('/* v0.5.10'));
-  assert.doesNotMatch(lastRule,/justify-content:center/);
+  const looseCardRules=[...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter(([,selector])=>selector.trim().split(',').some(part=>/\.table-cards$/.test(part.trim())))
+    .map(([,selector,declarations])=>({selector,declarations}));
+  assert.ok(looseCardRules.length);
+  // Scope the assertion to the lane itself; newer toolbars, dialogs and
+  // CPU hands legitimately center their contents elsewhere in this file.
+  const finalAlignment=looseCardRules.filter(rule=>/justify-content:/.test(rule.declarations)).at(-1);
+  assert.match(finalAlignment.declarations,/justify-content:(?:flex-start|start)!important/);
 });
 
 test('Capture gap filling waits at the original slot, including the CPU flip',()=>{
-  const start=app.indexOf('  function animateLayout('),end=app.indexOf('  // Dealt cards',start);
+  const start=app.indexOf('  function layoutPositions('),end=app.indexOf('  // Dealt cards',start);
   const create=(motion,byComputer)=>{
     const calls=[];
     const node=(action,cls,id)=>({
@@ -40,7 +46,7 @@ test('Capture gap filling waits at the original slot, including the CPU flip',()
     const nodes=[node('table','table-item','t1'),node('table','build-item','b1'),node('hand','hand-item','h1')];
     const host={querySelectorAll:selector=>selector.includes('data-action')?nodes:[]};
     const prev=new Map([['table:t1',{x:200,y:135}],['table:b1',{x:200,y:135}],['hand:h1',{x:200,y:135}]]);
-    new Function('app','motionAllowed',app.slice(start,end)+';return animateLayout;')(host,()=>true)(prev,motion,byComputer);
+    new Function('app','motionAllowed','game',app.slice(start,end)+';return animateLayout;')(host,()=>true,{players:[{},{}]})(prev,motion,byComputer);
     return calls;
   };
   for(const [cpu,delay] of [[false,160],[true,495]]){

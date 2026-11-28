@@ -656,7 +656,8 @@ html,body,#app{background:#005d0b;color:#fff}
 .build-pile { --stack-splay:0px!important; width:var(--stack-card-width)!important; }
 .build-pile .build-layer {
   left:0!important;
-  transform:translateY(calc(var(--layer)*var(--stack-step)))!important;
+  top:calc(var(--layer)*var(--stack-step));
+  transform:none!important;
 }
 .build-pile .build-layer:last-child .build-value,
 .capture-label-flight > .build-value,
@@ -1400,13 +1401,13 @@ html,body,#app{background:#005d0b;color:#fff}
 /* Reference inactive cards: white paper becomes #ccc, black ink
    remains dark and red ink retains its hue and saturation. */
 .shell .human-hand.hand-inactive{filter:brightness(.8)}
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom),.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom){
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom),.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom),.flight-hand-face:not(.mini) .card-corner:not(.bottom){
   grid-template-columns:calc(25cqw * var(--hand-index-scale,1)) calc(19cqw * var(--hand-index-scale,1));
   column-gap:calc(1cqw * var(--hand-index-scale,1))
 }
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) b,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) b{font-size:calc(24cqw * var(--hand-index-scale,1))}
-.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) small,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) small{font-size:calc(19cqw * var(--hand-index-scale,1))}
-.shell .human-hand .playing-card.rank-joker .card-corner:not(.bottom) b,.hand-deal-flight .playing-card.rank-joker .card-corner:not(.bottom) b{font-size:calc(10cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) b,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) b,.flight-hand-face:not(.mini) .card-corner:not(.bottom) b{font-size:calc(24cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom) small,.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom) small,.flight-hand-face:not(.mini) .card-corner:not(.bottom) small{font-size:calc(19cqw * var(--hand-index-scale,1))}
+.shell .human-hand .playing-card.rank-joker .card-corner:not(.bottom) b,.hand-deal-flight .playing-card.rank-joker .card-corner:not(.bottom) b,.flight-hand-face.rank-joker .card-corner:not(.bottom) b{font-size:calc(10cqw * var(--hand-index-scale,1))}
 @media(orientation:landscape) and (max-height:500px){
  .shell .human-hand{--hand-cap:clamp(35px,6.1vw,53px);--hand-budget:min(29dvh,120px)}
  .shell .turn-action-area{height:clamp(29px,8dvh,41px)}
@@ -1500,6 +1501,7 @@ html,body,#app{background:#005d0b;color:#fff}
   position:absolute;right:calc(2px + var(--build-lane)*var(--build-column,0));
   width:max-content;max-height:none;transform:none!important;
 }
+.shell .table-stage .table-builds.builds-reflowing:not(:empty){overflow:visible!important}
 .shell .table-stage .build-item.is-collapsed .build-summary{
   width:calc(var(--build-card-width)*var(--build-scale,1));
   height:auto;aspect-ratio:.715;
