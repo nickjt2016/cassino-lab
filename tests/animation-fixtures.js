@@ -2,6 +2,9 @@
 
   const audit = globalThis.animationAudit = {
     dialogCounter:0,
+    commandSerial:0,
+    reportRevision:0,
+    lastCommand:'init',
     runId:0,
     frameRequest:null,
     paused:false,
@@ -15,6 +18,9 @@
     setup(name='table-gap') {
       audit.stopSampling();audit.paused=false;audit.error=null;
       cancelMotion(); if(pendingBot!==null){clearTimeout(pendingBot);pendingBot=null;}
+      // A fixture starts from its own stationary scene, never from the
+      // preceding scenario's DOM positions or partly folded build layers.
+      app.innerHTML='';
       prefs={...prefs,animations:true,sound:false,handSort:'dealt'};
       game=E.makeState(E.rulesFor('royal',{buildAnything:true,pirateBuilds:true,pirateCaptures:true,allowTrailWithOwnBuild:true,forcedCapture:'optional',playerCount:name==='multi-cpu'?4:2}));
       const c=id=>E.allCards().find(c=>c.id===id), loose=(id,i)=>({id:'a'+i,type:'loose',card:c(id)});
@@ -42,6 +48,7 @@
       game.moveNumber=5;game.phase='playing';
       busy=false;dealing=false;turnInMotion=false;modal='';screen='game';lastMotion='';checkpoint=null;resetSelection();render();
       if(name==='ribbons'){pickedTable=new Set(game.table.map(b=>b.id));render('selection');}
+      document.getAnimations().forEach(animation=>{try{animation.finish();}catch(_){}});
       audit.name=name; audit.samples=[]; audit.before=audit.rects(); audit.done=false;
       return audit.state();
     },
@@ -50,6 +57,7 @@
     },
     run() {
       audit.stopSampling();audit.samples=[];audit.done=false;
+      audit.before=audit.rects();
       if(audit.name==='ribbons'){pickedTable.delete('b0');render('selection');audit.done=true;return;}
       const action=audit.action, byComputer=game.turn!==0;
       if(!action)throw Error('No action for fixture '+audit.name);
@@ -80,6 +88,7 @@
     deal() {
       audit.stopSampling();audit.paused=false;audit.error=null;audit.samples=[];audit.done=false;
       cancelMotion();if(pendingBot!==null){clearTimeout(pendingBot);pendingBot=null;}
+      app.innerHTML='';audit.name='deal';audit.before=[];
       game=E.newMatch(E.rulesFor('classic'),()=>.63);screen='game';modal='';busy=dealing=true;turnInMotion=false;lastMotion='deal';collectDeal();render();
       const generation=motionGeneration,runId=audit.runId,startedGame=game;
       dealAnimation.then(()=>{
@@ -114,10 +123,12 @@
   addEventListener('unhandledrejection',e=>{audit.error=String(e.reason);});
   audit.setup('table-gap');
 
-  const report=()=>parent.postMessage({kind:'animation-audit-result',result:{...audit.summary(),error:audit.error}},'*');
+  const report=()=>parent.postMessage({kind:'animation-audit-result',result:{...audit.summary(),error:audit.error,
+    revision:++audit.reportRevision,commandSerial:audit.commandSerial,command:audit.lastCommand}},'*');
   addEventListener('message',event=>{
     if(event.source!==parent||event.data?.kind!=='animation-audit-command')return;
     const {command,value}=event.data;
+    audit.commandSerial++;audit.lastCommand=command;
     try{
       if(command==='setup')audit.setup(value);
       else if(command==='run-paused'){audit.run();audit.pause();}
