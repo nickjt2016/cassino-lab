@@ -1596,3 +1596,19 @@ html,body,#app{background:#005d0b;color:#fff}
 /* Keep the physical ribbon opaque even while its closing button is
    disabled for hit testing. Only the geometry reverses, not opacity. */
 .shell .build-inspection:disabled,.shell .build-inspection.is-closing{opacity:1;cursor:default}
+/* Soundboard is an ordinary in-game dialog, with generous touch targets. */
+.soundboard-content{display:flex;flex-direction:column;gap:12px}
+.soundboard-status{margin:0;padding:8px 10px;background:#e8ecdf;color:#244837;font-size:12px;border-radius:8px;min-height:32px}
+.soundboard-category{border:1px solid #d5c6a6;border-radius:12px;background:#fffaf0;padding:8px 10px}
+.soundboard-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:5px}
+.dialog .soundboard-heading h3{margin:0;font:700 14px/1.25 system-ui,sans-serif;color:#234b39;letter-spacing:0;text-transform:none}
+.soundboard-option{display:grid;grid-template-columns:50px minmax(0,1fr) 56px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #e4d9c1}
+.soundboard-option span{min-width:0;display:grid;gap:3px}
+.soundboard-option b{font-size:13px;color:#282b20}
+.soundboard-option small{font-size:11px;color:#655d4e;line-height:1.3}
+.soundboard-content button{font:700 12px system-ui,sans-serif;border:1px solid #b7a778;background:#f0e7ce;color:#244837;border-radius:8px;min-height:44px;padding:6px;touch-action:manipulation}
+.soundboard-content button[aria-pressed="true"]{background:#1e5a42;color:#fff7df;border-color:#1e5a42}
+.soundboard-compare{white-space:nowrap;min-width:76px}
+.soundboard-summary{white-space:pre-line;font-size:12px;line-height:1.6;padding:10px;background:#eee6d4;border-radius:8px;color:#3f3a2c}
+.dialog .soundboard-actions{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:7px}
+.dialog .soundboard-actions .action-btn{min-width:0;white-space:nowrap}

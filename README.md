@@ -331,3 +331,7 @@ Measure each build's actual rank-and-suit shoulder index and compute its tightes
 ### 0.10.21 — reference-style gray inactive hand
 
 Inactive hand artwork uses an 80% brightness filter, matching the supplied reference's #CCCCCC card paper while preserving black and red suit contrast. The existing 160 ms turn fade, full-color deal and interaction timing remain unchanged.
+
+### 0.10.22 — embedded soundboard
+
+The main menu and in-game Settings include Soundboard. Audition the same 18 original candidates, compare each category in A/B/C order, mark favorites and copy them. The audio is embedded in the self-contained release, not loaded from a separate webpage. Preview choices do not affect gameplay sounds.
