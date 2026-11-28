@@ -136,43 +136,115 @@ test('The enlarged shared bounds keep the screenshot pair in one column',()=>{
  assert.equal(plan(p,276,81,5).columns,1);
  assert.match(css,/height:94%;max-height:94%;top:52%!important/);
 });
-test('Expanded build previews grow upward from their own summary and stay inside the felt',()=>{
+
+test('Full ribbon keeps every card inside the felt; normal sizes and spacing are preserved when possible',()=>{
  const geometry=new Function(section('  function buildInspectionGeometry(','  function syncBuildInspections(')+';return buildInspectionGeometry;')();
- const bounds={left:10,top:20,width:350,height:300},pile={width:60,height:160};
+ const bounds={left:10,top:20,width:350,height:300};
  const box=(left,top,width=60,height=84)=>({left,top,width,height,bottom:top+height});
- let g=geometry(box(200,160),bounds,pile);
- assert.equal(g.left,190);assert.equal(g.top,64);
- assert.equal(g.top+g.height,224);
- assert.match(g.frames[0].clipPath,/inset\(76px/);
- assert.equal(g.frames[0].transform,'translate(0px,0px)');
- g=geometry(box(200,25),bounds,pile);
- assert.equal(g.top,0);assert.equal(g.frames[0].transform,'translate(0px,-71px)');
- assert.equal(g.top+g.height,160);
- g=geometry(box(300,280),bounds,{width:60,height:500});
- assert.equal(g.height,300);assert.equal(g.scrollTop,200);
- assert.equal(g.top,0);assert.ok(g.left+g.width<=bounds.width);
+ let g=geometry(box(200,160),bounds,{width:60,height:60/.715+3*20},4);
+ assert.equal(g.width,60);assert.equal(g.step,20);
+ assert.ok(Math.abs(g.top+g.height-224)<1e-8);
+ g=geometry(box(200,25),bounds,{width:60,height:60/.715+3*20},4);
+ assert.equal(g.top,0);assert.equal(g.width,60);
+ for(const H of [130,240,300,540,750])for(const W of [240,350,800])for(let n=1;n<=54;n++){
+   const b={...bounds,width:W,height:H},a=box(170,80,48,48/.715);
+   const result=geometry(a,b,{width:60,height:60/.715+(n-1)*22},n);
+   assert.ok(result.height<=H+1e-7);
+   assert.ok(result.left>=0&&result.left+result.width<=W+1e-7);
+   assert.ok(result.top>=0&&result.top+result.height<=H+1e-7);
+   assert.ok(Math.abs(result.cardHeight+(n-1)*result.step-result.height)<1e-7);
+   if(n>1)assert.ok(result.step>=result.width*.34-1e-7,'all rank/suit shoulders exposed');
+   assert.equal('scrollTop' in result,false);
+ }
+ const first=geometry(box(200,160),bounds,{width:60,height:164},5);
+ const second=geometry(box(200,170),bounds,{width:60,height:164},5,[first]);
+ assert.ok(first.left+first.width<=second.left||second.left+second.width<=first.left);
  assert.match(css,/build-summary \.build-value-number\{\s*font:700[^;]+Georgia/);
- assert.match(app,/duration:165/);assert.match(app,/duration:145/);
- assert.match(app,/motion\.reverse\(\)/);
+ assert.match(css,/\.shell \.build-inspection\{\s*display:block;max-height:none;max-width:none;overflow:visible/);
+ assert.match(css,/\.shell \.build-inspection \.build-layer\{\s*top:calc\(var\(--layer\)\*var\(--stack-step\)\);transform:none!important/);
+ assert.match(app,/<\/div>\s*<div class="build-inspections"[^>]*><\/div>\s*<div class="turn-action-area">/);
 });
-test('Selection creates an anchored preview and deselection removes it without motion',()=>{
- const {f,s,pickedTable}=buildFixture();
- const box={left:200,top:160,bottom:244,width:60,height:84};
- const pile={cloneNode:()=>({getBoundingClientRect:()=>({width:60,height:160})})};
+test('Ribbon tracks begin each individual card at the same black box and end at distinct vertical slots',()=>{
+ const api=new Function(section('  function buildInspectionGeometry(','  function syncBuildInspections(')+';return {geometry:buildInspectionGeometry,tracks:buildRibbonTracks};')();
+ const bounds={left:10,top:20,width:350,height:540};
+ for(const top of [25,200,450])for(const n of [1,2,11,27,52]){
+  const a={left:270,top,width:48,height:48/.715,bottom:top+48/.715};
+  const g=api.geometry(a,bounds,{width:60,height:60/.715+(n-1)*22},n);
+  const {duration,tracks}=api.tracks(g,n);
+  assert.equal(tracks.length,n);
+  assert.ok(duration>=235&&duration<=375+1e-8);
+  const movementOffsets=[];
+  tracks.forEach((frames,i)=>{
+   const [dx,dy]=frames[0].translate.split(' ').map(parseFloat);
+   assert.ok(Math.abs(bounds.left+g.left+dx-a.left)<1e-7);
+   assert.ok(Math.abs(bounds.top+g.top+i*g.step+dy-a.top)<1e-7);
+   const [sx,sy]=frames[0].scale.split(' ').map(Number);
+   assert.ok(Math.abs(g.width*sx-a.width)<1e-7);
+   assert.ok(Math.abs(g.cardHeight*sy-a.height)<1e-7);
+   assert.equal(frames.at(-1).translate,'0px 0px');assert.equal(frames.at(-1).scale,'1 1');
+   assert.equal(frames.at(-1).offset,1);
+   const move=frames.find(f=>f.easing);
+   movementOffsets.push(move.offset);
+   assert.ok(frames.every((f,j)=>j===0||f.offset>=frames[j-1].offset));
+   assert.ok(frames.every(f=>!('clipPath' in f)));
+  });
+  assert.equal(new Set(movementOffsets).size,n);
+ }
+});
+function ribbonHarness(animate=true,count=11){
+ const {source,s,pickedTable}=buildFixture();
+ const classes=initial=>{const set=new Set(initial);return {contains:x=>set.has(x),add:x=>set.add(x),remove:x=>set.delete(x)}};
+ const style=()=>({setProperty(k,v){this[k]=v;},removeProperty(k){delete this[k];}});
+ const box={left:270,top:160,bottom:244,width:60,height:84};
+ const motions=[];
+ const layers=Array.from({length:count},(_,i)=>({animate(frames,options){
+    let resolve;const m={i,frames,options,playbackRate:1,reversals:0,
+     reverse(){this.playbackRate*=-1;this.reversals++;this.finished=new Promise(r=>resolve=r);},
+     cancel(){resolve?.();},finish(){resolve?.();},
+     settle(){resolve?.();}};
+    m.finished=new Promise(r=>resolve=r);motions.push(m);return m;
+ }}));
+ const clone={style:style(),querySelectorAll:()=>layers,
+    getBoundingClientRect:()=>({width:60,height:60/.715+(count-1)*22})};
+ const pile={cloneNode:()=>clone};
  const item={dataset:{id:'b1'},disabled:false,getAttribute:()=> 'Build 1',
+   classList:classes(['is-collapsed','selected']),
    querySelector:sel=>sel==='.build-pile'?pile:{getBoundingClientRect:()=>box}};
  let selected=true;
  const lane={querySelectorAll:()=>selected?[item]:[]};
  const rail={children:[],querySelectorAll(){return this.children;},appendChild(node){this.children.push(node);},
-   getBoundingClientRect:()=>({left:10,top:20,width:350,height:300})};
+   getBoundingClientRect:()=>({left:10,top:20,width:350,height:540})};
  const host={querySelector:sel=>sel==='.table-builds'?lane:sel==='.build-inspections'?rail:null};
- const doc={createElement:()=>({dataset:{},style:{},setAttribute(){},appendChild(p){this.pile=p;},
-   querySelector(){return this.pile;},classList:{contains:()=>false},
+ const doc={createElement:()=>({dataset:{},style:style(),setAttribute(){},removeAttribute(){},appendChild(p){this.pile=p;},
+   querySelector(){return this.pile;},classList:classes([]),
    remove(){rail.children=rail.children.filter(n=>n!==this);}})};
- const h=f(E,s,pickedTable,String,()=>'',c=>c.rank,c=>c.suit,host,doc,{});
- h.inspect();assert.equal(rail.children.length,1);
- assert.equal(rail.children[0].dataset.action,'inspect-build');assert.equal(rail.children[0].style.top,'64px');
- selected=false;h.inspect();assert.equal(rail.children.length,0);
+ const inspect=new Function('E','game','pickedTable','escapeHtml','suitClass','prettyRank','prettySuit','app','document','globalThis','motionAllowed',source+';return syncBuildInspections;')
+ (E,s,pickedTable,String,()=>'',c=>c.rank,c=>c.suit,host,doc,{},()=>animate);
+ return {inspect,rail,item,motions,clone,select:value=>{selected=value;}};
+}
+test('Selection fans each layer, reverses on deselection, and restores the summary after all layers finish',async()=>{
+ const h=ribbonHarness(true);
+ h.inspect();assert.equal(h.rail.children.length,1);assert.equal(h.motions.length,11);
+ const preview=h.rail.children[0];
+ assert.equal(preview.dataset.action,'inspect-build');
+ assert.ok(h.item.classList.contains('is-inspecting'));
+ assert.ok(h.motions.every(m=>m.options.fill==='both'&&m.options.duration===375));
+ assert.ok(parseFloat(h.clone.style.height)<=540+1e-7);
+ h.select(false);h.inspect();
+ assert.ok(preview.classList.contains('is-closing'));assert.equal(h.rail.children.length,1);
+ assert.ok(h.motions.every(m=>m.playbackRate===-1));
+ h.select(true);h.inspect();assert.equal(h.rail.children[0],preview);
+ assert.ok(!preview.classList.contains('is-closing'));
+ assert.ok(h.motions.every(m=>m.playbackRate===1&&m.reversals===2));
+ h.select(false);h.inspect();
+ h.motions.forEach(m=>m.settle());await Promise.resolve();await Promise.resolve();await Promise.resolve();
+ assert.equal(h.rail.children.length,0);assert.ok(!h.item.classList.contains('is-inspecting'));
+});
+test('Reduced motion opens the complete ribbon without scrolling or animations and closes immediately',()=>{
+ const h=ribbonHarness(false,52);
+ h.inspect();assert.equal(h.rail.children.length,1);assert.equal(h.motions.length,0);
+ assert.ok(parseFloat(h.clone.style.height)<=540+1e-7);
+ h.select(false);h.inspect();assert.equal(h.rail.children.length,0);assert.ok(!h.item.classList.contains('is-inspecting'));
 });
 test('Collapsed source and destination animations use a visible summary or preview, not hidden pile geometry',()=>{
  assert.match(app,/const previews=new Map\(\[\.\.\.app\.querySelectorAll\('\.build-inspection'\)\]/);

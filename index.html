@@ -1572,6 +1572,32 @@ html,body,#app{background:#005d0b;color:#fff}
 }
 .shell .build-inspection.is-closing{pointer-events:none}
 
+/* v0.10.17 — individual vertical ribbon tracks, no clipped/scrolling pile.
+   The selected preview is a sibling of the table area, so it may float
+   over either hand while the ordinary build packing bounds stay unchanged. */
+.shell .build-inspections,.shell .build-inspections:empty{
+  --build-card-width:clamp(48px,14.8vw,69px);
+  inset:6px 4px 8px;overflow:visible;z-index:15;
+}
+.shell .build-inspection{
+  display:block;max-height:none;max-width:none;overflow:visible;
+  background:transparent;box-shadow:none;isolation:isolate;appearance:none;
+}
+.shell .build-inspection .build-pile{overflow:visible}
+.shell .build-inspection .build-layer{
+  top:calc(var(--layer)*var(--stack-step));transform:none!important;
+  transform-origin:top left;box-shadow:0 4px 10px #0008;border-radius:2px;
+}
+.shell .build-item.is-inspecting .build-summary{opacity:0}
+.shell .build-inspection .build-value-owner{font-size:calc(clamp(8px,2.3vw,11px)*var(--ribbon-card-scale,1))}
+.shell .build-inspection .build-value-number{font-size:calc(clamp(19px,6vw,29px)*var(--ribbon-card-scale,1))}
+@media(max-height:700px){.shell .build-inspections,.shell .build-inspections:empty{--build-card-width:clamp(42px,12.7vw,57px)}}
+@media(orientation:landscape) and (max-height:450px){
+  .shell .build-inspections,.shell .build-inspections:empty{--build-card-width:clamp(34px,6.2vw,53px)}
+  .shell .build-inspection .build-value-owner{font-size:calc(7px*var(--ribbon-card-scale,1))}
+  .shell .build-inspection .build-value-number{font-size:calc(clamp(15px,3vw,20px)*var(--ribbon-card-scale,1))}
+}
+
 </style></head><body><div id="app"></div>
 <script>/* Fishing Lab — dependency-free, deterministic rules engine.
    This file is shared by the browser and the Node.js test suite. */
@@ -4354,7 +4380,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.16';
+  const APP_VERSION = '0.10.17';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -4719,11 +4745,9 @@ html,body,#app{background:#005d0b;color:#fff}
       const preview=collapsed?previews.get(node.dataset.id):null;
       const visible=preview||node;
       const summary=collapsed?node.querySelector('.build-summary'):null;
-      const bounds=preview?rect(preview):null;
       const cardRect=card=>{
-        const r=rect(card);
-        if(summary&&(!preview||r.top<bounds.top||r.top+r.height>bounds.top+bounds.height||r.left<bounds.left||r.left+r.width>bounds.left+bounds.width))return rect(summary);
-        return r;
+        if(summary&&!preview)return rect(summary);
+        return rect(card); // the entire ribbon is visible, even in mid-spread
       };
       return {visible,cardRect,collapsed,preview};
     };
@@ -4732,7 +4756,6 @@ html,body,#app{background:#005d0b;color:#fff}
       if(!node)return null;
       const {visible,cardRect,collapsed,preview}=sourceFor(node);
       let label=collapsed&&!preview?null:visible.querySelector('.build-value');
-      if(label&&preview){const r=rect(label),b=rect(preview);if(r.top<b.top||r.top+r.height>b.top+b.height)label=null;}
       return {
         label:label ? {rect:rect(label),html:label.outerHTML,selected:node.classList.contains('selected')} : null,
         rect:rect(visible),html:visible.querySelector('.build-pile')?.outerHTML || visible.querySelector('.playing-card')?.outerHTML || visible.outerHTML,
@@ -5256,23 +5279,75 @@ html,body,#app{background:#005d0b;color:#fff}
   function buildsNeedCollapse(heights,available,gap=5){
     return heights.length>0&&heights.reduce((total,h)=>total+h,0)+Math.max(0,heights.length-1)*gap>available+.5;
   }
-  // Align the expanded pile's bottom card to the original summary's bottom.
-  // When there isn't enough space above it, shift only as far as required to
-  // stay within the shared table bounds. The reveal still starts at the box.
-  function buildInspectionGeometry(anchor,bounds,pile){
-    const width=Math.min(pile.width,bounds.width);
-    const height=Math.min(pile.height,bounds.height);
-    if(width<=0||height<=0||anchor.width<=0||anchor.height<=0)return null;
-    const left=Math.max(0,Math.min(bounds.width-width,anchor.left-bounds.left+(anchor.width-width)/2));
-    const top=Math.max(0,Math.min(bounds.height-height,anchor.bottom-bounds.top-height));
-    const dx=anchor.left-bounds.left+(anchor.width-width)/2-left;
-    const dy=anchor.bottom-bounds.top-(top+height);
-    const hidden=Math.max(0,height-anchor.height);
-    const side=Math.max(0,(width-anchor.width)/2);
-    return {left,top,width,height,scrollTop:Math.max(0,pile.height-height),frames:[
-      {transform:'translate('+dx+'px,'+dy+'px)',clipPath:'inset('+hidden+'px '+side+'px 0px '+side+'px)'},
-      {transform:'translate(0px,0px)',clipPath:'inset(-10px -10px -12px -10px)'}
-    ]};
+  // Selected stacks can use the whole felt. Keep their ordinary dimensions
+  // and exposed index spacing unless fitting the complete ribbon requires
+  // a smaller gap (or, exceptionally, slightly smaller cards).
+  function buildInspectionGeometry(anchor,bounds,pile,count=1,occupied=[]){
+    const n=Math.max(1,count),normalWidth=pile.width;
+    if(normalWidth<=0||bounds.width<=0||bounds.height<=0||anchor.width<=0||anchor.height<=0)return null;
+    const normalHeight=normalWidth/.715;
+    const normalStep=n>1?Math.max(1,(pile.height-normalHeight)/(n-1)):0;
+    const stepRatio=normalStep/normalWidth;
+    const minRatio=Math.min(stepRatio,.34);
+    const width=Math.min(normalWidth,bounds.width,bounds.height/(1/.715+(n-1)*minRatio));
+    const cardHeight=width/.715;
+    const step=n>1?Math.max(0,Math.min(stepRatio*width,(bounds.height-cardHeight)/(n-1))):0;
+    const height=cardHeight+(n-1)*step;
+    const anchorBottom=anchor.bottom??anchor.top+anchor.height;
+    const desiredLeft=anchor.left-bounds.left+(anchor.width-width)/2;
+    const clampX=x=>Math.max(0,Math.min(bounds.width-width,x));
+    const top=Math.max(0,Math.min(bounds.height-height,anchorBottom-bounds.top-height));
+    // If several selected ribbons would cover each other, prefer the
+    // nearest open horizontal slot while preserving the original anchor.
+    const obstacles=occupied.filter(p=>p.top<top+height&&p.top+p.height>top);
+    const candidates=[clampX(desiredLeft),0,bounds.width-width,...obstacles.flatMap(p=>[clampX(p.left-width-6),clampX(p.left+p.width+6)])];
+    const available=candidates.filter(x=>obstacles.every(p=>x+width+5<=p.left||x>=p.left+p.width+5));
+    const left=available.length?available.sort((a,b)=>Math.abs(a-desiredLeft)-Math.abs(b-desiredLeft))[0]:clampX(desiredLeft);
+    return {left,top,width,height,cardHeight,step,cardScale:width/normalWidth,
+      startX:anchor.left-bounds.left-left,startY:anchor.top-bounds.top-top,
+      startScaleX:anchor.width/width,startScaleY:anchor.height/cardHeight};
+  }
+  // Each physical card has its own travel track, not a reveal mask. All
+  // tracks share a timeline so reversing it gathers the ribbon in order.
+  function buildRibbonTracks(g,count){
+    const n=Math.max(1,count),glide=235;
+    const stagger=n>1?Math.min(16,140/(n-1)):0;
+    const duration=glide+(n-1)*stagger;
+    const downward=g.startY<(n-1)*g.step/2;
+    const easing='cubic-bezier(.2,.8,.2,1)';
+    const tracks=Array.from({length:n},(_,i)=>{
+      const delay=(downward?n-1-i:i)*stagger;
+      const start={translate:g.startX+'px '+(g.startY-i*g.step)+'px',scale:g.startScaleX+' '+g.startScaleY};
+      const end={translate:'0px 0px',scale:'1 1'};
+      const frames=[{...start,offset:0}];
+      if(delay>0)frames.push({...start,offset:delay/duration});
+      frames[frames.length-1].easing=easing;
+      frames.push({...end,offset:(delay+glide)/duration});
+      if(delay+glide<duration-1e-6)frames.push({...end,offset:1});
+      return frames;
+    });
+    return {duration,tracks};
+  }
+  function removeBuildInspection(preview){
+    preview._ribbonToken=(preview._ribbonToken||0)+1;
+    for(const motion of preview._ribbonAnimations||[])motion.cancel();
+    preview._buildAnchor?.classList.remove('is-inspecting');
+    preview.remove();
+  }
+  function closeBuildInspection(preview,animate){
+    if(preview.classList.contains('is-closing'))return;
+    const motions=preview._ribbonAnimations||[];
+    if(!animate||!motions.length||motions.some(m=>typeof m.reverse!=='function')){
+      removeBuildInspection(preview);return;
+    }
+    preview.classList.add('is-closing');
+    preview.setAttribute('aria-hidden','true');
+    preview.disabled=true;
+    const token=preview._ribbonToken=(preview._ribbonToken||0)+1;
+    for(const motion of motions)motion.reverse();
+    Promise.allSettled(motions.map(m=>m.finished)).then(()=>{
+      if(preview._ribbonToken===token&&preview.classList.contains('is-closing'))removeBuildInspection(preview);
+    });
   }
   function syncBuildInspections(){
     const lane=app.querySelector?.('.table-builds'),rail=app.querySelector?.('.build-inspections');
@@ -5281,33 +5356,15 @@ html,body,#app{background:#005d0b;color:#fff}
     const selectedIds=new Set(selected.map(node=>node.dataset.id));
     const previews=new Map([...rail.querySelectorAll('.build-inspection')].map(node=>[node.dataset.id,node]));
     const animate=typeof motionAllowed==='function'&&motionAllowed();
-    // Preserve other selected previews rather than restarting all their
-    // animations when a single pile is selected or deselected.
     for(const [id,preview] of previews){
-      if(selectedIds.has(id)){
-        if(preview.classList.contains('is-closing')){
-          preview._buildAnimation?.cancel();preview.remove();previews.delete(id);
-        }
-        continue;
-      }
-      if(preview.classList.contains('is-closing'))continue;
-      if(animate&&preview.animate&&preview._buildFrames){
-        preview.classList.add('is-closing');
-        preview.setAttribute('aria-hidden','true');
-        preview.disabled=true;
-        let motion=preview._buildAnimation;
-        if(motion?.playState==='running'&&motion.playbackRate>0){
-          motion.reverse();
-        }else{
-          motion?.cancel();
-          motion=preview.animate([...preview._buildFrames].reverse(),{duration:145,easing:'cubic-bezier(.4,0,.6,1)',fill:'forwards'});
-        }
-        preview._buildAnimation=motion;
-        const finish=()=>{if(preview.classList.contains('is-closing'))preview.remove();};
-        motion.finished.then(finish,finish);
-      }else{preview.remove();}
+      if(selectedIds.has(id))continue;
+      if(!preview._buildAnchor?.classList.contains('is-collapsed'))removeBuildInspection(preview);
+      else closeBuildInspection(preview,animate);
     }
     const bounds=rail.getBoundingClientRect();
+    const occupied=[];
+    // Existing open ribbons keep priority when a new one is selected.
+    selected.sort((a,b)=>Number(previews.has(b.dataset.id))-Number(previews.has(a.dataset.id)));
     for(const node of selected){
       const pile=node.querySelector('.build-pile'),summary=node.querySelector('.build-summary');
       if(!pile||!summary)continue;
@@ -5323,22 +5380,57 @@ html,body,#app{background:#005d0b;color:#fff}
         preview.setAttribute('aria-label',node.getAttribute('aria-label')+'; tap to deselect');
         preview.setAttribute('aria-pressed','true');
         preview.appendChild(pile.cloneNode(true));
+        preview._buildAnchor=node;
         rail.appendChild(preview);
       }
+      const reopening=preview.classList.contains('is-closing');
       preview.disabled=node.disabled;
-      const full=preview.querySelector('.build-pile').getBoundingClientRect();
+      const clone=preview.querySelector('.build-pile');
+      const layers=[...clone.querySelectorAll('.build-layer')];
       const anchor=summary.getBoundingClientRect();
-      const g=buildInspectionGeometry(anchor,bounds,full);
-      if(!g){preview.remove();continue;}
-      const key=[g.left,g.top,g.width,g.height,anchor.left,anchor.bottom,anchor.width,anchor.height].join('|');
-      if(!fresh&&preview._buildGeometry===key)continue;
-      preview._buildAnimation?.cancel();
+      const inputKey=[bounds.left,bounds.top,bounds.width,bounds.height,anchor.left,anchor.top,anchor.width,anchor.height,
+        ...occupied.map(p=>[p.left,p.top,p.width,p.height].join(','))].join('|');
+      if(!fresh&&preview._buildGeometry===inputKey&&preview._ribbonGeometry){
+        occupied.push(preview._ribbonGeometry);
+        if(reopening){
+          preview._ribbonToken=(preview._ribbonToken||0)+1;
+          preview.classList.remove('is-closing');
+          preview.removeAttribute('aria-hidden');
+          for(const motion of preview._ribbonAnimations||[]){motion.reverse();motion.finished.catch(()=>{});}
+        }
+        node.classList.add('is-inspecting');
+        continue;
+      }
+      // A resize may alter the available spread, but must not inherit the
+      // previous preview's fitted dimensions or a cancelled closing motion.
+      preview._ribbonToken=(preview._ribbonToken||0)+1;
+      for(const motion of preview._ribbonAnimations||[])motion.cancel();
+      preview._ribbonAnimations=[];
+      preview.classList.remove('is-closing');
+      preview.removeAttribute('aria-hidden');
+      clone.style.removeProperty('--stack-card-width');
+      clone.style.removeProperty('--stack-step');
+      clone.style.removeProperty('height');
+      const full=clone.getBoundingClientRect();
+      const g=buildInspectionGeometry(anchor,bounds,full,layers.length,occupied);
+      if(!g){removeBuildInspection(preview);continue;}
+      occupied.push(g);
       Object.assign(preview.style,{left:g.left+'px',top:g.top+'px',width:g.width+'px',height:g.height+'px'});
-      preview.scrollTop=g.scrollTop;
-      preview._buildGeometry=key;
-      preview._buildFrames=g.frames;
-      if(fresh&&animate&&preview.animate){
-        preview._buildAnimation=preview.animate(g.frames,{duration:165,easing:'cubic-bezier(.2,.8,.2,1)'});
+      clone.style.setProperty('--stack-card-width',g.width+'px');
+      clone.style.setProperty('--stack-step',g.step+'px');
+      clone.style.setProperty('height',g.height+'px');
+      preview.style.setProperty('--ribbon-card-scale',String(g.cardScale));
+      preview._buildGeometry=inputKey;
+      preview._ribbonGeometry=g;
+      node.classList.add('is-inspecting');
+      if(animate&&layers.length&&layers.every(layer=>typeof layer.animate==='function')){
+        const {duration,tracks}=buildRibbonTracks(g,layers.length);
+        preview._ribbonAnimations=layers.map((layer,i)=>{
+          const motion=layer.animate(tracks[i],{duration,easing:'linear',fill:'both'});
+          motion.finished.catch(()=>{});
+          if(!fresh&&!reopening)motion.finish(); // resize without replay
+          return motion;
+        });
       }
     }
   }
@@ -5798,8 +5890,8 @@ html,body,#app{background:#005d0b;color:#fff}
           <div class="table-area">
             <div class="table-stage"><div class="table-cards" aria-label="Loose table cards" style="${cardRowStyle(game.table.filter(e=>e.type==='loose').length,true)}">${game.table.some(e => e.type === 'loose') ? game.table.filter(e => e.type === 'loose').map(e=>entryMarkup(e,active)).join('') : ''}</div>
             <div class="table-builds" aria-label="Builds on the table">${game.table.filter(e => e.type === 'build').map(e=>entryMarkup(e,active)).join('')}</div></div>
-            <div class="build-inspections" aria-label="Selected expanded builds"></div>
           </div>
+          <div class="build-inspections" aria-label="Selected expanded builds"></div>
           <div class="turn-action-area">
             <div class="move-action-slot">${controlsMarkup}</div>
           </div>
