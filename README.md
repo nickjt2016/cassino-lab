@@ -323,3 +323,7 @@ Closing build ribbons remain fully opaque while their geometry reverses. Disable
 ### 0.10.19 — raised capture and residue collection
 
 Collection cards lift slightly with a soft shadow, converge at a uniform 106% of the normal responsive card width, and retain that size throughout gathering and the brief hold. Only the final flight toward the score box smoothly shrinks and fades the stack. The gathered stack may overlap the table instead of shrinking to available green space. The same lift and shadow apply to the end-of-hand residue. Capture timing and game rules are unchanged.
+
+### 0.10.20 — shoulder-safe adaptive build spacing
+
+Measure each build's actual rank-and-suit shoulder index and compute its tightest safe vertical spread, leaving a pixel of clearance. Try the standard spread, then tighten enough to keep builds in the primary column; borrow a second column and only collapse builds when necessary. Recalculate the freed height and positions on every layout, restoring natural spacing when space becomes available. The physical cards and game rules are unchanged.

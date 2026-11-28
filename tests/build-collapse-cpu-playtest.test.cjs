@@ -128,13 +128,62 @@ test('Two-column packing keeps the maximum number of full piles and fills the ri
  assert.match(css,/width:calc\(100% - var\(--build-lane\)\*var\(--build-columns\)\)!important/);
  assert.match(css,/right:calc\(2px \+ var\(--build-lane\)\*var\(--build-column,0\)\)/);
 });
-test('The enlarged shared bounds keep the screenshot pair in one column',()=>{
+test('Tighten the spread to keep the screenshot pair in one column',()=>{
  const plan=new Function(section('  function planBuildColumns(','  function layoutBuilds(')+';return planBuildColumns;')();
  // The four-card and two-card stacks are about 147 and 103 CSS pixels.
  const p=[{cards:4,height:147},{cards:2,height:103}];
- assert.equal(plan(p,244,81,5).columns,2);
- assert.equal(plan(p,276,81,5).columns,1);
+ const tight=plan(p,244,81,5);
+ assert.equal(tight.columns,1);
+ assert.ok(tight.slots.every(s=>!s.collapsed));
+ assert.ok(tight.slots.reduce((sum,s)=>sum+s.savedHeight,0)>=11-1e-7);
+ const loose=plan(p,276,81,5);
+ assert.equal(loose.columns,1);
+ assert.ok(loose.slots.every(s=>s.savedHeight<1e-7));
  assert.match(css,/height:94%;max-height:94%;top:52%!important/);
+});
+
+test('Measure the whole shoulder index and reserve a pixel below it',()=>{
+ const measure=new Function(section('  function buildStackGeometry(','  function planBuildColumns(')+';return buildStackGeometry;')();
+ const face=(top,bottom)=>({getBoundingClientRect:()=>({top,height:84}),querySelector:()=>({getBoundingClientRect:()=>({bottom})})});
+ const pile={getBoundingClientRect:()=>({width:60,height:128}),style:{getPropertyValue:()=>'3'},
+   querySelectorAll:()=>[face(20,36.1),face(42,58.65),face(64,79)]};
+ const p=measure(pile);
+ assert.equal(p.cardHeight,84);
+ assert.equal(p.cards,3);
+ assert.equal(p.minStep,17.75);
+});
+test('Growing the filmed nine-card build to eleven tightens before collapsing',()=>{
+ const plan=new Function(section('  function planBuildColumns(','  function layoutBuilds(')+';return planBuildColumns;')();
+ const pile=cards=>({cards,width:60,cardHeight:84,height:84+(cards-1)*22,minStep:16.5});
+ const before=plan([pile(9)],260,84,5);
+ assert.equal(before.slots[0].step,22);
+ const after=plan([pile(11)],260,84,5);
+ assert.equal(after.columns,1);
+ assert.ok(!after.slots[0].collapsed);
+ assert.ok(Math.abs(after.slots[0].step-17.6)<1e-8);
+ assert.ok(Math.abs(after.slots[0].savedHeight-44)<1e-8);
+ assert.ok(after.slots[0].step>=16.5);
+ const impossible=plan([pile(11)],240,84,5);
+ assert.ok(impossible.slots[0].collapsed);
+});
+test('Use newly freed column height, borrow the second column only when necessary, and restore spacing',()=>{
+ const plan=new Function(section('  function planBuildColumns(','  function layoutBuilds(')+';return planBuildColumns;')();
+ const pile=cards=>({cards,width:60,cardHeight:84,height:84+(cards-1)*22,minStep:16.5});
+ const piles=[pile(6),pile(3)];
+ const one=plan(piles,290,84,5);
+ assert.equal(one.columns,1);
+ assert.ok(one.slots.every(s=>!s.collapsed&&s.step>=16.5&&s.step<=22));
+ assert.ok(Math.abs(one.slots[1].y+one.slots[1].height-290)<1e-7);
+ const two=plan(piles,270,84,5);
+ assert.equal(two.columns,2);
+ assert.ok(two.slots.every(s=>!s.collapsed&&s.step===22));
+ const tightTwo=plan([pile(9),pile(9)],240,84,5);
+ assert.equal(tightTwo.columns,2);
+ assert.ok(tightTwo.slots.every(s=>!s.collapsed&&s.step>=16.5&&s.step<22));
+ const released=plan([pile(6)],290,84,5);
+ assert.equal(released.slots[0].step,22);
+ assert.match(app,/style.setProperty\('--stack-step',slot.step\+'px'\)/);
+ assert.match(app,/style.removeProperty\('--stack-step'\)/);
 });
 
 test('Full ribbon keeps every card inside the felt; normal sizes and spacing are preserved when possible',()=>{

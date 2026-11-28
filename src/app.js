@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.19';
+  const APP_VERSION = '0.10.20';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -1071,27 +1071,54 @@
       }
     }
   }
-  // Recalculate from uncollapsed geometry every time. Releasing space
-  // therefore restores as many full piles as possible without hysteresis.
+  // The upper-left rank and suit are the hard limit for compression.
+  // Measure the real card artwork, not an assumed fraction of the stack.
+  function buildStackGeometry(pile){
+    const rect=pile.getBoundingClientRect();
+    const cards=Number(pile.style.getPropertyValue('--layers'))||1;
+    const faces=[...pile.querySelectorAll('.build-layer .playing-card')];
+    const cardHeight=faces[0]?.getBoundingClientRect().height||rect.width/.715;
+    let minStep=0;
+    for(const face of faces){
+      const shoulder=face.querySelector('.card-corner:not(.bottom)');
+      if(!shoulder)continue;
+      const top=face.getBoundingClientRect().top;
+      const bottom=shoulder.getBoundingClientRect().bottom;
+      // Leave one CSS pixel below the entire shoulder index; round upwards
+      // to quarter pixels to avoid covering it through subpixel rounding.
+      minStep=Math.max(minStep,Math.ceil((bottom-top+1)*4)/4);
+    }
+    return {height:rect.height,width:rect.width,cards,cardHeight,
+      minStep:minStep||Math.ceil((rect.width*.28+1)*4)/4};
+  }
+  // Recalculate natural and tight heights on every layout. Tightening
+  // overlaps takes precedence over borrowing a second column or collapsing
+  // any pile, but neither the cards themselves nor their indices are shrunk.
   function planBuildColumns(piles,available,summaryHeight,gap=5){
     const n=piles.length,H=Math.max(0,available),S=Math.max(0,summaryHeight);
     if(!n)return {columns:1,scale:1,gap,slots:[]};
-    // Heights are quantized upwards to quarter pixels so a packed column
-    // cannot overflow its measured height because of fractional card sizes.
-    const collapsed=piles.map(p=>p.height>H);
-    const order=piles.map((p,i)=>i).sort((a,b)=>piles[b].cards-piles[a].cards||piles[b].height-piles[a].height||a-b);
-    const pack=()=>{
-      const heights=piles.map((p,i)=>collapsed[i]?S:p.height);
+    const geometry=piles.map(p=>{
+      const count=Math.max(1,p.cards),intervals=count-1;
+      const cardHeight=p.cardHeight??S;
+      const minStep=intervals?Math.max(0,p.minStep??Math.ceil(((p.width??S*.715)*.28+1)*4)/4):0;
+      const naturalStep=intervals?Math.max(minStep,(p.height-cardHeight)/intervals):0;
+      return {intervals,cardHeight,minStep,naturalStep,
+        natural:cardHeight+intervals*naturalStep,tight:cardHeight+intervals*minStep};
+    });
+    // An individually oversized stack may collapse only if even its
+    // shoulder-safe minimum height exceeds the entire column.
+    const collapsed=geometry.map(p=>p.tight>H+1e-7);
+    const order=geometry.map((_,i)=>i).sort((a,b)=>geometry[b].tight-geometry[a].tight||piles[b].cards-piles[a].cards||a-b);
+    const pack=(heights,oneOnly=false)=>{
       const total=heights.reduce((a,b)=>a+b,0)+gap*(n-1);
-      if(total<=H+1e-7)return {columns:1,assignment:heights.map(()=>0),heights};
-      if(n===1||heights.some(h=>h>H))return null;
+      if(total<=H+1e-7)return {columns:1,assignment:heights.map(()=>0)};
+      if(oneOnly||n===1||heights.some(h=>h>H))return null;
       const cap=Math.floor((H+gap)*4+1e-7);
       const weights=heights.map(h=>Math.ceil((h+gap)*4-1e-7));
       const sum=weights.reduce((a,b)=>a+b,0);
       if(sum>2*cap)return null;
-      // Exact subset packing: among feasible partitions, put the largest
-      // number of stacks in the primary (rightmost) column. Stable ties
-      // retain the earlier build IDs' order within each column.
+      // Exact subset packing of the measured minimum heights. Prefer the
+      // right column and keep the original order within each column.
       const dp=Array(cap+1).fill(null);
       dp[0]={count:0,mask:0n};
       for(let i=0;i<n;i++){
@@ -1108,30 +1135,51 @@
         if(dp[j]&&(!best||dp[j].count>=best.count))best=dp[j];
       }
       if(!best)return null;
-      return {columns:2,assignment:heights.map((_,i)=>(best.mask&(1n<<BigInt(i)))?0:1),heights};
+      return {columns:2,assignment:heights.map((_,i)=>(best.mask&(1n<<BigInt(i)))?0:1)};
     };
-    // Try both full-size columns before collapsing additional piles. Each
-    // collapsed pile saves at least as much space as the smaller stacks.
-    let result=pack();
+    const tryPack=()=>{
+      const natural=geometry.map((p,i)=>collapsed[i]?S:p.natural);
+      const tight=geometry.map((p,i)=>collapsed[i]?S:p.tight);
+      return pack(natural,true)||pack(tight,true)||pack(natural)||pack(tight);
+    };
+    // Try natural spread, tighter spread, and two-column packing before
+    // sacrificing another pile. Re-run the same feasibility checks after
+    // each collapse so the remaining piles can keep their cards visible.
+    let result=tryPack();
     for(const i of order){
       if(result)break;
-      if(!collapsed[i]){collapsed[i]=true;result=pack();}
+      if(!collapsed[i]){collapsed[i]=true;result=tryPack();}
     }
     let scale=1,usedGap=gap;
     if(!result){
-      // Even all single-card summaries are too tall. Only now reduce their
-      // physical size and the gaps, and use the smallest reduction needed.
+      // Even all single-card summaries are too tall. Only now reduce
+      // summary dimensions and the gaps; ordinary cards remain full size.
       const firstCount=Math.ceil(n/2);
       const needed=firstCount*S+(firstCount-1)*gap;
       scale=needed>0?Math.min(1,H/needed):1;
       usedGap=gap*scale;
-      result={columns:n===1?1:2,assignment:piles.map((_,i)=>i<firstCount?0:1),heights:piles.map(()=>S*scale)};
+      result={columns:n===1?1:2,assignment:piles.map((_,i)=>i<firstCount?0:1)};
       collapsed.fill(true);
     }
+    // Determine exactly how much height the packed column must free up.
+    // Share only the necessary compression across its expandable gaps,
+    // keeping as much of the natural spread as the column permits.
+    const tight=geometry.map((p,i)=>collapsed[i]?S*scale:p.tight);
+    const natural=geometry.map((p,i)=>collapsed[i]?S*scale:p.natural);
+    const expansion=Array.from({length:result.columns},(_,column)=>{
+      const indices=result.assignment.flatMap((c,i)=>c===column?[i]:[]);
+      const minimum=indices.reduce((total,i)=>total+tight[i],0)+Math.max(0,indices.length-1)*usedGap;
+      const flexible=indices.reduce((total,i)=>total+natural[i]-tight[i],0);
+      return flexible>0?Math.max(0,Math.min(1,(H-minimum)/flexible)):1;
+    });
     const y=[0,0];
     const slots=result.assignment.map((column,i)=>{
-      const slot={column,y:y[column],height:result.heights[i],collapsed:collapsed[i]};
-      y[column]+=slot.height+usedGap;
+      const p=geometry[i];
+      const step=collapsed[i]?null:p.minStep+(p.naturalStep-p.minStep)*expansion[column];
+      const height=collapsed[i]?S*scale:p.cardHeight+p.intervals*step;
+      const slot={column,y:y[column],height,step,collapsed:collapsed[i],
+        savedHeight:Math.max(0,p.natural-height)};
+      y[column]+=height+usedGap;
       return slot;
     });
     return {columns:result.columns,scale,gap:usedGap,slots};
@@ -1146,15 +1194,13 @@
     items.forEach(node=>{
       node.classList.remove('is-collapsed');
       node.style.removeProperty('--build-scale');
+      // Always measure the default spread, never yesterday's compression.
+      node.querySelector('.build-pile').style.removeProperty('--stack-step');
     });
     if(items.length){
       const inset=Math.min(4,lane.clientHeight/4);
       const available=Math.max(0,lane.clientHeight-2*inset);
-      const piles=items.map(node=>{
-        const pile=node.querySelector('.build-pile');
-        const rect=pile.getBoundingClientRect();
-        return {height:rect.height,width:rect.width,cards:Number(pile.style.getPropertyValue('--layers'))||1};
-      });
+      const piles=items.map(node=>buildStackGeometry(node.querySelector('.build-pile')));
       const summaryHeight=piles[0].width/.715;
       const plan=planBuildColumns(piles,available,summaryHeight,5);
       stage.style.setProperty('--build-columns',String(plan.columns));
@@ -1164,6 +1210,7 @@
         node.classList.toggle('is-collapsed',slot.collapsed);
         node.style.setProperty('--build-column',String(slot.column));
         node.style.setProperty('--build-scale',String(plan.scale));
+        if(!slot.collapsed)node.querySelector('.build-pile').style.setProperty('--stack-step',slot.step+'px');
         node.style.top=(inset+slot.y)+'px';
       });
     }
