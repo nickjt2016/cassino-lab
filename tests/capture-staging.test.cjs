@@ -15,15 +15,14 @@ test('turn banner only uses the two requested phrases', () => {
 
 test('capture landing is player-front and mirrored CPU-front, not the score badge', () => {
   assert.match(app, /const captureFront = capture && feltRectForCapture/);
-  assert.match(app, /const rowRects=\[\.\.\.looseRefs,\.\.\.liveRects\.filter\(overlaps\)\]/);
-  assert.match(app, /laneBottom=tableTop-clearance/);
-  assert.match(app, /captureFront\.y=snapshot\.byComputer/);
+  assert.match(app, /height\*\(snapshot\.byComputer\?\.28:\.72\)/);
+  assert.doesNotMatch(app, /available\/tableHeight|frontScale/);
   assert.match(app, /const frontPositions=stack\.map/);
   const branch = app.slice(app.indexOf('if(capture){'), app.indexOf("} else if(snapshot.kind === 'build' && !snapshot.finalHand)"));
   assert.match(branch,/captureTrack\(entry,frontPositions\[i\],scale,i,stagger,gatherDuration,collectAt\)/);
   const track=app.slice(app.indexOf('    function captureTrack('),app.indexOf('    async function gatherEndOfHand'));
-  assert.match(track,/landing=transform\(front.x,front.y,scale\)/);
-  assert.match(track,/finish=transform\(end.x,end.y,scale\*\.32\)/);
+  assert.match(track,/landing=transform\(front.x,front.y,scale,scaleY\)/);
+  assert.match(track,/finish=transform\(end.x,end.y,scale\*collectionFinish,scaleY\*collectionFinish\)/);
   assert.doesNotMatch(branch, /targetCards|revealScale|move\(played,top|const collected|const avg/);
 });
 
@@ -36,9 +35,9 @@ test('capturing card is topmost; every build card is collected individually', ()
 });
 
 test('whole stack remains card-sized until it is moved in front of the player', () => {
-  assert.match(app, /scale:frontScale\*tableWidth\/Math\.max\(entry\.rect\.width,1\)/);
+  assert.match(app, /scale:size.width\/Math\.max\(entry\.rect\.width,1\)/);
   assert.match(app, /const collectAt=gatherAt\+125/);
-  assert.match(app, /finish=transform\(end.x,end.y,scale\*\.32\)/);
+  assert.match(app, /finish=transform\(end.x,end.y,scale\*collectionFinish,scaleY\*collectionFinish\)/);
 });
 
 test('All cards share centered rank and suit columns and a small fixed gap', () => {
@@ -64,27 +63,32 @@ for (const byComputer of [false,true]) {
       animate(frames){this.frames.push(frames);const anim={};Promise.resolve().then(()=>anim.onfinish?.());return anim;}
     };}};
     const host={querySelector(selector){return {getBoundingClientRect:()=>selector==='.table-area'?field:badge};}};
-    const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout','renderBack',
-      app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},cb=>cb(),()=>'<span class="card-back"><span class="back-pattern"></span></span>');
+    const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout','renderBack','game',
+      app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},cb=>cb(),()=>'<span class="card-back"><span class="back-pattern"></span></span>',{players:[{},{}]});
     await new Promise(resolve=>motion({kind:'capture',byComputer,played,tableRects:cards.map(c=>c.rect),looseCardRects:cards.map(c=>c.rect),groups:[
       {rect:cards[0].rect,cards:cards.slice(0,2)},{rect:cards[2].rect,cards:[cards[2]]}
     ],finalHand:false},resolve));
     assert.equal(nodes.length,4);
     assert.ok(Number(nodes[0].style.zIndex)>Number(nodes[3].style.zIndex));
-    const laneBottom=300-21-4.5;
-    const frontY=byComputer?(108+laneBottom)/2:388+Math.max(12,Math.min(22,70*.24))+35;
+    const frontY=100+400*(byComputer?.28:.72);
     for(let i=0;i<nodes.length;i++){
       const flights=nodes[i].frames.filter(frames=>frames[0].transform.startsWith('translate'));
       assert.equal(flights.length,1);
       const r=[played,...cards][i].rect;
       const dx=150+Math.min(i,7)*1.2-(r.left+r.width/2);
       const dy=frontY+Math.min(i,7)*1.5-(r.top+r.height/2);
-      const landing='translate('+dx+'px,'+dy+'px) scale(1, 1)';
+      const landing='translate('+dx+'px,'+dy+'px) scale('+50*1.06/r.width+', '+(50*1.06/.715/r.height)+')';
       const frames=flights[0],gather=frames.at(-3),hold=frames.at(-2),finish=frames.at(-1);
       assert.equal(gather.transform,landing);
       assert.equal(hold.transform,landing);
-      if(byComputer)assert.ok(frontY+Math.min(i,7)*1.5+r.height/2<=300-21);
-      else assert.ok(frontY+Math.min(i,7)*1.5-r.height/2>=388+16.8-1e-8);
+      assert.match(nodes[i].style.boxShadow,/rgba\(0,0,0,.36\)/);
+      const dimensions=frame=>frame.transform.match(/scale\(([^,]+), ([^)]+)\)/).slice(1).map(Number);
+      const raised=dimensions(hold),collected=dimensions(finish);
+      assert.ok(Math.abs(collected[0]-raised[0]*.32)<1e-8);
+      assert.ok(Math.abs(collected[1]-raised[1]*.32)<1e-8);
+      const lifted=frames.find(frame=>frame.transform.includes('translate(0px,-5px)'));
+      assert.deepEqual(dimensions(lifted),raised);
+      assert.ok(frames.some(frame=>frame.transform.includes('translate(0px,-5px)')));
       assert.equal(gather.opacity,1);
       assert.equal(hold.opacity,1);
       assert.equal(finish.opacity,.06);
@@ -104,16 +108,16 @@ for (const byComputer of [false,true]) {
     const row=piece('loose',150,285);
     const played=piece('played',170,byComputer?40:550,byComputer?35:70,byComputer?49:98);
     const layers=Array.from({length:8},(_,i)=>piece('build'+i,300,byComputer?102+i*25:250+i*25,52,72.8));
-    const run=async(cards,isBuild)=>{
+    const run=async(cards,isBuild,cramped=false)=>{
       const nodes=[];
       const document={body:{appendChild(node){nodes.push(node);}},createElement(){return{
         style:{},frames:[],querySelector(){return null;},getAnimations(){return [];},remove(){},
         animate(frames){this.frames.push(frames);const anim={};Promise.resolve().then(()=>anim.onfinish?.());return anim;}
       };}};
-      const host={querySelector(selector){return {getBoundingClientRect:()=>selector==='.table-area'?field:selector==='.human-hand'?rect(40,540,320,100):badge};},
+      const host={querySelector(selector){return {getBoundingClientRect:()=>selector==='.table-area'?(cramped?rect(0,260,400,120):field):selector==='.human-hand'?rect(40,540,320,100):badge};},
         querySelectorAll(){return [];}};
-      const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout','renderBack',
-        app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},fn=>fn(),()=>'<span class="card-back"></span>');
+      const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout','renderBack','game',
+        app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},fn=>fn(),()=>'<span class="card-back"></span>',{players:[{},{}]});
       await new Promise(resolve=>motion({kind:'capture',byComputer,played,
         tableRects:[row.rect,...layers.map(p=>p.rect)],looseCardRects:[row.rect],
         groups:isBuild?[{rect:layers[0].rect,cards}]:[{rect:row.rect,cards:[row]}],finalHand:false},resolve));
@@ -124,9 +128,9 @@ for (const byComputer of [false,true]) {
         return {land:r.width*scale(flights[0].at(-3)),collect:r.width*scale(flights[0].at(-1))};
       });
     };
-    for(const card of [...await run([row],false),...await run(layers,true)]){
-      assert.ok(Math.abs(card.land-58)<1e-8,'full table width');
-      assert.ok(Math.abs(card.collect-58*.32)<1e-8,'uniform collection scale');
+    for(const card of [...await run([row],false),...await run(layers,true),...await run(layers,true,true)]){
+      assert.ok(Math.abs(card.land-58*1.06)<1e-8,'fixed raised width');
+      assert.ok(Math.abs(card.collect-card.land*.32)<1e-8,'shrink only toward score badge');
     }
   });
 }

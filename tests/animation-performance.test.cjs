@@ -16,7 +16,7 @@ test('Staggered movements use native delays, batch rectangle reads, and wait for
   assert.match(app,/const slotRects=layers\.map\(node=>node\.getBoundingClientRect\(\)\)/);
   assert.match(app,/moveBuildCard\(piece,slotRect,310,delay\)/);
   assert.match(app,/captureTrack\(entry,frontPositions\[i\],scale,i,stagger,gatherDuration,collectAt\)/);
-  assert.match(app,/from,scale:from\?\.scale\?\?1,scaleY:from\?\.scaleY\?\?1,delay:i\*gap/);
+  assert.match(app,/from,scale:size.width\/Math\.max\(entry\.rect\.width,1\),scaleY:size.height\/Math\.max\(entry\.rect\.height,1\),delay:i\*gap,lift:true/);
   assert.match(app,/const measured=items\.map\(item=>\(\{\.\.\.item,rect:item\.node\.getBoundingClientRect\(\)\}\)\)/);
   assert.match(app,/duration:440,delay:index\*94/);
   assert.match(app,/return Promise\.all\(measured\.map\(flyOne\)\)/);

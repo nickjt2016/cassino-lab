@@ -4386,7 +4386,7 @@ html,body,#app{background:#005d0b;color:#fff}
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.18';
+  const APP_VERSION = '0.10.19';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;
@@ -4797,11 +4797,13 @@ html,body,#app{background:#005d0b;color:#fff}
     const targetRect = destination.getBoundingClientRect();
     const center = r => ({x:r.left+r.width/2,y:r.top+r.height/2});
     const end = center(targetRect);
-    // Capture stacks land in measured open lanes outside the table cards.
-    const feltRectForCapture=app.querySelector('.table-area')?.getBoundingClientRect();
+    // A lifted collection stack may float above occupied felt; never pack it
+    // into the remaining green space like ordinary table cards.
+    const collectionField=app.querySelector('.table-area');
+    const feltRectForCapture=collectionField?.getBoundingClientRect();
     const captureFront = capture && feltRectForCapture ? {
       x:feltRectForCapture.left + feltRectForCapture.width*.5,
-      y:feltRectForCapture.top + feltRectForCapture.height*.72
+      y:feltRectForCapture.top + feltRectForCapture.height*(snapshot.byComputer?.28:.72)
     } : end;
     // The new build/trail enters only when the traveling card actually lands.
     if (!capture && destination.matches('[data-action="table"]')) destination.style.visibility='hidden';
@@ -4931,6 +4933,32 @@ html,body,#app{background:#005d0b;color:#fff}
         entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
       });
     }
+    // The normal responsive build-card width is independent of card count,
+    // collapsed builds, and the open area left over by the board layout.
+    const collectionLift=1.06;
+    const collectionFinish=.32;
+    let raisedSize=null;
+    function collectionSize(entries){
+      if(raisedSize)return raisedSize;
+      const refs=snapshot.looseCardRects?.length?snapshot.looseCardRects:entries.map(entry=>entry.rect);
+      let width=refs.length?Math.max(...refs.map(r=>r.width)):ghosts[0].rect.width;
+      if(collectionField?.appendChild){
+        const probe=document.createElement('div');
+        Object.assign(probe.style,{position:'absolute',visibility:'hidden',pointerEvents:'none',
+          width:'var(--build-card-width, 58px)',height:'0',padding:'0',border:'0'});
+        collectionField.appendChild(probe);
+        const measured=probe.getBoundingClientRect?.().width;
+        probe.remove();
+        if(Number.isFinite(measured)&&measured>0)width=measured;
+      }
+      raisedSize={width:width*collectionLift,height:width*collectionLift/.715};
+      return raisedSize;
+    }
+    function collectionShadow(entry){
+      // A fixed, prepainted shadow travels with each composited card.
+      entry.ghost.style.boxShadow='0 7px 11px 1px rgba(0,0,0,.36)';
+      entry.ghost.style.borderRadius='3px';
+    }
     // A card's last position is committed to its element before cancelling the
     // finished keyframe animation. Without this, consecutive flight stages
     // briefly jump back to the original rect (a visible one-frame hard cut).
@@ -4947,11 +4975,16 @@ html,body,#app{background:#005d0b;color:#fff}
       entry.ghost.getAnimations?.().forEach(animation=>animation.cancel());
       entry.ghost.style.transform=start;
       entry.ghost.style.opacity='1';
-      return animate(entry.ghost,[
-        {transform:start,opacity:1,offset:0},
-        {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58}px) scale(${from.scale+(scale-from.scale)*.58}, ${fromScaleY+(scaleY-fromScaleY)*.58})`,opacity:1,offset:.58},
+      const frames=[{transform:start,opacity:1,offset:0}];
+      if(options.lift){
+        collectionShadow(entry);
+        frames.push({transform:`translate(${from.x}px,${from.y-5}px) scale(${scale}, ${scaleY})`,opacity:1,offset:.18});
+      }
+      frames.push(
+        {transform:`translate(${from.x+(dx-from.x)*.58}px,${from.y+(dy-from.y)*.58}px) scale(${options.lift?scale:from.scale+(scale-from.scale)*.58}, ${options.lift?scaleY:fromScaleY+(scaleY-fromScaleY)*.58})`,opacity:1,offset:.58},
         {transform:finish,opacity:finalOpacity,offset:1}
-      ],{duration,delay:options.delay||0,fill:'both',easing:travelEasing}).then(()=>{
+      );
+      return animate(entry.ghost,frames,{duration,delay:options.delay||0,fill:'both',easing:travelEasing}).then(()=>{
         if(generation!==motionGeneration)return;
         entry.ghost.style.transform=finish;
         entry.ghost.style.opacity=String(finalOpacity);
@@ -4982,15 +5015,19 @@ html,body,#app{background:#005d0b;color:#fff}
     // landing point. All cards share the same collection start time.
     function captureTrack(entry,front,scale,index,stagger,gatherDuration,collectAt){
       const c=center(entry.rect);
-      const transform=(x,y,s)=>`translate(${x-c.x}px,${y-c.y}px) scale(${s}, ${s})`;
-      const start=transform(c.x,c.y,1),landing=transform(front.x,front.y,scale);
-      const finish=transform(end.x,end.y,scale*.32);
+      const transform=(x,y,s,sy=s)=>`translate(${x-c.x}px,${y-c.y}px) scale(${s}, ${sy})`;
+      const scaleY=raisedSize.height/Math.max(entry.rect.height,1);
+      const start=transform(c.x,c.y,1),landing=transform(front.x,front.y,scale,scaleY);
+      // Only the final flight into the score badge tapers down.
+      const finish=transform(end.x,end.y,scale*collectionFinish,scaleY*collectionFinish);
+      collectionShadow(entry);
       const beginAt=flipDuration+index*stagger;
       const duration=collectAt+280;
       const easing=travelEasing;
       const frames=[{transform:start,opacity:1,offset:0}];
       if(beginAt>0)frames.push({transform:start,opacity:1,offset:beginAt/duration});
       frames[frames.length-1].easing=easing;
+      frames.push({transform:transform(c.x,c.y-5,scale,scaleY),opacity:1,offset:(beginAt+65)/duration,easing});
       frames.push({transform:landing,opacity:1,offset:(beginAt+gatherDuration)/duration});
       frames.push({transform:landing,opacity:1,offset:collectAt/duration,easing});
       frames.push({transform:finish,opacity:.06,offset:1});
@@ -5016,23 +5053,25 @@ html,body,#app{background:#005d0b;color:#fff}
       const together={x:felt ? felt.left+felt.width*.5 : source[0].x,
         y:felt ? felt.top+felt.height*.5 : source[0].y};
       const gap=Math.min(60,Math.max(22,300/Math.max(all.length,1)));
+      const size=collectionSize(all);
       await Promise.all(all.map((entry,i)=>{
         if(generation!==motionGeneration)return;
         // Continue from the actual landing transform of a final played card.
-        // Remaining table cards keep their original size throughout collection.
+        // Lift to the same standard size used by ordinary captures.
         const from=entry.motion;
         return move(entry,{x:together.x+Math.min(i,8)*2,y:together.y+Math.min(i,8)*2},330,{
-          from,scale:from?.scale??1,scaleY:from?.scaleY??1,delay:i*gap
+          from,scale:size.width/Math.max(entry.rect.width,1),scaleY:size.height/Math.max(entry.rect.height,1),delay:i*gap,lift:true
         });
       }));
       if(generation!==motionGeneration)return;
       await new Promise(resolve=>setTimeout(resolve,240));
       if(generation!==motionGeneration)return;
       const finish=center(pile.getBoundingClientRect());
-      // Move the full-size stack to its recipient and fade it out in place
-      // without scaling down, including when the last move was a trail.
+      // As with ordinary captures, reduce size only on the final flight
+      // into the recipient's score badge; start from the exact raised size.
       await Promise.all(all.map(entry=>move(entry,finish,560,{
-        from:entry.motion,scale:entry.motion?.scale??1,scaleY:entry.motion?.scaleY??1,fade:true
+        from:entry.motion,scale:(entry.motion?.scale??1)*collectionFinish,
+        scaleY:(entry.motion?.scaleY??1)*collectionFinish,fade:true
       })));
     }
     (async()=>{
@@ -5045,46 +5084,12 @@ html,body,#app{background:#005d0b;color:#fff}
         if(capture){
           // All cards fly directly to the stack in front of the capturer.
           // No intermediate stop over the table or selected build.
-          // Use normal table-card dimensions, independent of build group
-          // count. A departing build is no longer a landing obstacle.
-          const liveRects=Array.from(app.querySelectorAll?.('.table-stage .playing-card,.table-stage .build-summary')||[]).filter(node=>node.closest?.('.is-collapsed')?node.classList?.contains('build-summary'):!node.classList?.contains('build-summary')).map(node=>node.getBoundingClientRect());
-          const liveLooseRects=Array.from(app.querySelectorAll?.('.table-cards .playing-card')||[],node=>node.getBoundingClientRect());
-          const looseRefs=[...(snapshot.looseCardRects??snapshot.tableRects??[]),...liveLooseRects];
-          const sizeRefs=looseRefs.length?looseRefs:capturedCards.map(piece=>piece.rect);
-          const tableWidth=sizeRefs.length?Math.max(...sizeRefs.map(r=>r.width)):ghosts[0].rect.width;
-          const tableHeight=Math.max(...ghosts.map(entry=>entry.rect.height*tableWidth/Math.max(entry.rect.width,1)));
-          let frontScale=1,spreadStep=1.5;
-          if(feltRectForCapture){
-            const overlaps=r=>r.left<captureFront.x+tableWidth/2+12&&r.left+r.width>captureFront.x-tableWidth/2-4;
-            const rowRects=[...looseRefs,...liveRects.filter(overlaps)];
-            const mid=feltRectForCapture.top+feltRectForCapture.height*.53;
-            const clearance=snapshot.byComputer?Math.max(14,Math.min(26,tableHeight*.30)):
-              Math.max(12,Math.min(22,tableHeight*.24));
-            let laneTop,laneBottom;
-            if(snapshot.byComputer){
-              const tableTop=rowRects.length?Math.min(...rowRects.map(r=>r.top)):mid-tableHeight/2;
-              laneTop=feltRectForCapture.top+8;
-              laneBottom=tableTop-clearance;
-            }else{
-              const tableBottom=rowRects.length?Math.max(...rowRects.map(r=>r.top+r.height)):mid+tableHeight/2;
-              const fieldBottom=feltRectForCapture.top+feltRectForCapture.height;
-              const handTop=app.querySelector('.human-hand')?.getBoundingClientRect().top??fieldBottom;
-              laneTop=tableBottom+clearance;
-              laneBottom=Math.min(fieldBottom,handTop)-8;
-            }
-            const available=laneBottom-laneTop;
-            // Compress overlap offsets before shrinking the physical cards.
-            frontScale=Math.min(1,Math.max(.35,available/tableHeight));
-            const levels=Math.min(ghosts.length-1,7);
-            spreadStep=levels?Math.min(1.5,Math.max(0,available-tableHeight*frontScale)/levels):0;
-            const spread=levels*spreadStep;
-            const half=tableHeight*frontScale/2;
-            captureFront.y=snapshot.byComputer
-              ? Math.min(laneTop+Math.max(half,(available-spread)/2),laneBottom-spread-half)
-              : laneTop+half;
-          }
+          // Use a single raised size; no available-space or count-dependent
+          // shrink. Allow the shadows and elevated stack to overlap the felt.
+          const size=collectionSize(ghosts);
+          const spreadStep=1.5;
           const stack=ghosts.map(entry=>({
-            entry, scale:frontScale*tableWidth/Math.max(entry.rect.width,1)
+            entry, scale:size.width/Math.max(entry.rect.width,1)
           }));
           const frontPositions=stack.map((_,i)=>({
             x:captureFront.x+Math.min(i,7)*1.2,

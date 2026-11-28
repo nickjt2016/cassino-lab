@@ -1,6 +1,6 @@
 /* Network-first offline cache for the small, fixed app asset set. */
 const CACHE_PREFIX = 'cassino-lab-';
-const CACHE = CACHE_PREFIX + 'v0.10.18-opaque-ribbon-pale-hand';
+const CACHE = CACHE_PREFIX + 'v0.10.19-raised-collection';
 const ASSETS = ['./index.html', './manifest.webmanifest', './icon.svg', './version.json'];
 const scope = new URL(self.registration.scope);
 const home = new URL('./index.html', scope).href;

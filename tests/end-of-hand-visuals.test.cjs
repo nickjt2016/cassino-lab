@@ -24,7 +24,7 @@ test('Hand result leaders use bold type only; ties stay regular',()=>{
 });
 
 for(const kind of ['capture','trail'])for(const byComputer of [false,true]){
-  test('Final '+kind+' ('+(byComputer?'computer':'human')+') collects residue without changing its scale or jumping',async()=>{
+  test('Final '+kind+' ('+(byComputer?'computer':'human')+') lifts residue and shrinks only toward the score box without jumping',async()=>{
     const begin=app.indexOf('  function playMotion('),end=app.indexOf('  const escapeHtml',begin);
     const rect=(left,top,width=50,height=70)=>({left,top,width,height,right:left+width,bottom:top+height});
     const fieldRect=rect(0,100,300,400), badgeRect=rect(125,byComputer?20:540,50,20);
@@ -45,7 +45,7 @@ for(const kind of ['capture','trail'])for(const byComputer of [false,true]){
       return null;
     }};
     const motion=new Function('app','document','motionAllowed','motionGeneration','sound','setTimeout','renderBack','game',
-      app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},cb=>cb(),()=>'<span class="card-back"></span>',{table:[]});
+      app.slice(begin,end)+';return playMotion;')(host,document,()=>true,0,()=>{},cb=>cb(),()=>'<span class="card-back"></span>',{table:[],players:[{},{}]});
     await new Promise(resolve=>motion({kind,byComputer,played,tableRects:[target,...remaining].map(p=>p.rect),
       groups:kind==='capture'?[{rect:target.rect,cards:[target]}]:[],remainingCards:remaining,
       finalHand:true,residueOwner:byComputer?1:0},resolve));
@@ -56,11 +56,17 @@ for(const kind of ['capture','trail'])for(const byComputer of [false,true]){
       const gather=flights.at(-2),collect=flights.at(-1);
       assert.ok(gather&&collect);
       if(flights.length===3)assert.equal(gather[0].transform,flights[0].at(-1).transform);
-      assert.equal(collect[0].transform,gather[2].transform);
+      assert.equal(collect[0].transform,gather.at(-1).transform);
       const scale=t=>t.slice(t.lastIndexOf('scale('));
-      assert.equal(scale(gather[0].transform),scale(gather[2].transform));
-      assert.equal(scale(collect[0].transform),scale(collect[2].transform));
-      assert.equal(collect[2].opacity,.06);
+      const lift=gather[1];
+      assert.notEqual(scale(lift.transform),scale(gather[0].transform));
+      assert.match(n.style.boxShadow,/rgba\(0,0,0,.36\)/);
+      assert.equal(scale(gather[1].transform),scale(gather.at(-1).transform));
+      const dimensions=frame=>frame.transform.match(/scale\(([^,]+), ([^)]+)\)/).slice(1).map(Number);
+      const raised=dimensions(collect[0]),collected=dimensions(collect.at(-1));
+      assert.ok(Math.abs(collected[0]-raised[0]*.32)<1e-8);
+      assert.ok(Math.abs(collected[1]-raised[1]*.32)<1e-8);
+      assert.equal(collect.at(-1).opacity,.06);
     }
   });
 }

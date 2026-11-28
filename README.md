@@ -319,3 +319,7 @@ A highlighted collapsed build fans each real card vertically from its original s
 ### 0.10.18 — opaque ribbon closing and softer inactive cards
 
 Closing build ribbons remain fully opaque while their geometry reverses. Disabled preview buttons no longer inherit the global disabled-button opacity. Inactive hands use reduced saturation and contrast with a mild brightness lift, preserving red/black suit distinction and the existing 160 ms turn fade.
+
+### 0.10.19 — raised capture and residue collection
+
+Collection cards lift slightly with a soft shadow, converge at a uniform 106% of the normal responsive card width, and retain that size throughout gathering and the brief hold. Only the final flight toward the score box smoothly shrinks and fades the stack. The gathered stack may overlap the table instead of shrinking to available green space. The same lift and shadow apply to the end-of-hand residue. Capture timing and game rules are unchanged.
