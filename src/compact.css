@@ -1397,7 +1397,9 @@ html,body,#app{background:#005d0b;color:#fff}
 }
 .shell .human-hand .hand-item{position:absolute;left:4px;top:4px;width:var(--hand-card-width);height:auto;min-width:0;max-width:none;padding:0;margin:0;border:0}
 .shell .human-hand .playing-card:not(.mini){display:block;width:100%!important;max-width:100%;min-width:0;height:auto!important;aspect-ratio:.715;margin:0}
-.shell .human-hand.hand-inactive{filter:grayscale(.7) brightness(.86)}
+/* Wash out the hand rather than darkening it or removing suit color.
+   Lower contrast lifts black ink; moderate saturation retains red ink. */
+.shell .human-hand.hand-inactive{filter:saturate(.72) contrast(.72) brightness(1.12)}
 .shell .human-hand .playing-card:not(.mini) .card-corner:not(.bottom),.hand-deal-flight .playing-card:not(.mini) .card-corner:not(.bottom){
   grid-template-columns:calc(25cqw * var(--hand-index-scale,1)) calc(19cqw * var(--hand-index-scale,1));
   column-gap:calc(1cqw * var(--hand-index-scale,1))
@@ -1590,3 +1592,7 @@ html,body,#app{background:#005d0b;color:#fff}
   .shell .build-inspection .build-value-owner{font-size:calc(7px*var(--ribbon-card-scale,1))}
   .shell .build-inspection .build-value-number{font-size:calc(clamp(15px,3vw,20px)*var(--ribbon-card-scale,1))}
 }
+
+/* Keep the physical ribbon opaque even while its closing button is
+   disabled for hit testing. Only the geometry reverses, not opacity. */
+.shell .build-inspection:disabled,.shell .build-inspection.is-closing{opacity:1;cursor:default}

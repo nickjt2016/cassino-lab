@@ -252,3 +252,12 @@ test('Collapsed source and destination animations use a visible summary or previ
  assert.match(app,/if\(summary\)slotRects\.fill\(summary\)/);
  assert.match(app,/action === 'table' \|\| action === 'inspect-build'/);
 });
+
+test('Closing and disabled ribbon previews retain full opacity, including halfway through reversal',()=>{
+ assert.match(app,/preview\.classList\.add\('is-closing'\)[\s\S]*?preview\.disabled=true/);
+ assert.match(css,/\.shell \.build-inspection:disabled,\.shell \.build-inspection\.is-closing\{opacity:1;/);
+ const h=ribbonHarness(true,11);
+ h.inspect();h.select(false);h.inspect();
+ assert.ok(h.rail.children[0].disabled);
+ assert.ok(h.motions.every(m=>m.frames.every(f=>!('opacity' in f))));
+});

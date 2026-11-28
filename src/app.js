@@ -12,7 +12,7 @@
   let buildOptions = [], lastMotion = '', hintIterator = null;
   let renderedActionMarkup = '';
   let screen = 'home';
-  const APP_VERSION = '0.10.17';
+  const APP_VERSION = '0.10.18';
   let availableUpdate = null;
   let updateReloading = false;
   let checkingForUpdate = false;

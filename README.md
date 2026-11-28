@@ -315,3 +315,7 @@ Full-size builds remain expanded while they fit in the measured build lane. If t
 ### 0.10.17 — animated full-stack ribbon previews
 
 A highlighted collapsed build fans each real card vertically from its original summary in a staggered, reversible ribbon spread. The preview floats over the full game felt with individual card shadows and no scroll viewport or clipping. Preserve ordinary card dimensions and spacing whenever possible; compress the exposed spacing, and only if necessary the preview card width, to display exceptionally long stacks in full. Multiple highlighted previews prefer non-overlapping horizontal positions. Ordinary build packing and the actual game rules are unchanged.
+
+### 0.10.18 — opaque ribbon closing and softer inactive cards
+
+Closing build ribbons remain fully opaque while their geometry reverses. Disabled preview buttons no longer inherit the global disabled-button opacity. Inactive hands use reduced saturation and contrast with a mild brightness lift, preserving red/black suit distinction and the existing 160 ms turn fade.
