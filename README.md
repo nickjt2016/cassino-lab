@@ -327,3 +327,7 @@ Collection cards lift slightly with a soft shadow, converge at a uniform 106% of
 ### 0.10.20 — shoulder-safe adaptive build spacing
 
 Measure each build's actual rank-and-suit shoulder index and compute its tightest safe vertical spread, leaving a pixel of clearance. Try the standard spread, then tighten enough to keep builds in the primary column; borrow a second column and only collapse builds when necessary. Recalculate the freed height and positions on every layout, restoring natural spacing when space becomes available. The physical cards and game rules are unchanged.
+
+### 0.10.21 — reference-style gray inactive hand
+
+Inactive hand artwork uses an 80% brightness filter, matching the supplied reference's #CCCCCC card paper while preserving black and red suit contrast. The existing 160 ms turn fade, full-color deal and interaction timing remain unchanged.

@@ -76,7 +76,7 @@ test('No visible turn banner; deal stays full-color and legal actions stay on on
  const render=section('  function render(mode','  const SETTING_INFO');
  assert.doesNotMatch(render,/class="turn-banner"/);
  assert.match(render,/active\|\|showingDeal\?'':' hand-inactive'/);assert.match(render,/const showingDeal=dealing\|\|!!pendingDeal/);assert.match(render,/if\(!showingDeal\)animateHandTone\(previousHandTone\)/);assert.match(render,/actionButton\('capture','Capture'\)/);
- assert.match(css,/\.human-hand\.hand-inactive\{filter:saturate\(\.72\) contrast\(\.72\) brightness\(1\.12\)\}/);
+ assert.match(css,/\.human-hand\.hand-inactive\{filter:brightness\(\.8\)\}/);
  assert.match(css,/\.move-action-slot \.contextual-controls \.main-actions\{[^}]*flex-wrap:nowrap/);
  assert.match(css,/\.move-action-slot \.main-actions \.action-btn\{[^}]*min-width:max-content;[^}]*white-space:nowrap/);
  const slot={innerHTML:''},felt={querySelector:s=>s==='.move-action-slot'?slot:s==='.human-area'||s==='.game-stats'?{}:null,querySelectorAll:()=>[]};
@@ -165,15 +165,15 @@ test('Hand tone fades both ways across DOM replacement and continues from an int
  )(host,()=>allowed,{getComputedStyle:lane=>({filter:lane.filter})});
  assert.equal(api.read(),null);
  current=makeLane('none');let before=api.read();
- current=makeLane('saturate(0.72) contrast(0.72) brightness(1.12)');api.fade(before);
- assert.deepEqual(animations[0],{frames:[{filter:'none'},{filter:'saturate(0.72) contrast(0.72) brightness(1.12)'}],options:{duration:160,easing:'ease-out'}});
+ current=makeLane('brightness(0.8)');api.fade(before);
+ assert.deepEqual(animations[0],{frames:[{filter:'none'},{filter:'brightness(0.8)'}],options:{duration:160,easing:'ease-out'}});
  before=api.read();current=makeLane('none');api.fade(before);
- assert.deepEqual(animations[1].frames,[{filter:'saturate(0.72) contrast(0.72) brightness(1.12)'},{filter:'none'}]);
- current=makeLane('saturate(0.86) contrast(0.86) brightness(1.06)');before=api.read();
+ assert.deepEqual(animations[1].frames,[{filter:'brightness(0.8)'},{filter:'none'}]);
+ current=makeLane('brightness(0.9)');before=api.read();
  current=makeLane('none');api.fade(before);
- assert.equal(animations[2].frames[0].filter,'saturate(0.86) contrast(0.86) brightness(1.06)');
+ assert.equal(animations[2].frames[0].filter,'brightness(0.9)');
  api.fade('none');assert.equal(animations.length,3);
- allowed=false;assert.equal(api.read(),null);api.fade('saturate(0.72) contrast(0.72) brightness(1.12)');assert.equal(animations.length,3);
+ allowed=false;assert.equal(api.read(),null);api.fade('brightness(0.8)');assert.equal(animations.length,3);
  const render=section('  function render(mode','  const SETTING_INFO');
  assert.ok(render.indexOf('const previousHandTone=readHandTone()')<render.lastIndexOf('app.innerHTML ='));
  assert.ok(render.indexOf('animateHandTone(previousHandTone)')>render.lastIndexOf('app.innerHTML ='));
@@ -198,16 +198,12 @@ test('Only three-or-more-player free-for-all opponents are grey; head-to-head is
  assert.match(css,/\.shell:not\(\.multiplayer-game\) \.game-toolbar \.opponent-tag\{[^}]*border-top:3px solid var\(--seat-color,#ac4847\)/);
 });
 
-test('Inactive hand is pale rather than dark, retaining distinctive red and black ink',()=>{
- const match=css.match(/\.human-hand\.hand-inactive\{filter:saturate\(([\d.]+)\) contrast\(([\d.]+)\) brightness\(([\d.]+)\)\}/);
+test('Inactive hand matches reference gray paper and preserves dark black and saturated red ink',()=>{
+ const match=css.match(/\.human-hand\.hand-inactive\{filter:brightness\(([\d.]+)\)\}/);
  assert.ok(match);
- const [s,c,b]=match.slice(1).map(Number);
- const tone=rgb=>{
-  const luminance=rgb[0]*.213+rgb[1]*.715+rgb[2]*.072;
-  return rgb.map(v=>Math.max(0,Math.min(1,((luminance+(v-luminance)*s-.5)*c+.5)*b)));
- };
- const black=tone([0,0,0]),red=tone([.78,0,0]),paper=tone([1,1,1]);
- assert.ok(black[0]>.1&&black[0]<.24,'black ink lifts to a softer gray');
- assert.ok(red[0]-red[1]>.32,'red retains its hue');
- assert.ok(paper.every(v=>v>.94),'card stock remains pale');
+ const brightness=Number(match[1]);
+ const tone=rgb=>rgb.map(v=>Math.round(v*brightness));
+ assert.deepEqual(tone([255,255,255]),[204,204,204]);
+ assert.deepEqual(tone([0,0,0]),[0,0,0]);
+ assert.deepEqual(tone([214,0,0]),[171,0,0]);
 });
